@@ -1,0 +1,24 @@
+/* src/styles/global.css */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@700;900&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: #E8E0D0;
+  font-family: 'Noto Sans SC', -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: #1A1208;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button { font-family: inherit; }
+textarea, input { font-family: inherit; }
+textarea:focus, input:focus { outline: 2px solid #C8922A; outline-offset: -1px; }
+
+/* Scrollbar hide */
+::-webkit-scrollbar { display: none; }
+* { -ms-overflow-style: none; scrollbar-width: none; }
