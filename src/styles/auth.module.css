@@ -217,3 +217,42 @@
   color: #7A5A18;
   font-weight: 500;
 }
+
+/* Guest mode additions */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 12px;
+  color: #C0B090;
+  font-size: 12px;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 0.5px;
+  background: #E0D5C0;
+}
+
+.btnGuest {
+  width: 100%;
+  padding: 12px;
+  background: #FAF7F2;
+  color: #5A4A30;
+  border: 1.5px dashed #C8922A;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  margin-bottom: 6px;
+  transition: background 0.2s;
+}
+.btnGuest:hover { background: #FDF3E0; }
+
+.guestHint {
+  text-align: center;
+  font-size: 11px;
+  color: #9A8A70;
+  margin: 0 0 4px;
+}
