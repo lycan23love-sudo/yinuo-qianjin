@@ -12,7 +12,7 @@ const PERIODS = [
   { key:'year',   icon:'🏔️', label:'年度誓言', days:365, locked:true, need:'完成3个解锁' },
 ]
 const STAKES = [200, 500, 1000, 2000]
-const CHARITIES = ['🐾 动物保护联盟','📚 山区图书馆','❤️ 儿童健康基金','🌳 绿色公益','🏥 贫困助学基金']
+const CHARITIES = ['🐾 动物保护联盟','📚 山区图书馆','❤️ 儿童健康基金','🌳 绿色公益','🏥 贫困h助学基金']
 const VERIFY = [
   { key:'screenshot', icon:'📷', label:'截图证明', desc:'上传截图，见证者可质疑' },
   { key:'text',       icon:'✍️', label:'文字日记', desc:'每天写今天的记录' },
@@ -62,7 +62,7 @@ export default function NewPledge() {
   }
 
   return (
-    <div style={{ paddingBottom: 32 }}>
+    <div style={{ paddingBottom: 100 }}>
       <div style={S.topbar}>
         <button style={S.back} onClick={() => nav(-1)}>←</button>
         <div style={S.title}>立下誓言</div>
