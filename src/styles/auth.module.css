@@ -1,0 +1,219 @@
+/* src/styles/auth.module.css */
+.wrap {
+  min-height: 100vh;
+  background: #FAF7F2;
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 32px;
+}
+
+.header {
+  background: linear-gradient(160deg, #1A0E04, #2E1A08, #1A1208);
+  padding: 48px 24px 40px;
+  text-align: center;
+}
+
+.logo {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 56px;
+  font-weight: 900;
+  color: #E8B84A;
+  line-height: 1;
+  margin-bottom: 8px;
+  text-shadow: 0 0 40px rgba(200,146,42,.4);
+}
+
+.brand {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 26px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 6px;
+  margin-bottom: 4px;
+}
+
+.tagline {
+  font-size: 11px;
+  color: rgba(255,255,255,.3);
+  letter-spacing: 3px;
+}
+
+.card {
+  margin: -16px 16px 0;
+  background: #fff;
+  border-radius: 20px;
+  padding: 24px 20px;
+  box-shadow: 0 4px 32px rgba(26,18,8,.12);
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 0.5px solid #E0D5C0;
+  margin-bottom: 20px;
+}
+
+.tab, .tabOn {
+  flex: 1;
+  padding: 10px 0;
+  font-size: 14px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  color: #9A8A70;
+}
+
+.tabOn {
+  color: #C8922A;
+  border-bottom-color: #C8922A;
+}
+
+.label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9A8A70;
+  letter-spacing: .5px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.inp {
+  width: 100%;
+  padding: 11px 12px;
+  border: 0.5px solid #E0D5C0;
+  border-radius: 10px;
+  background: #FAF7F2;
+  font-size: 14px;
+  font-family: 'Noto Sans SC', sans-serif;
+  margin-bottom: 14px;
+  color: #1A1208;
+}
+
+.phoneRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.phoneRow .inp { margin-bottom: 0; flex: 1; }
+
+.areaCode {
+  padding: 11px 12px;
+  border: 0.5px solid #E0D5C0;
+  border-radius: 10px;
+  background: #FAF7F2;
+  font-size: 14px;
+  color: #5A4A30;
+  white-space: nowrap;
+}
+
+.pwdBar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.pwdSeg {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  transition: background .3s;
+}
+
+.btnGold {
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(135deg, #C8922A, #E8B84A);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  margin-bottom: 10px;
+  letter-spacing: .5px;
+}
+
+.btnGold:disabled { opacity: .6; cursor: not-allowed; }
+
+.btnGhost {
+  width: 100%;
+  padding: 12px;
+  background: #FAF7F2;
+  color: #5A4A30;
+  border: 0.5px solid #E0D5C0;
+  border-radius: 12px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.link {
+  background: none;
+  border: none;
+  color: #C8922A;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.steps {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.stepDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #E0D5C0;
+  flex-shrink: 0;
+}
+
+.stepDot.active { background: #C8922A; }
+.stepDot.done { background: #3B7A4A; }
+
+.stepLine {
+  flex: 1;
+  height: 2px;
+  background: #E0D5C0;
+  margin: 0 4px;
+}
+
+.stepLine.done { background: #3B7A4A; }
+
+.stepHint {
+  font-size: 12px;
+  color: #9A8A70;
+  margin-bottom: 16px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.chip, .chipOn {
+  padding: 7px 13px;
+  border-radius: 20px;
+  border: 1px solid #E0D5C0;
+  background: #FAF7F2;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  color: #5A4A30;
+}
+
+.chipOn {
+  border-color: #C8922A;
+  background: #FDF3E0;
+  color: #7A5A18;
+  font-weight: 500;
+}
