@@ -12,9 +12,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 // ============================================================
 // AUTH
 // ============================================================
-export async function signUp({ phone, password, nickname }) {
+export async function signUp({ email, password, nickname }) {
   const { data, error } = await supabase.auth.signUp({
-    phone,
+    email,
     password,
     options: { data: { nickname } }
   })
@@ -22,11 +22,18 @@ export async function signUp({ phone, password, nickname }) {
   return data
 }
 
-export async function signIn({ phone, password }) {
+export async function signIn({ email, password }) {
   const { data, error } = await supabase.auth.signInWithPassword({
-    phone,
+    email,
     password
   })
+  if (error) throw error
+  return data
+}
+
+// 游客模式：匿名登录（Supabase 需开启 Anonymous sign-ins）
+export async function signInAnonymous() {
+  const { data, error } = await supabase.auth.signInAnonymously()
   if (error) throw error
   return data
 }
