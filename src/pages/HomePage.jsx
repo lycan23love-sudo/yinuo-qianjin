@@ -70,16 +70,16 @@ export default function HomePage() {
                                                                         </div>
                                                                   <div style={{ display: 'flex', gap: 6 }}>
                                                                                 <div style={S.statBox}>
-                                                                                                <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>{totalCheckinDays}</div>
+                                                                                                <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>{totalCheckinDays}
                                                                                                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', marginTop: 1 }}>打卡天</div>
                                                                                 </div>
                                                                                 <div style={S.statBox}>
-                                                                                                <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>{profile?.completed_count ?? 0}</div>
+                                                                                                <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>{profile?.completed_count ?? 0}
                                                                                                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', marginTop: 1 }}>已完成</div>
                                                                                 </div>
                                                                                 <div style={{ ...S.statBox, background: 'rgba(59,122,74,.3)', cursor: 'pointer' }} onClick={() => nav('/profile')}>
-                                                                                                <div style={{ fontSize: 15 }}>{title.emoji}</div>
-                                                                                                <div style={{ fontSize: 10, color: 'rgba(128,224,160,.7)', marginTop: 1 }}>{title.title}</div>
+                                                                                                <div style={{ fontSize: 15 }}>{title.emoji}
+                                                                                                <div style={{ fontSize: 10, color: 'rgba(128,224,160,.7)', marginTop: 1 }}>{title.title}
                                                                                 </div>
                                                                   </div>
                                                       </div>
@@ -103,7 +103,7 @@ export default function HomePage() {
                                             const daysLeft = Math.max(0, differenceInDays(new Date(topPledge.end_date), new Date()))
                                                             return (
                                                                               <div style={S.heroCard} onClick={() => nav(`/pledge/${topPledge.id}`)}>
-                                                                                            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'Noto Serif SC,serif', color: '#fff', marginBottom: 4 }}>{topPledge.title}</div>
+                                                                                            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'Noto Serif SC,serif', color: '#fff', marginBottom: 4 }}>{topPledge.title}
                                                                                             <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', marginBottom: 14 }}>
                                                                                                   {format(new Date(topPledge.start_date), 'M月d日')}—{format(new Date(topPledge.end_date), 'M月d日')} · 押注{topPledge.stake_coins}金币
                                                                                                   </div>
@@ -135,7 +135,7 @@ export default function HomePage() {
                                                                                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                                                                                             <div style={S.activeDot} />
                                                                                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                                                                                              <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'Noto Serif SC,serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</div>
+                                                                                                                              <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'Noto Serif SC,serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}
                                                                                                                               <div style={{ fontSize: 11, color: '#9A8A70', marginTop: 2 }}>进行中 · 第{done}天 · {daysLeft}天后结束</div>
                                                                                                                   </div>
                                                                                                             <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -152,7 +152,7 @@ export default function HomePage() {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                                       <div style={S.cooldownDot} />
                                                       <div style={{ flex: 1 }}>
-                                                                      <div style={{ fontSize: 13, color: '#9A8A70', fontFamily: 'Noto Serif SC,serif' }}>{p.title}</div>
+                                                                      <div style={{ fontSize: 13, color: '#9A8A70', fontFamily: 'Noto Serif SC,serif' }}>{p.title}
                                                                       <div style={{ fontSize: 11, color: '#C84040', marginTop: 2 }}>冷静期 · {cooldownDays(p)}天后可重立</div>
                                                       </div>
                                                       <div style={S.tagRed}>{cooldownDays(p)}天</div>
@@ -189,12 +189,12 @@ export default function HomePage() {
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                                                                   <div style={p.status === 'done' ? S.doneDot : S.failDot} />
                                                                                   <div style={{ flex: 1 }}>
-                                                                                                      <div style={{ fontSize: 13, fontWeight: 500 }}>{p.title}</div>
+                                                                                                      <div style={{ fontSize: 13, fontWeight: 500 }}>{p.title}
                                                                                                       <div style={{ fontSize: 11, color: '#9A8A70', marginTop: 2 }}>
                                                                                                             {format(new Date(p.start_date), 'yyyy年M月')} ·{p.status === 'done' ? ` 已完成 · +${p.stake_coins}金币` : ` 未完成 · 捐出${p.stake_coins}金币`}
                                                                                                             </div>
                                                                                         </div>
-                                                                                  <div style={p.status === 'done' ? S.tagGreen : S.tagRed}>{p.status === 'done' ? '达成' : '捐出'}</div>
+                                                                                  <div style={p.status === 'done' ? S.tagGreen : S.tagRed}>{p.status === 'done' ? '达成' : '捐出'}
                                                                 </div>
                                                 </div>
                                               ))}
@@ -229,4 +229,4 @@ const S = {
         smBtn: { background: 'none', border: '1px solid #C8922A', color: '#C8922A', borderRadius: 20, padding: '5px 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'Noto Sans SC,sans-serif' },
         btnCheckin: { background: '#C8922A', color: '#fff', border: 'none', borderRadius: 20, padding: '8px 18px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'Noto Sans SC,sans-serif' },
         btnChecked: { background: 'rgba(59,122,74,.3)', color: 'rgba(128,220,160,.9)', border: 'none', borderRadius: 20, padding: '8px 18px', fontSize: 12, fontWeight: 600, fontFamily: 'Noto Sans SC,sans-serif' },
-}</div>
+}
