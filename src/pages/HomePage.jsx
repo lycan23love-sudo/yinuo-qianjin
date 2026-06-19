@@ -53,14 +53,14 @@ export default function HomePage() {
                         <div style={S.topbar}>
                                       <div style={S.logo}>一诺<em style={{ color: '#C8922A', fontStyle: 'normal' }}>千金</em>em></div>
                                       <button style={S.iconBtn} onClick={() => nav('/profile')}>
-                                                      <span style={{ fontSize: 22 }}>👤</span>span>
+                                                      <span style={{ fontSize: 22 }}>👤</span>
                                       </button>button>
                         </div>
                         <div style={{ padding: '0 16px' }}>
                                       <div style={S.headerCard}>
                                                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                                                            <span style={{ fontSize: 20, color: '#E8B84A' }}>🪙</span>span>
+                                                                                            <span style={{ fontSize: 20, color: '#E8B84A' }}>🪙</span>
                                                                                             <div>
                                                                                                             <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', lineHeight: 1 }}>公益金币</div>
                                                                                                             <div style={{ fontFamily: 'Noto Serif SC,serif', fontSize: 20, fontWeight: 700, color: '#E8B84A', lineHeight: 1.3 }}>
@@ -85,7 +85,7 @@ export default function HomePage() {
                                                       </div>
                                                 <div style={{ borderTop: '0.5px solid rgba(255,255,255,.1)', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => nav('/new')}>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', whiteSpace: 'nowrap' }}>立誓额度</span>span>
+                                                                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', whiteSpace: 'nowrap' }}>立誓额度</span>
                                                                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                                                                 {Array.from({ length: limit }).map((_, i) => (
                                     <span key={i} style={{ display: 'inline-block', width: 30, height: 9, borderRadius: 5, background: i < active.length ? '#C8922A' : i < used ? 'rgba(200,64,64,.7)' : 'rgba(255,255,255,.15)' }} />
@@ -93,8 +93,8 @@ export default function HomePage() {
                                                                           </div>
                                                             </div>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', whiteSpace: 'nowrap' }}>进行中 {active.length} / 上限 {limit}</span>span>
-                                                                  {used < limit && <span style={{ fontSize: 11, color: '#E8B84A', fontWeight: 500, whiteSpace: 'nowrap' }}>完成解锁 +1 →</span>span>}
+                                                                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', whiteSpace: 'nowrap' }}>进行中 {active.length} / 上限 {limit}</span>
+                                                                  {used < limit && <span style={{ fontSize: 11, color: '#E8B84A', fontWeight: 500, whiteSpace: 'nowrap' }}>完成解锁 +1 →</span>}
                                                             </div>
                                                 </div>
                                       </div>
@@ -142,7 +142,7 @@ export default function HomePage() {
                                                                                                                               <div style={{ fontSize: 13, fontWeight: 700, color: '#C8922A' }}>{pct}%</div>
                                                                                                                               <div style={{ fontSize: 10, color: '#B8A88A' }}>完成度</div>
                                                                                                                   </div>
-                                                                                                            <span style={{ fontSize: 16, color: '#C0B090' }}>›</span>span>
+                                                                                                            <span style={{ fontSize: 16, color: '#C0B090' }}>›</span>
                                                                                                   </div>
                                                                               </div>
                                                                             )
@@ -167,7 +167,7 @@ export default function HomePage() {
                                                                       <div style={{ fontSize: 13, color: '#B8A88A' }}>空余槽位</div>
                                                                       <div style={{ fontSize: 11, color: '#C0B090' }}>点击立下新誓言</div>
                                                       </div>
-                                                      <span style={{ marginLeft: 'auto', fontSize: 20, color: '#C0B090' }}>+</span>span>
+                                                      <span style={{ marginLeft: 'auto', fontSize: 20, color: '#C0B090' }}>+</span>
                                         </div>
                             </div>
                           ))}
@@ -181,8 +181,8 @@ export default function HomePage() {
                               {history.length > 0 && (
                             <div style={{ marginTop: 16 }}>
                                         <button onClick={() => setShowHistory(h => !h)} style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', fontFamily: 'Noto Sans SC,sans-serif' }}>
-                                                      <span style={{ fontSize: 12, color: '#9A8A70' }}>历史承诺（{history.length}条）</span>span>
-                                                      <span style={{ fontSize: 16, color: '#B8A88A', transition: 'transform .2s', transform: showHistory ? 'rotate(180deg)' : 'none' }}>⌄</span>span>
+                                                      <span style={{ fontSize: 12, color: '#9A8A70' }}>历史承诺（{history.length}条）</span>
+                                                      <span style={{ fontSize: 16, color: '#B8A88A', transition: 'transform .2s', transform: showHistory ? 'rotate(180deg)' : 'none' }}>⌄</span>
                                         </button>button>
                                   {showHistory && history.map(p => (
                                                 <div key={p.id} style={S.listItem} onClick={() => nav(`/pledge/${p.id}`)}>
