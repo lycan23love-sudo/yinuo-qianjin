@@ -51,77 +51,77 @@ export default function HomePage() {
   return (
         <div style={{ paddingBottom:90, background:'#FAF7F2', minHeight:'100vh' }}>
                 <div style={S.topbar}>
-                          <div style={S.logo}>一诺<em style={{ color:'#C8922A', fontStyle:'normal' }}>千金</em>em></div>div>
-                          <button style={S.iconBtn} onClick={() => nav('/profile')}><span style={{ fontSize:22 }}>👤</span>span></button>button>
-                </div>div>
+                          <div style={S.logo}>一诺<em style={{ color:'#C8922A', fontStyle:'normal' }}>千金</em>em></div>
+                          <button style={S.iconBtn} onClick={() => nav('/profile')}><span style={{ fontSize:22 }}>👤</span></button>
+                </div>
                 <div style={{ padding:'0 16px' }}>
                           <div style={S.headerCard}>
                                       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
                                                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                                                                    <span style={{ fontSize:20 }}>🪙</span>span>
+                                                                    <span style={{ fontSize:20 }}>🪙</span>
                                                                     <div>
-                                                                                    <div style={{ fontSize:11, color:'rgba(255,255,255,.45)', lineHeight:1 }}>公益金币</div>div>
+                                                                                    <div style={{ fontSize:11, color:'rgba(255,255,255,.45)', lineHeight:1 }}>公益金币</div>
                                                                                     <div style={{ fontFamily:'Noto Serif SC,serif', fontSize:20, fontWeight:700, color:'#E8B84A', lineHeight:1.3 }}>
                                                                                       {(profile?.merit_coins ?? 0).toLocaleString()}
-                                                                                      </div>div>
-                                                                    </div>div>
-                                                    </div>div>
+                                                                                      </div>
+                                                                    </div>
+                                                    </div>
                                                   <div style={{ display:'flex', gap:6 }}>
-                                                                <div style={S.statBox}><div style={{ fontSize:15, fontWeight:600, color:'#fff' }}>{totalCheckinDays}</div>div><div style={{ fontSize:10, color:'rgba(255,255,255,.4)', marginTop:1 }}>打卡天</div>div></div>div>
-                                                                <div style={S.statBox}><div style={{ fontSize:15, fontWeight:600, color:'#fff' }}>{profile?.completed_count ?? 0}</div>div><div style={{ fontSize:10, color:'rgba(255,255,255,.4)', marginTop:1 }}>已完成</div>div></div>div>
+                                                                <div style={S.statBox}><div style={{ fontSize:15, fontWeight:600, color:'#fff' }}>{totalCheckinDays}<div style={{ fontSize:10, color:'rgba(255,255,255,.4)', marginTop:1 }}>打卡天</div></div>
+                                                                <div style={S.statBox}><div style={{ fontSize:15, fontWeight:600, color:'#fff' }}>{profile?.completed_count ?? 0}<div style={{ fontSize:10, color:'rgba(255,255,255,.4)', marginTop:1 }}>已完成</div></div>
                                                                 <div style={{ ...S.statBox, background:'rgba(59,122,74,.3)', cursor:'pointer' }} onClick={() => nav('/profile')}>
-                                                                                <div style={{ fontSize:15 }}>{title.emoji}</div>div>
-                                                                                <div style={{ fontSize:10, color:'rgba(128,224,160,.7)', marginTop:1 }}>{title.title}</div>div>
-                                                                </div>div>
-                                                  </div>div>
-                                      </div>div>
+                                                                                <div style={{ fontSize:15 }}>{title.emoji}
+                                                                                <div style={{ fontSize:10, color:'rgba(128,224,160,.7)', marginTop:1 }}>{title.title}
+                                                                </div>
+                                                  </div>
+                                      </div>
                                     <div style={{ borderTop:'0.5px solid rgba(255,255,255,.1)', paddingTop:10, display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer' }} onClick={() => nav('/new')}>
                                                 <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                                                              <span style={{ fontSize:11, color:'rgba(255,255,255,.4)', whiteSpace:'nowrap' }}>立誓额度</span>span>
+                                                              <span style={{ fontSize:11, color:'rgba(255,255,255,.4)', whiteSpace:'nowrap' }}>立誓额度</span>
                                                               <div style={{ display:'flex', alignItems:'center', gap:4 }}>
                                                                 {Array.from({ length: limit }).map((_, i) => (
                             <span key={i} style={{ display:'inline-block', width:30, height:9, borderRadius:5, background: i < active.length ? '#C8922A' : i < used ? 'rgba(200,64,64,.7)' : 'rgba(255,255,255,.15)' }} />
                           ))}
-                                                              </div>div>
-                                                </div>div>
+                                                              </div>
+                                                </div>
                                                 <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-                                                              <span style={{ fontSize:11, color:'rgba(255,255,255,.4)', whiteSpace:'nowrap' }}>进行中 {active.length} / 上限 {limit}</span>span>
-                                                  {used < limit && <span style={{ fontSize:11, color:'#E8B84A', fontWeight:500, whiteSpace:'nowrap' }}>完成解锁 +1 →</span>span>}
-                                                </div>div>
-                                    </div>div>
-                          </div>div>
+                                                              <span style={{ fontSize:11, color:'rgba(255,255,255,.4)', whiteSpace:'nowrap' }}>进行中 {active.length} / 上限 {limit}</span>
+                                                  {used < limit && <span style={{ fontSize:11, color:'#E8B84A', fontWeight:500, whiteSpace:'nowrap' }}>完成解锁 +1 →</span>}
+                                                </div>
+                                    </div>
+                          </div>
                 
                   {topPledge && (() => {
                     const { pct, done } = progress(topPledge)
                                 const daysLeft = Math.max(0, differenceInDays(new Date(topPledge.end_date), new Date()))
                                             return (
                                                           <div style={S.heroCard} onClick={() => nav(`/pledge/${topPledge.id}`)}>
-                                                                        <div style={{ fontSize:16, fontWeight:700, fontFamily:'Noto Serif SC,serif', color:'#fff', marginBottom:4 }}>{topPledge.title}</div>div>
+                                                                        <div style={{ fontSize:16, fontWeight:700, fontFamily:'Noto Serif SC,serif', color:'#fff', marginBottom:4 }}>{topPledge.title}
                                                                         <div style={{ fontSize:11, color:'rgba(255,255,255,.5)', marginBottom:14 }}>
                                                                           {format(new Date(topPledge.start_date),'M月d日')}—{format(new Date(topPledge.end_date),'M月d日')} · 押注{topPledge.stake_coins}金币
-                                                                        </div>div>
-                                                                        <div style={S.pbarWrap}><div style={{ ...S.pbarFill, width:`${pct}%` }} /></div>div>
+                                                                        </div>
+                                                                        <div style={S.pbarWrap}><div style={{ ...S.pbarFill, width:`${pct}%` }} /></div>
                                                                         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-                                                                                        <div style={{ fontFamily:'Noto Serif SC,serif', fontSize:15, fontWeight:700, color:'#E8B84A' }}>第 {done} / {topPledge.total_days} 天</div>div>
-                                                                                        <div style={{ fontSize:11, color:'rgba(255,255,255,.45)' }}>还剩 {daysLeft} 天</div>div>
-                                                                        </div>div>
+                                                                                        <div style={{ fontFamily:'Noto Serif SC,serif', fontSize:15, fontWeight:700, color:'#E8B84A' }}>第 {done} / {topPledge.total_days} 天</div>
+                                                                                        <div style={{ fontSize:11, color:'rgba(255,255,255,.45)' }}>还剩 {daysLeft} 天</div>
+                                                                        </div>
                                                                         <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end' }}>
                                                                                         <button style={topChecked ? S.btnChecked : S.btnCheckin}
                                                                                                             onClick={e => { e.stopPropagation(); !topChecked && nav(`/pledge/${topPledge.id}/checkin`) }}>
                                                                                           {topChecked ? '✓ 今日已打卡' : '今日打卡'}
-                                                                                          </button>button>
-                                                                        </div>div>
-                                                          </div>div>
+                                                                                          </button>
+                                                                        </div>
+                                                          </div>
                                                         )
                   })()}
                 
-                  {loading && <div style={S.empty}>加载中…</div>div>}
+                  {loading && <div style={S.empty}>加载中…</div>}
                 
                   {(active.length > 0 || cooldown.length > 0) && (
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10, marginTop: topPledge ? 6 : 0 }}>
-                                <div style={S.secLabel}>我的承诺</div>div>
-                      {used < limit && <button style={S.smBtn} onClick={() => nav('/new')}>+ 新立誓</button>button>}
-                    </div>div>
+                                <div style={S.secLabel}>我的承诺</div>
+                      {used < limit && <button style={S.smBtn} onClick={() => nav('/new')}>+ 新立誓</button>}
+                    </div>
                         )}
                 
                   {active.map(p => {
@@ -132,16 +132,16 @@ export default function HomePage() {
                                                                         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                                                                                         <div style={S.activeDot} />
                                                                                         <div style={{ flex:1, minWidth:0 }}>
-                                                                                                          <div style={{ fontSize:13, fontWeight:600, fontFamily:'Noto Serif SC,serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.title}</div>div>
-                                                                                                          <div style={{ fontSize:11, color:'#9A8A70', marginTop:2 }}>进行中 · 第{done}天 · {daysLeft}天后结束</div>div>
-                                                                                          </div>div>
+                                                                                                          <div style={{ fontSize:13, fontWeight:600, fontFamily:'Noto Serif SC,serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.title}
+                                                                                                          <div style={{ fontSize:11, color:'#9A8A70', marginTop:2 }}>进行中 · 第{done}天 · {daysLeft}天后结束</div>
+                                                                                          </div>
                                                                                         <div style={{ textAlign:'right', flexShrink:0 }}>
-                                                                                                          <div style={{ fontSize:13, fontWeight:700, color:'#C8922A' }}>{pct}%</div>div>
-                                                                                                          <div style={{ fontSize:10, color:'#B8A88A' }}>完成度</div>div>
-                                                                                          </div>div>
-                                                                                        <span style={{ fontSize:16, color:'#C0B090' }}>›</span>span>
-                                                                        </div>div>
-                                                          </div>div>
+                                                                                                          <div style={{ fontSize:13, fontWeight:700, color:'#C8922A' }}>{pct}%</div>
+                                                                                                          <div style={{ fontSize:10, color:'#B8A88A' }}>完成度</div>
+                                                                                          </div>
+                                                                                        <span style={{ fontSize:16, color:'#C0B090' }}>›</span>
+                                                                        </div>
+                                                          </div>
                                                         )
                   })}
                 
@@ -150,58 +150,58 @@ export default function HomePage() {
                                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                                               <div style={S.cooldownDot} />
                                               <div style={{ flex:1 }}>
-                                                              <div style={{ fontSize:13, color:'#9A8A70', fontFamily:'Noto Serif SC,serif' }}>{p.title}</div>div>
-                                                              <div style={{ fontSize:11, color:'#C84040', marginTop:2 }}>冷静期 · {cooldownDays(p)}天后可重立</div>div>
-                                              </div>div>
-                                              <div style={S.tagRed}>{cooldownDays(p)}天</div>div>
-                                </div>div>
-                    </div>div>
+                                                              <div style={{ fontSize:13, color:'#9A8A70', fontFamily:'Noto Serif SC,serif' }}>{p.title}
+                                                              <div style={{ fontSize:11, color:'#C84040', marginTop:2 }}>冷静期 · {cooldownDays(p)}天后可重立</div>
+                                              </div>
+                                              <div style={S.tagRed}>{cooldownDays(p)}天</div>
+                                </div>
+                    </div>
                   ))}
                 
                   {!loading && Array.from({ length: Math.max(0, limit - used) }).map((_, i) => (
                     <div key={`empty-${i}`} style={{ ...S.listItem, cursor:'pointer', borderStyle:'dashed' }} onClick={() => nav('/new')}>
                                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                                               <div style={S.emptyDot} />
-                                              <div><div style={{ fontSize:13, color:'#B8A88A' }}>空余槽位</div>div><div style={{ fontSize:11, color:'#C0B090' }}>点击立下新誓言</div>div></div>div>
-                                              <span style={{ marginLeft:'auto', fontSize:20, color:'#C0B090' }}>+</span>span>
-                                </div>div>
-                    </div>div>
+                                              <div><div style={{ fontSize:13, color:'#B8A88A' }}>空余槽位</div><div style={{ fontSize:11, color:'#C0B090' }}>点击立下新誓言</div></div>
+                                              <span style={{ marginLeft:'auto', fontSize:20, color:'#C0B090' }}>+</span>
+                                </div>
+                    </div>
                   ))}
                 
                   {!loading && pledges.length === 0 && (
                     <div style={S.emptyCard} onClick={() => nav('/new')}>
-                                <div style={{ fontSize:40, marginBottom:10 }}>🎯</div>div>
-                                <div style={{ fontSize:15, fontWeight:700, marginBottom:4, fontFamily:'Noto Serif SC,serif' }}>立下你的第一个誓言</div>div>
-                                <div style={{ fontSize:12, color:'#9A8A70' }}>押注金币，邀人见证，坚持到底</div>div>
-                    </div>div>
+                                <div style={{ fontSize:40, marginBottom:10 }}>🎯</div>
+                                <div style={{ fontSize:15, fontWeight:700, marginBottom:4, fontFamily:'Noto Serif SC,serif' }}>立下你的第一个誓言</div>
+                                <div style={{ fontSize:12, color:'#9A8A70' }}>押注金币，邀人见证，坚持到底</div>
+                    </div>
                         )}
                 
                   {history.length > 0 && (
                     <div style={{ marginTop:16 }}>
                                 <button onClick={() => setShowHistory(h => !h)}
                                                 style={{ width:'100%', background:'none', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', fontFamily:'Noto Sans SC,sans-serif' }}>
-                                              <span style={{ fontSize:12, color:'#9A8A70' }}>历史承诺（{history.length}条）</span>span>
-                                              <span style={{ fontSize:16, color:'#B8A88A', transition:'transform .2s', transform: showHistory ? 'rotate(180deg)' : 'none' }}>⌄</span>span>
-                                </button>button>
+                                              <span style={{ fontSize:12, color:'#9A8A70' }}>历史承诺（{history.length}条）</span>
+                                              <span style={{ fontSize:16, color:'#B8A88A', transition:'transform .2s', transform: showHistory ? 'rotate(180deg)' : 'none' }}>⌄</span>
+                                </button>
                       {showHistory && history.map(p => (
                                     <div key={p.id} style={S.listItem} onClick={() => nav(`/pledge/${p.id}`)}>
                                                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                                                                       <div style={p.status==='done' ? S.doneDot : S.failDot} />
                                                                       <div style={{ flex:1 }}>
-                                                                                          <div style={{ fontSize:13, fontWeight:500 }}>{p.title}</div>div>
+                                                                                          <div style={{ fontSize:13, fontWeight:500 }}>{p.title}
                                                                                           <div style={{ fontSize:11, color:'#9A8A70', marginTop:2 }}>
                                                                                             {format(new Date(p.start_date),'yyyy年M月')} · {p.status==='done' ? `已完成 · +${p.stake_coins}金币` : `未完成 · 捐出${p.stake_coins}金币`}
-                                                                                            </div>div>
-                                                                      </div>div>
-                                                                      <div style={p.status==='done' ? S.tagGreen : S.tagRed}>{p.status==='done' ? '达成' : '捐出'}</div>div>
-                                                    </div>div>
-                                    </div>div>
+                                                                                            </div>
+                                                                      </div>
+                                                                      <div style={p.status==='done' ? S.tagGreen : S.tagRed}>{p.status==='done' ? '达成' : '捐出'}
+                                                    </div>
+                                    </div>
                                   ))}
-                    </div>div>
+                    </div>
                         )}
                         <div style={{ height:16 }} />
-                </div>div>
-        </div>div>
+                </div>
+        </div>
       )
 }
 
@@ -228,4 +228,4 @@ const S = {
     smBtn: { background:'none', border:'1px solid #C8922A', color:'#C8922A', borderRadius:20, padding:'5px 12px', fontSize:12, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
     btnCheckin: { background:'#C8922A', color:'#fff', border:'none', borderRadius:20, padding:'8px 18px', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
     btnChecked: { background:'rgba(59,122,74,.3)', color:'rgba(128,220,160,.9)', border:'none', borderRadius:20, padding:'8px 18px', fontSize:12, fontWeight:600, fontFamily:'Noto Sans SC,sans-serif' },
-}</div>
+}
