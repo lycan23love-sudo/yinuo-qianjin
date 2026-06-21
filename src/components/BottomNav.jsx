@@ -55,6 +55,6 @@ export default function BottomNav() {
                                 </button>
                               )
           })}
-          </nav>nav>
+          </nav>
         )
 }
