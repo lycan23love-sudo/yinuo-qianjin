@@ -70,19 +70,18 @@ export default function HomePage() {
                                                                         </div>
                                                                   <div style={{ display: 'flex', gap: 6 }}>
                                                                                 <div style={S.statBox}>
-                                                                                                <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>{totalCheckinDays}
+                                                                                                <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>{totalCheckinDays}</div>
                                                                                                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', marginTop: 1 }}>打卡天</div>
                                                                                 </div>
                                                                                 <div style={S.statBox}>
-                                                                                                <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>{profile?.completed_count ?? 0}
+                                                                                                <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>{profile?.completed_count ?? 0}</div>
                                                                                                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', marginTop: 1 }}>已完成</div>
                                                                                 </div>
                                                                                 <div style={{ ...S.statBox, background: 'rgba(59,122,74,.3)', cursor: 'pointer' }} onClick={() => nav('/profile')}>
-                                                                                                <div style={{ fontSize: 15 }}>{title.emoji}
-                                                                                                <div style={{ fontSize: 10, color: 'rgba(128,224,160,.7)', marginTop: 1 }}>{title.title}
+                                                                                                <div style={{ fontSize: 15 }}>{title.emoji}</div>
+                                                                                                <div style={{ fontSize: 10, color: 'rgba(128,224,160,.7)', marginTop: 1 }}>{title.title}</div>
                                                                                 </div>
                                                                   </div>
-                                                      </div>
                                                 <div style={{ borderTop: '0.5px solid rgba(255,255,255,.1)', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => nav('/new')}>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                                                           <span style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', whiteSpace: 'nowrap' }}>立誓额度</span>
@@ -164,7 +163,7 @@ export default function HomePage() {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                                       <div style={S.emptyDot} />
                                                       <div>
-                                                                      <div style={{ fontSize: 13, color: '#B8A88A' }}>空余槽位</div>
+                                                                      <div style={{ fontSize: 13, color: '#B8A88A' }}>空余�潥位</div>
                                                                       <div style={{ fontSize: 11, color: '#C0B090' }}>点击立下新誓言</div>
                                                       </div>
                                                       <span style={{ marginLeft: 'auto', fontSize: 20, color: '#C0B090' }}>+</span>
@@ -204,10 +203,7 @@ export default function HomePage() {
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-          )
+         )
 }
 
 const S = {
