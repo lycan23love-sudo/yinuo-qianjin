@@ -299,4 +299,4 @@ function CalendarView({ checkins, pledge }) {
                                                                   diaryCard: { background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:14, padding:14, marginBottom:10 },
                                                                   dayBadge: { background:'#FDF3E0', color:'#7A5A18', fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:20 },
                                                                   btnGold: { background:'linear-gradient(135deg,#C8922A,#E8B84A)', color:'#fff', border:'none', borderRadius:12, fontWeight:700, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
-                                                                  }</div>
+                                                                  }
