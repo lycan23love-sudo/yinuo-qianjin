@@ -10,8 +10,9 @@ import PledgeDetail from './pages/PledgeDetail'
 import CheckinPage from './pages/CheckinPage'
 import CheckinSuccess from './pages/CheckinSuccess'
 import ProfilePage from './pages/ProfilePage'
-import SquarePage  from './pages/SquarePage'
-import BottomNav   from './components/BottomNav'
+import SquarePage       from './pages/SquarePage'
+import CompanionsPage  from './pages/CompanionsPage'
+import BottomNav       from './components/BottomNav'
 import Toast       from './components/Toast'
 
 // Global auth context
@@ -73,7 +74,7 @@ function App() {
     )
   }
 
-  const PAGED_ROUTES = ['/', '/square', '/profile', '/new']
+  const PAGED_ROUTES = ['/', '/square', '/companions', '/profile', '/new']
   const showNav = session && PAGED_ROUTES.includes(location.pathname)
 
   return (
@@ -89,8 +90,9 @@ function App() {
 
           {/* 需要登录 */}
           <Route path="/"       element={session ? <HomePage /> : <Navigate to="/auth" />} />
-          <Route path="/square" element={session ? <SquarePage /> : <Navigate to="/auth" />} />
-          <Route path="/new"    element={session ? <NewPledge /> : <Navigate to="/auth" />} />
+          <Route path="/square"      element={session ? <SquarePage /> : <Navigate to="/auth" />} />
+          <Route path="/companions"  element={session ? <CompanionsPage /> : <Navigate to="/auth" />} />
+          <Route path="/new"         element={session ? <NewPledge /> : <Navigate to="/auth" />} />
           <Route path="/pledge/:id"         element={session ? <PledgeDetail /> : <Navigate to="/auth" />} />
           <Route path="/pledge/:id/checkin" element={session ? <CheckinPage /> : <Navigate to="/auth" />} />
           <Route path="/checkin-success"    element={session ? <CheckinSuccess /> : <Navigate to="/auth" />} />
