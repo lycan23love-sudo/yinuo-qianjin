@@ -29,7 +29,7 @@ function WeekHeatmap({ checkinDates, startDate }) {
     }
     return (
           <div style={{ marginBottom:14 }}>
-                  <div style={{ fontSize:11, color:'rgba(255,255,255,.5)', marginBottom:7, fontWeight:500 }}>本周打卡</div>div>
+                  <div style={{ fontSize:11, color:'rgba(255,255,255,.5)', marginBottom:7, fontWeight:500 }}>本周打卡</div>
                   <div style={{ display:'flex', gap:5, alignItems:'flex-end' }}>
                     {days.map((d, i) => {
                       const str = format(d, 'yyyy-MM-dd')
@@ -48,17 +48,17 @@ function WeekHeatmap({ checkinDates, startDate }) {
                                     }} />
                                                     <div style={{ fontSize:10, color: isToday ? '#C8922A' : 'rgba(255,255,255,.4)', fontWeight: isToday ? 700 : 400 }}>
                                                       {isToday ? '今' : labels[i]}
-                                                    </div>div>
-                                    </div>div>
+                                                    </div>
+                                    </div>
                                   )
           })}
                             <div style={{ flex:1.5, marginLeft:4, borderLeft:'1px solid rgba(255,255,255,.1)', paddingLeft:8 }}>
                                         <div style={{ fontSize:11, color:'#3BBA5A', fontWeight:600 }}>
                                           {streak > 0 ? `连续${streak}天 🔥` : '今日待打卡'}
-                                        </div>div>
-                            </div>div>
-                  </div>div>
-          </div>div>
+                                        </div>
+                            </div>
+                  </div>
+          </div>
         )
 }
 
@@ -73,7 +73,7 @@ function MilestoneAxis({ totalDays, checkinCount }) {
     const all = [{ day:0, label:'出发' }, ...milestones]
     return (
           <div>
-                <div style={{ fontSize:11, color:'rgba(255,255,255,.5)', marginBottom:8, fontWeight:500 }}>里程碑</div>div>
+                <div style={{ fontSize:11, color:'rgba(255,255,255,.5)', marginBottom:8, fontWeight:500 }}>里程碑</div>
                 <div style={{ position:'relative', padding:'0 4px' }}>
                         <div style={{ height:4, background:'rgba(255,255,255,.1)', borderRadius:2, margin:'14px 0 22px' }} />
                         <div style={{ height:4, background:'linear-gradient(90deg,#C8922A,#E8B84A)', borderRadius:2,
@@ -90,13 +90,13 @@ function MilestoneAxis({ totalDays, checkinCount }) {
                                                                                     <div style={{ fontSize:9, color: (done||isNext) ? '#E8B84A' : 'rgba(255,255,255,.3)',
                                                                                                                    fontWeight: (done||isNext) ? 600 : 400, whiteSpace:'nowrap' }}>
                                                                                       {m.label}{done && m.day > 0 ? ' ✓' : ''}
-                                                                                      </div>div>
-                                                                    </div>div>
+                                                                                      </div>
+                                                                    </div>
                                                                   )
                           })}
-                        </div>div>
-                </div>div>
-          </div>div>
+                        </div>
+                </div>
+          </div>
         )
 }
 
@@ -111,12 +111,12 @@ function CalendarView({ checkins, pledge }) {
                                   <div>
                                         <div style={{ fontSize:12, color:'#9A8A70', marginBottom:10 }}>
                                           {format(start,'M月')} · 共{pledge.total_days}天，已完成{pledge.checkin_count}天
-                                        </div>div>
+                                        </div>
                                         <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:3, marginBottom:6 }}>
                                           {['一','二','三','四','五','六','日'].map(d => (
-                                              <div key={d} style={{ textAlign:'center', fontSize:10, color:'#9A8A70', padding:'3px 0' }}>{d}</div>div>
+                                              <div key={d} style={{ textAlign:'center', fontSize:10, color:'#9A8A70', padding:'3px 0' }}>{d}</div>
                                             ))}
-                                        </div>div>
+                                        </div>
                                         <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:3 }}>
                                           {Array.from({ length: startDow }).map((_,i) => <div key={`p${i}`} />)}
                                           {allDays.map(day => {
@@ -131,11 +131,11 @@ function CalendarView({ checkins, pledge }) {
                                                                                                                                      border: isToday ? '1.5px solid #C8922A' : 'none',
                                                                                                                                      fontWeight: done || isToday ? 600 : 400 }}>
                                                                                                   {format(day, 'd')}
-                                                                                                  </div>div>
+                                                                                                  </div>
                                                                                               )
                                           })}
-                                        </div>div>
-                                  </div>div>
+                                        </div>
+                                  </div>
                                 )
                               }
                               
@@ -159,8 +159,8 @@ function CalendarView({ checkins, pledge }) {
                                 
                                   if (!pledge) return (
                                         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
-                                              <div style={{ color:'#9A8A70' }}>加载中…</div>div>
-                                        </div>div>
+                                              <div style={{ color:'#9A8A70' }}>加载中…</div>
+                                        </div>
                                       )
                                     
                                       const pct = Math.min(100, Math.round((pledge.checkin_count / pledge.total_days) * 100))
@@ -172,41 +172,41 @@ function CalendarView({ checkins, pledge }) {
                                                           return (
                                                                 <div style={{ paddingBottom:100, background:'#FAF7F2', minHeight:'100vh' }}>
                                                                       <div style={S.topbar}>
-                                                                              <button style={S.back} onClick={() => nav(-1)}>←</button>button>
-                                                                              <div style={S.topbarTitle}>{pledge.title}</div>div>
+                                                                              <button style={S.back} onClick={() => nav(-1)}>←</button>
+                                                                              <div style={S.topbarTitle}>{pledge.title}</div>
                                                                               <div style={{ width:32 }} />
-                                                                      </div>div>
+                                                                      </div>
                                                                       <div style={S.tabRow}>
                                                                         {['log','calendar','witness'].map((t,i) => (
                                                                             <button key={t} style={{ ...S.tab, ...(tab===t?S.tabOn:{}) }} onClick={() => setTab(t)}>
                                                                               {['打卡日记','日历','见证者'][i]}
-                                                                            </button>button>
+                                                                            </button>
                                                                           ))}
-                                                                      </div>div>
+                                                                      </div>
                                                                       <div style={{ padding:'0 16px' }}>
                                                                               <div style={S.hero}>
                                                                                         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:14 }}>
                                                                                                     <div style={{ flex:1 }}>
-                                                                                                                  <div style={{ fontSize:16, fontWeight:700, fontFamily:'Noto Serif SC,serif', color:'#fff', marginBottom:4 }}>{pledge.title}</div>div>
+                                                                                                                  <div style={{ fontSize:16, fontWeight:700, fontFamily:'Noto Serif SC,serif', color:'#fff', marginBottom:4 }}>{pledge.title}</div>
                                                                                                                   <div style={{ fontSize:11, color:'rgba(255,255,255,.5)' }}>
                                                                                                                     {PERIOD_LABEL[pledge.period]}度誓言 · 押注{pledge.stake_coins}金币 · 失败捐给{pledge.charity_target}
-                                                                                                                    </div>div>
-                                                                                                      </div>div>
-                                                                                                    <div style={S.statusBadge}>{pledge.status==='active'?'进行中':pledge.status==='done'?'已完成':'已结束'}</div>div>
-                                                                                        </div>div>
+                                                                                                                    </div>
+                                                                                                      </div>
+                                                                                                    <div style={S.statusBadge}>{pledge.status==='active'?'进行中':pledge.status==='done'?'已完成':'已结束'}</div>
+                                                                                        </div>
                                                                                         <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:16 }}>
                                                                                                     <div style={{ position:'relative', flexShrink:0 }}>
                                                                                                                   <svg width={80} height={80} viewBox="0 0 80 80">
                                                                                                                                   <circle cx={40} cy={40} r={34} fill="none" stroke="rgba(255,255,255,.12)" strokeWidth={7}/>
                                                                                                                                   <circle cx={40} cy={40} r={34} fill="none" stroke="#E8B84A" strokeWidth={7}
                                                                                                                                                       strokeDasharray={ringDash(pct)} strokeLinecap="round" transform="rotate(-90 40 40)"/>
-                                                                                                                    </svg>svg>
+                                                                                                                    </svg>
                                                                                                                   <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
                                                                                                                                   <div style={{ fontFamily:'Noto Serif SC,serif', fontSize:20, fontWeight:900, color:'#E8B84A', lineHeight:1 }}>
-                                                                                                                                    {pct}<span style={{ fontSize:11 }}>%</span>span>
-                                                                                                                                    </div>div>
-                                                                                                                    </div>div>
-                                                                                                      </div>div>
+                                                                                                                                    {pct}<span style={{ fontSize:11 }}>%</span>
+                                                                                                                                    </div>
+                                                                                                                    </div>
+                                                                                                      </div>
                                                                                                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, flex:1 }}>
                                                                                                       {[
                                                                   { val:pledge.checkin_count, lbl:'已打卡天' },
@@ -215,72 +215,72 @@ function CalendarView({ checkins, pledge }) {
                                                                   { val:pledge.current_streak, lbl:'当前连续' },
                                                                                 ].map(({ val, lbl, color }) => (
                                                                                                   <div key={lbl} style={S.statBox}>
-                                                                                                                    <div style={{ fontFamily:'Noto Serif SC,serif', fontSize:16, fontWeight:700, color:color||'#E8B84A', lineHeight:1.3 }}>{val}</div>div>
-                                                                                                                    <div style={{ fontSize:10, color:'rgba(255,255,255,.4)', marginTop:3 }}>{lbl}</div>div>
-                                                                                                    </div>div>
+                                                                                                                    <div style={{ fontFamily:'Noto Serif SC,serif', fontSize:16, fontWeight:700, color:color||'#E8B84A', lineHeight:1.3 }}>{val}</div>
+                                                                                                                    <div style={{ fontSize:10, color:'rgba(255,255,255,.4)', marginTop:3 }}>{lbl}</div>
+                                                                                                    </div>
                                                                                                 ))}
-                                                                                                      </div>div>
-                                                                                        </div>div>
+                                                                                                      </div>
+                                                                                        </div>
                                                                                         <WeekHeatmap checkinDates={checkinDates} startDate={pledge.start_date} />
                                                                                         <MilestoneAxis totalDays={pledge.total_days} checkinCount={pledge.checkin_count} />
-                                                                              </div>div>
+                                                                              </div>
                                                                         {tab === 'log' && (
                                                                             <div>
                                                                               {canCheckin && (
                                                                                             <div style={S.todayPrompt}>
                                                                                                             <div>
-                                                                                                                              <div style={{ fontSize:13, fontWeight:700, color:'#7A5A18' }}>📸 今日还未打卡</div>div>
-                                                                                                                              <div style={{ fontSize:11, color:'rgba(122,90,24,.7)', marginTop:2 }}>见证者都在等你今天的进展</div>div>
-                                                                                                              </div>div>
-                                                                                                            <button style={S.smBtnGold} onClick={() => nav(`/pledge/${id}/checkin`)}>去打卡</button>button>
-                                                                                              </div>div>
+                                                                                                                              <div style={{ fontSize:13, fontWeight:700, color:'#7A5A18' }}>📸 今日还未打卡</div>
+                                                                                                                              <div style={{ fontSize:11, color:'rgba(122,90,24,.7)', marginTop:2 }}>见证者都在等你今天的进展</div>
+                                                                                                              </div>
+                                                                                                            <button style={S.smBtnGold} onClick={() => nav(`/pledge/${id}/checkin`)}>去打卡</button>
+                                                                                              </div>
                                                                                         )}
                                                                               {checkedToday && pledge.status==='active' && (
                                                                                             <div style={{ ...S.todayPrompt, background:'#E8F5EC', border:'1.5px solid #3B7A4A' }}>
-                                                                                                            <div style={{ fontSize:13, fontWeight:700, color:'#1A4A28' }}>✓ 今日已打卡！继续保持</div>div>
-                                                                                              </div>div>
+                                                                                                            <div style={{ fontSize:13, fontWeight:700, color:'#1A4A28' }}>✓ 今日已打卡！继续保持</div>
+                                                                                              </div>
                                                                                         )}
                                                                               {checkins.length === 0
-                                                                                              ? <div style={{ textAlign:'center', color:'#9A8A70', padding:40 }}>还没有打卡记录，快去打卡吧！</div>div>
+                                                                                              ? <div style={{ textAlign:'center', color:'#9A8A70', padding:40 }}>还没有打卡记录，快去打卡吧！</div>
                                                                                           : [...checkins].reverse().map(c => (
                                                                                             <div key={c.id} style={S.diaryCard}>
                                                                                                               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
-                                                                                                                                  <div style={S.dayBadge}>第{c.day_num}天</div>div>
-                                                                                                                                  <div style={{ fontSize:11, color:'#9A8A70' }}>{format(parseISO(c.checkin_date),'M月d日')}{c.is_makeup?' · 补卡':''}</div>div>
-                                                                                                                {c.coins_earned > 0 && <div style={{ marginLeft:'auto', fontSize:11, color:'#C8922A', fontWeight:600 }}>+{c.coins_earned}金币</div>div>}
-                                                                                                                </div>div>
+                                                                                                                                  <div style={S.dayBadge}>第{c.day_num}天</div>
+                                                                                                                                  <div style={{ fontSize:11, color:'#9A8A70' }}>{format(parseISO(c.checkin_date),'M月d日')}{c.is_makeup?' · 补卡':''}</div>
+                                                                                                                {c.coins_earned > 0 && <div style={{ marginLeft:'auto', fontSize:11, color:'#C8922A', fontWeight:600 }}>+{c.coins_earned}金币</div>}
+                                                                                                                </div>
                                                                                               {c.image_url && <img src={c.image_url} alt="打卡" style={{ width:'100%', borderRadius:10, maxHeight:180, objectFit:'cover', marginBottom:8 }} />}
-                                                                                              {c.note && <div style={{ fontSize:13, lineHeight:1.7, color:'#3A2A18', borderLeft:'3px solid #C8922A', paddingLeft:10, fontStyle:'italic', marginBottom:8 }}>「{c.note}」</div>div>}
-                                                                                              {c.mood && <div style={{ fontSize:11, color:'#9A8A70' }}>{MOOD_LABEL[c.mood]||c.mood}</div>div>}
+                                                                                              {c.note && <div style={{ fontSize:13, lineHeight:1.7, color:'#3A2A18', borderLeft:'3px solid #C8922A', paddingLeft:10, fontStyle:'italic', marginBottom:8 }}>「{c.note}」</div>}
+                                                                                              {c.mood && <div style={{ fontSize:11, color:'#9A8A70' }}>{MOOD_LABEL[c.mood]||c.mood}</div>}
                                                                                                               <div style={{ display:'flex', justifyContent:'flex-end', marginTop:8 }}>
                                                                                                                                   <div style={{ fontSize:10, fontWeight:600, color:c.status==='valid'?'#3B7A4A':'#9A8A70', background:c.status==='valid'?'#E8F5EC':'#F5F0E8', padding:'2px 8px', borderRadius:20 }}>
                                                                                                                                     {c.status==='valid'?'✓ 已验证':c.status==='pending'?'⏳ 审核中':c.status}
-                                                                                                                                    </div>div>
-                                                                                                                </div>div>
-                                                                                              </div>div>
+                                                                                                                                    </div>
+                                                                                                                </div>
+                                                                                              </div>
                                                                                           ))
                                                                               }
-                                                                            </div>div>
+                                                                            </div>
                                                                               )}
                                                                         {tab === 'calendar' && <CalendarView checkins={checkins} pledge={pledge} />}
                                                                         {tab === 'witness' && (
                                                                             <div style={{ textAlign:'center', padding:'40px 20px' }}>
-                                                                                        <div style={{ fontSize:40, marginBottom:12 }}>👁</div>div>
-                                                                                        <div style={{ fontSize:14, fontWeight:600, color:'#1A1208', marginBottom:6 }}>见证者系统即将上线</div>div>
-                                                                                        <div style={{ fontSize:12, color:'#9A8A70', lineHeight:1.6 }}>邀请朋友押注见证你的誓言</div>div>
-                                                                            </div>div>
+                                                                                        <div style={{ fontSize:40, marginBottom:12 }}>👁</div>
+                                                                                        <div style={{ fontSize:14, fontWeight:600, color:'#1A1208', marginBottom:6 }}>见证者系统即将上线</div>
+                                                                                        <div style={{ fontSize:12, color:'#9A8A70', lineHeight:1.6 }}>邀请朋友押注见证你的誓言</div>
+                                                                            </div>
                                                                               )}
                                                                               <div style={{ height:20 }} />
-                                                                      </div>div>
+                                                                      </div>
                                                                   {pledge.status==='active' && isOwner && (
                                                                           <div style={{ position:'fixed', bottom:80, left:'50%', transform:'translateX(-50%)', width:'calc(100% - 32px)', maxWidth:358 }}>
                                                                                     <button style={{ ...S.btnGold, width:'100%', padding:14, fontSize:15, opacity:checkedToday?.6:1 }}
                                                                                       disabled={checkedToday} onClick={() => !checkedToday && nav(`/pledge/${id}/checkin`)}>
                                                                             {checkedToday ? '✓ 今日已打卡' : '今日打卡'}
-                                                                          </div>button>
+                                                                          </button>
                                                                   </div>
                                                                         )}
-                                                                  </>div>
+                                                                  </div>
                                                                   )
                                                                   }
                                                                 
