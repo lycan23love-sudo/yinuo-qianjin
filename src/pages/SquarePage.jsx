@@ -51,7 +51,7 @@ export default function SquarePage() {
   return (
         <div style={{ background:'#FAF7F2', minHeight:'100vh', paddingBottom:90 }}>
                 <div style={S.topbar}>
-                          <div style={S.logo}>广<em style={{ color:'#C8922A', fontStyle:'normal' }}>场</em>em></div>
+                          <div style={S.logo}>广<em style={{ color:'#C8922A', fontStyle:'normal' }}>场</em></div>
                 </div>
                 <div style={S.tabRow}>
                   {[['live','进行中'],['done','✨ 成功经验'],['topic','📌 誓言主题']].map(([k,lbl]) => (
@@ -85,8 +85,8 @@ export default function SquarePage() {
                                                                   </div>
                                                                   <div style={{ marginBottom:6 }}>
                                                                                       <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#9A8A70', marginBottom:4 }}>
-                                                                                                            <span>第{p.checkin_count}天 / 共{p.total_days}天</span>span>
-                                                                                                          <span style={{ color:'#C8922A', fontWeight:600 }}>{pct}%</span>span>
+                                                                                                            <span>第{p.checkin_count}天 / 共{p.total_days}天</span>
+                                                                                                          <span style={{ color:'#C8922A', fontWeight:600 }}>{pct}%</span>
                                                                                         </div>
                                                                                     <div style={{ height:5, background:'#F0EAE0', borderRadius:3, overflow:'hidden' }}>
                                                                                                         <div style={{ width:`${pct}%`, height:'100%', background:'linear-gradient(90deg,#C8922A,#E8B84A)', borderRadius:3 }}/>
@@ -163,10 +163,10 @@ export default function SquarePage() {
                                                               <div style={{ flex:1 }}>
                                                                                 <div style={{ fontSize:15, fontWeight:700, fontFamily:'Noto Serif SC,serif' }}>{t.name}</div>
                                                                                 <div style={{ fontSize:11, color:'#9A8A70', marginTop:2 }}>
-                                                                                  {t.total}人立过此誓 · {t.done}人完成 · <b style={{ color:'#3B7A4A' }}>完成率{t.rate}%</b>b>
+                                                                                  {t.total}人立过此誓 · {t.done}人完成 · <b style={{ color:'#3B7A4A' }}>完成率{t.rate}%</b>
                                                                                 </div>
                                                               </div>
-                                                              <span style={{ fontSize:18, color:'#C0B090' }}>›</span>span>
+                                                              <span style={{ fontSize:18, color:'#C0B090' }}>›</span>
                                               </div>
                                               <div style={{ display:'flex', gap:8 }}>
                                                 {[{ val:t.active, lbl:'进行中', color:'#C8922A' },{ val:t.done, lbl:'已完成', color:'#3B7A4A' },{ val:`${t.rate}%`, lbl:'完成率', color:'#3A6A9A' }].map(({ val, lbl, color }) => (
