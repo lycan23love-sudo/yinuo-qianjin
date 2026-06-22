@@ -59,27 +59,27 @@ export default function HomePage() {
                         <div style={{ padding: '0 16px' }}>
                                       <div style={S.headerCard}>
                                                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                                                            <span style={{ fontSize: 20, color: '#E8B84A' }}>🪙</span>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                                            <span style={{ fontSize: 18, color: '#E8B84A' }}>🪙</span>
                                                                                             <div>
-                                                                                                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', lineHeight: 1 }}>公益金币</div>
-                                                                                                            <div style={{ fontFamily: 'Noto Serif SC,serif', fontSize: 20, fontWeight: 700, color: '#E8B84A', lineHeight: 1.3 }}>
+                                                                                                            <div style={{ fontSize: 10, color: 'rgba(255,255,255,.45)', lineHeight: 1 }}>公益金币</div>
+                                                                                                            <div style={{ fontFamily: 'Noto Serif SC,serif', fontSize: 18, fontWeight: 700, color: '#E8B84A', lineHeight: 1.3 }}>
                                                                                                                   {(profile?.merit_coins ?? 0).toLocaleString()}
                                                                                                                   </div>
                                                                                                   </div>
                                                                         </div>
-                                                                  <div style={{ display: 'flex', gap: 6 }}>
+                                                                  <div style={{ display: 'flex', gap: 5 }}>
                                                                                 <div style={S.statBox}>
-                                                                                                <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>{totalCheckinDays}</div>
-                                                                                                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', marginTop: 1 }}>打卡天</div>
+                                                                                                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{totalCheckinDays}</div>
+                                                                                                <div style={{ fontSize: 9, color: 'rgba(255,255,255,.4)', marginTop: 1, whiteSpace: 'nowrap' }}>打卡天</div>
                                                                                 </div>
                                                                                 <div style={S.statBox}>
-                                                                                                <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>{profile?.completed_count ?? 0}</div>
-                                                                                                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', marginTop: 1 }}>已完成</div>
+                                                                                                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{profile?.completed_count ?? 0}</div>
+                                                                                                <div style={{ fontSize: 9, color: 'rgba(255,255,255,.4)', marginTop: 1, whiteSpace: 'nowrap' }}>已完成</div>
                                                                                 </div>
                                                                                 <div style={{ ...S.statBox, background: 'rgba(59,122,74,.3)', cursor: 'pointer' }} onClick={() => nav('/profile')}>
-                                                                                                <div style={{ fontSize: 15 }}>{title.emoji}</div>
-                                                                                                <div style={{ fontSize: 10, color: 'rgba(128,224,160,.7)', marginTop: 1 }}>{title.title}</div>
+                                                                                                <div style={{ fontSize: 13 }}>{title.emoji}</div>
+                                                                                                <div style={{ fontSize: 9, color: 'rgba(128,224,160,.7)', marginTop: 1, whiteSpace: 'nowrap' }}>{title.title}</div>
                                                                                 </div>
                                                                   </div>
                                                 <div style={{ borderTop: '0.5px solid rgba(255,255,255,.1)', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => nav('/new')}>
