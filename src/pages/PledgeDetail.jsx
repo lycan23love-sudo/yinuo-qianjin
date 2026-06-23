@@ -235,13 +235,13 @@ function CalendarView({ checkins, pledge }) {
                                                                                                             <button style={S.smBtnGold} onClick={() => nav(`/pledge/${id}/checkin`)}>去打卡</button>
                                                                                               </div>
                                                                                         )}
-                                                                              {checkedToday && pledge.status==='active' && (
+                                                                              {checkedToday && pledge.status==='active' && isOwner && (
                                                                                             <div style={{ ...S.todayPrompt, background:'#E8F5EC', border:'1.5px solid #3B7A4A' }}>
                                                                                                             <div style={{ fontSize:13, fontWeight:700, color:'#1A4A28' }}>✓ 今日已打卡！继续保持</div>
                                                                                               </div>
                                                                                         )}
                                                                               {checkins.length === 0
-                                                                                              ? <div style={{ textAlign:'center', color:'#9A8A70', padding:40 }}>还没有打卡记录，快去打卡吧！</div>
+                                                                                              ? <div style={{ textAlign:'center', color:'#9A8A70', padding:40 }}>{isOwner ? '还没有打卡记录，快去打卡吧！' : '暂无打卡记录'}</div>
                                                                                           : [...checkins].reverse().map(c => (
                                                                                             <div key={c.id} style={S.diaryCard}>
                                                                                                               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
