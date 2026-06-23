@@ -167,7 +167,18 @@ export async function getPublicPledges({ category, sort = 'created_at' } = {}) {
   return data
 }
 
-// 完成/失败誓言
+// 广场：已完成的公开誓言（用于成功经验 tab）
+export async function getCompletedPledges({ limit = 20 } = {}) {
+  const { data, error } = await supabase
+    .from('pledges')
+    .select(`*, profiles:user_id(nickname, avatar_url)`)
+    .eq('is_public', true)
+    .eq('status', 'done')
+    .order('updated_at', { ascending: false })
+    .limit(limit)
+  throwIf(error)
+  return data
+}
 export async function completePledge(pledgeId, userId, success) {
   const pledge = await getPledgeDetail(pledgeId)
   const status = success ? 'done' : 'fail'
