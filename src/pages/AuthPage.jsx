@@ -32,9 +32,17 @@ export default function AuthPage() {
       showToast('登录成功！', 'success')
     } catch (err) {
       const msg = err.message || ''
-      if (msg.includes('Invalid login')) showToast('邮箱或密码错误', 'error')
-      else if (msg.includes('Email not confirmed')) showToast('请先验证邮箱', 'error')
-      else showToast(msg || '登录失败', 'error')
+      if (msg.includes('Invalid login') || msg.includes('invalid_credentials') || msg.includes('Invalid credentials'))
+        showToast('邮箱或密码错误', 'error')
+      else if (msg.includes('Email not confirmed') || msg.includes('email_not_confirmed'))
+        showToast('请先验证邮箱后再登录', 'error')
+      else if (msg.includes('Too many') || msg.includes('rate limit'))
+        showToast('请求太频繁，请稍后再试', 'error')
+      else if (msg.includes('User not found') || msg.includes('user_not_found'))
+        showToast('该邮箱尚未注册', 'error')
+      else if (msg.includes('network') || msg.includes('fetch'))
+        showToast('网络连接失败，请检查网络', 'error')
+      else showToast(msg || '登录失败，请重试', 'error')
     } finally {
       setLoading(false)
     }
@@ -59,8 +67,19 @@ export default function AuthPage() {
       showToast('注册成功！已赠送500善缘 🎉', 'success')
     } catch (err) {
       const msg = err.message || ''
-      if (msg.includes('already registered')) showToast('该邮箱已注册，请直接登录', 'error')
-      else showToast(msg || '注册失败', 'error')
+      if (msg.includes('already registered') || msg.includes('user_already_exists') || msg.includes('already been registered'))
+        showToast('该邮箱已注册，请直接登录', 'error')
+      else if (msg.includes('password') && msg.includes('weak'))
+        showToast('密码强度不够，请使用字母+数字组合', 'error')
+      else if (msg.includes('email') && msg.includes('invalid'))
+        showToast('邮箱格式不正确', 'error')
+      else if (msg.includes('Too many') || msg.includes('rate limit'))
+        showToast('注册太频繁，请稍后再试', 'error')
+      else if (msg.includes('network') || msg.includes('fetch'))
+        showToast('网络连接失败，请检查网络', 'error')
+      else if (msg.includes('Database error'))
+        showToast('服务器繁忙，请稍后重试', 'error')
+      else showToast(msg || '注册失败，请重试', 'error')
       setStep(1)
     } finally {
       setLoading(false)
