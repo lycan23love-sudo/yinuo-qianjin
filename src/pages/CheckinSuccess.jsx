@@ -141,7 +141,7 @@ export default function CheckinSuccess() {
         
               <div style={{ width:'100%', display:'flex', flexDirection:'column', gap:10 }}>
                       <button style={S.btnGold} onClick={() => nav('/')}>返回首页</button>
-                      <button style={S.btnGhost} onClick={() => nav(`/pledge/${result?.checkin?.pledge_id || ''}`)}>
+                      <button style={S.btnGhost} onClick={() => nav(`/pledge/${pledge?.id || result?.checkin?.pledge_id || ''}`)}>
                                 查看打卡记录
                       </button>
               </div>
