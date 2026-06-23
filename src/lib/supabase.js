@@ -10,6 +10,25 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 // ============================================================
+// 错误标准化 —— Supabase 错误对象有时是 AuthApiError，有时是普通对象
+// 统一转成带 message 的标准 Error，保证 catch(err) { err.message } 始终有值
+// ============================================================
+function toError(error) {
+  if (!error) return new Error('未知错误')
+  if (error instanceof Error) return error
+  const msg = error.message || error.msg || error.error_description
+    || error.error || JSON.stringify(error)
+  const e = new Error(msg)
+  e.status  = error.status  || error.code
+  e.code    = error.code    || error.error_code
+  return e
+}
+
+function throwIf(error) {
+  if (error) throw toError(error)
+}
+
+// ============================================================
 // AUTH
 // ============================================================
 export async function signUp({ email, password, nickname }) {
@@ -18,7 +37,7 @@ export async function signUp({ email, password, nickname }) {
     password,
     options: { data: { nickname } }
   })
-  if (error) throw error
+  throwIf(error)
   return data
 }
 
@@ -27,14 +46,14 @@ export async function signIn({ email, password }) {
     email,
     password
   })
-  if (error) throw error
+  throwIf(error)
   return data
 }
 
 // 游客模式：匿名登录（Supabase 需开启 Anonymous sign-ins）
 export async function signInAnonymous() {
   const { data, error } = await supabase.auth.signInAnonymously()
-  if (error) throw error
+  throwIf(error)
   return data
 }
 
@@ -56,7 +75,7 @@ export async function getProfile(userId) {
     .select('*')
     .eq('id', userId)
     .single()
-  if (error) throw error
+  throwIf(error)
   return data
 }
 
@@ -67,7 +86,7 @@ export async function updateProfile(userId, updates) {
     .eq('id', userId)
     .select()
     .single()
-  if (error) throw error
+  throwIf(error)
   return data
 }
 
@@ -96,7 +115,7 @@ export async function createPledge(userId, pledge) {
     })
     .select()
     .single()
-  if (error) throw error
+  throwIf(error)
 
   // 扣除押注金币
   await addCoins(userId, -pledge.stakeCoins, 'stake', data.id, `立誓「${pledge.title}」押注`)
@@ -110,7 +129,7 @@ export async function getMyPledges(userId) {
     .select('*, checkins(count)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-  if (error) throw error
+  throwIf(error)
   return data
 }
 
@@ -125,7 +144,7 @@ export async function getPledgeDetail(pledgeId) {
     `)
     .eq('id', pledgeId)
     .single()
-  if (error) throw error
+  throwIf(error)
   return data
 }
 
@@ -144,7 +163,7 @@ export async function getPublicPledges({ category, sort = 'created_at' } = {}) {
   query = query.limit(20)
 
   const { data, error } = await query
-  if (error) throw error
+  throwIf(error)
   return data
 }
 
@@ -250,7 +269,7 @@ export async function submitCheckin(userId, pledgeId, { imageFile, note, mood })
     })
     .select()
     .single()
-  if (error) throw error
+  throwIf(error)
 
   // 4. 更新誓言统计
   const newCheckinCount = pledge.checkin_count + 1
@@ -283,7 +302,7 @@ export async function getCheckins(pledgeId) {
     .select('*')
     .eq('pledge_id', pledgeId)
     .order('checkin_date', { ascending: true })
-  if (error) throw error
+  throwIf(error)
   return data
 }
 
@@ -309,7 +328,7 @@ export async function addCoins(userId, amount, type, refId = null, note = null) 
     p_ref_id: refId,
     p_note: note
   })
-  if (error) throw error
+  throwIf(error)
   return data
 }
 
@@ -320,7 +339,7 @@ export async function getCoinLedger(userId, limit = 20) {
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit)
-  if (error) throw error
+  throwIf(error)
   return data
 }
 
@@ -337,7 +356,7 @@ export async function donate(userId, { coins, orgName, message }) {
     .insert({ user_id: userId, coins, org_name: orgName, source: 'manual', message })
     .select()
     .single()
-  if (error) throw error
+  throwIf(error)
 
   // 更新功德值（total_merit 由 add_coins 函数自动处理收入，捐款是支出不更新，
   // 但为了称号计算，捐出的也要加到功德值）
@@ -355,7 +374,7 @@ export async function getDonations(userId) {
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-  if (error) throw error
+  throwIf(error)
   return data
 }
 
