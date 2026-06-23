@@ -4,29 +4,10 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = 'https://dqohpzvwjgiagxfnlice.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxb2hwenZ3amdpYWd4Zm5saWNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NjAwMzAsImV4cCI6MjA5NzMzNjAzMH0.GQQXIR_5AD1qUW2rjS5I0Hg-EAoDNpuCPXkW9tXP8d8'
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-
-// ============================================================
-// 错误标准化 —— Supabase 错误对象有时是 AuthApiError，有时是普通对象
-// 统一转成带 message 的标准 Error，保证 catch(err) { err.message } 始终有值
-// ============================================================
-function toError(error) {
-  if (!error) return new Error('未知错误')
-  if (error instanceof Error) return error
-  const msg = error.message || error.msg || error.error_description
-    || error.error || JSON.stringify(error)
-  const e = new Error(msg)
-  e.status  = error.status  || error.code
-  e.code    = error.code    || error.error_code
-  return e
-}
-
-function throwIf(error) {
-  if (error) throw toError(error)
-}
 
 // ============================================================
 // AUTH
@@ -37,7 +18,7 @@ export async function signUp({ email, password, nickname }) {
     password,
     options: { data: { nickname } }
   })
-  throwIf(error)
+  if (error) throw error
   return data
 }
 
@@ -46,14 +27,14 @@ export async function signIn({ email, password }) {
     email,
     password
   })
-  throwIf(error)
+  if (error) throw error
   return data
 }
 
 // 游客模式：匿名登录（Supabase 需开启 Anonymous sign-ins）
 export async function signInAnonymous() {
   const { data, error } = await supabase.auth.signInAnonymously()
-  throwIf(error)
+  if (error) throw error
   return data
 }
 
@@ -75,7 +56,7 @@ export async function getProfile(userId) {
     .select('*')
     .eq('id', userId)
     .single()
-  throwIf(error)
+  if (error) throw error
   return data
 }
 
@@ -86,7 +67,7 @@ export async function updateProfile(userId, updates) {
     .eq('id', userId)
     .select()
     .single()
-  throwIf(error)
+  if (error) throw error
   return data
 }
 
@@ -115,7 +96,7 @@ export async function createPledge(userId, pledge) {
     })
     .select()
     .single()
-  throwIf(error)
+  if (error) throw error
 
   // 扣除押注金币
   await addCoins(userId, -pledge.stakeCoins, 'stake', data.id, `立誓「${pledge.title}」押注`)
@@ -129,7 +110,7 @@ export async function getMyPledges(userId) {
     .select('*, checkins(count)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-  throwIf(error)
+  if (error) throw error
   return data
 }
 
@@ -144,7 +125,7 @@ export async function getPledgeDetail(pledgeId) {
     `)
     .eq('id', pledgeId)
     .single()
-  throwIf(error)
+  if (error) throw error
   return data
 }
 
@@ -163,15 +144,14 @@ export async function getPublicPledges({ category, sort = 'created_at' } = {}) {
   query = query.limit(20)
 
   const { data, error } = await query
-  throwIf(error)
+  if (error) throw error
   return data
 }
 
-// 广场：已完成的公开誓言（用于成功经验 tab）
 export async function getCompletedPledges({ limit = 20 } = {}) {
   const { data, error } = await supabase
     .from('pledges')
-    .select(`*, profiles:user_id(nickname, avatar_url)`)
+    .select(`*, profiles:user_id(nickname, avatar_emoji)`)
     .eq('is_public', true)
     .eq('status', 'done')
     .order('updated_at', { ascending: false })
@@ -179,6 +159,8 @@ export async function getCompletedPledges({ limit = 20 } = {}) {
   throwIf(error)
   return data
 }
+
+// 完成/失败誓言
 export async function completePledge(pledgeId, userId, success) {
   const pledge = await getPledgeDetail(pledgeId)
   const status = success ? 'done' : 'fail'
@@ -280,7 +262,7 @@ export async function submitCheckin(userId, pledgeId, { imageFile, note, mood })
     })
     .select()
     .single()
-  throwIf(error)
+  if (error) throw error
 
   // 4. 更新誓言统计
   const newCheckinCount = pledge.checkin_count + 1
@@ -313,7 +295,7 @@ export async function getCheckins(pledgeId) {
     .select('*')
     .eq('pledge_id', pledgeId)
     .order('checkin_date', { ascending: true })
-  throwIf(error)
+  if (error) throw error
   return data
 }
 
@@ -339,7 +321,7 @@ export async function addCoins(userId, amount, type, refId = null, note = null) 
     p_ref_id: refId,
     p_note: note
   })
-  throwIf(error)
+  if (error) throw error
   return data
 }
 
@@ -350,7 +332,7 @@ export async function getCoinLedger(userId, limit = 20) {
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit)
-  throwIf(error)
+  if (error) throw error
   return data
 }
 
@@ -367,7 +349,7 @@ export async function donate(userId, { coins, orgName, message }) {
     .insert({ user_id: userId, coins, org_name: orgName, source: 'manual', message })
     .select()
     .single()
-  throwIf(error)
+  if (error) throw error
 
   // 更新功德值（total_merit 由 add_coins 函数自动处理收入，捐款是支出不更新，
   // 但为了称号计算，捐出的也要加到功德值）
@@ -385,7 +367,7 @@ export async function getDonations(userId) {
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-  throwIf(error)
+  if (error) throw error
   return data
 }
 
