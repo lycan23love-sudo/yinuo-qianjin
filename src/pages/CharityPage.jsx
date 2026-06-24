@@ -355,7 +355,7 @@ export default function CharityPage() {
 
 const S = {
   topbar:    { display:'flex', alignItems:'center', justifyContent:'space-between',
-               padding:'14px 16px 12px', background:'#FAF7F2',
+               padding:'calc(14px + env(safe-area-inset-top)) 16px 12px', background:'#FAF7F2',
                borderBottom:`1px solid #E0D5C0`, flexShrink:0 },
   logo:      { fontFamily:'Noto Serif SC,serif', fontSize:20, fontWeight:900,
                color:'#1A1208', letterSpacing:.5 },
