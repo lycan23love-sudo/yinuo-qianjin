@@ -328,7 +328,7 @@ export default function SquarePage() {
 }
 
 const S = {
-  topbar:    { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px 10px', background:'#FAF7F2', borderBottom:'0.5px solid #E0D5C0', position:'sticky', top:0, zIndex:10 },
+  topbar:    { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'calc(12px + env(safe-area-inset-top)) 16px 10px', background:'#FAF7F2', borderBottom:'0.5px solid #E0D5C0', position:'sticky', top:0, zIndex:10 },
   logo:      { fontFamily:'Noto Serif SC,serif', fontSize:20, fontWeight:900, color:'#1A1208' },
   tabRow:    { display:'flex', borderBottom:'0.5px solid #E0D5C0', background:'#FAF7F2', position:'sticky', top:51, zIndex:9 },
   tab:       { flex:1, padding:'10px 4px', fontSize:12, fontWeight:500, color:'#9A8A70', background:'none', border:'none', borderBottom:'2px solid transparent', cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
