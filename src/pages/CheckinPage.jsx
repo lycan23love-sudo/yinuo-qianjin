@@ -143,7 +143,7 @@ export default function CheckinPage() {
   const needsImage = pledge.verify_type === 'screenshot'
 
   return (
-    <div style={{ background:'#FAF7F2', minHeight:'100vh', paddingBottom:32 }}>
+    <div style={{ background:'#FAF7F2', minHeight:'100vh', paddingBottom: 'calc(32px + env(safe-area-inset-bottom))' }}>
       <div style={S.topbar}>
         <button style={S.back} onClick={() => nav(-1)}>←</button>
         <div style={S.title}>第 {dayNum} 天打卡</div>
