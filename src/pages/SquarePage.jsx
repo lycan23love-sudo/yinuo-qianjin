@@ -299,7 +299,7 @@ export default function SquarePage() {
   }, [tab, loadDone])
 
   return (
-    <div style={{ background: '#FAF7F2', minHeight: '100vh', paddingBottom: 90 }}>
+    <div style={{ background: '#FAF7F2', minHeight: '100vh', paddingBottom: 'calc(90px + env(safe-area-inset-bottom))' }}>
       <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }`}</style>
 
       {/* 顶栏 */}
