@@ -2,12 +2,107 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#1A0E04" />
+
+    <!-- ── 视口：覆盖刘海/打孔屏/圆角屏 ── -->
+    <meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0,
+               user-scalable=no, viewport-fit=cover" />
+
+    <!-- ── PWA Manifest ── -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- ── 主题色：状态栏颜色（Android Chrome / Samsung / 华为）── -->
+    <meta name="theme-color" content="#2A1A08" />
+    <!-- 深色模式下也保持一致 -->
+    <meta name="theme-color" content="#2A1A08"
+      media="(prefers-color-scheme: dark)" />
+
+    <!-- ── iOS Safari PWA ── -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="一诺千金" />
+
+    <!-- iOS 各尺寸图标 -->
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icon-152.png" />
+    <link rel="apple-touch-icon" sizes="144x144" href="/icon-144.png" />
+    <link rel="apple-touch-icon" sizes="128x128" href="/icon-128.png" />
+
+    <!-- ── Android / 通用 ── -->
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="96x96"   href="/icon-96.png" />
+    <link rel="shortcut icon" href="/icon-192.png" />
+
+    <!-- ── 华为/小米/OPPO/vivo 浏览器 ── -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="一诺千金" />
+    <meta name="msapplication-TileImage" content="/icon-144.png" />
+    <meta name="msapplication-TileColor" content="#2A1A08" />
+
+    <!-- ── SEO & 分享 ── -->
+    <meta name="description"
+      content="立誓·打卡·公益——言出必行的自律社区。押注金币，邀人见证，坚持到底。" />
+    <meta property="og:title"        content="一诺千金" />
+    <meta property="og:description"  content="立誓·打卡·公益——言出必行的自律社区" />
+    <meta property="og:image"        content="/icon-512.png" />
+    <meta property="og:type"         content="website" />
+
+    <!-- ── 禁用自动检测电话/邮件（避免 iOS 乱加下划线）── -->
+    <meta name="format-detection" content="telephone=no, email=no, address=no" />
+
+    <!-- ── 全局样式：字体 & 安全区适配 ── -->
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+
+      :root {
+        /* 安全区变量（刘海屏/底部横条）*/
+        --sat: env(safe-area-inset-top);
+        --sab: env(safe-area-inset-bottom);
+        --sal: env(safe-area-inset-left);
+        --sar: env(safe-area-inset-right);
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #FAF7F2;
+        /* 强制使用系统 UI 字体，保持跨平台一致 */
+        font-family:
+          'Noto Sans SC',
+          -apple-system,
+          'PingFang SC',        /* iOS / macOS */
+          'HarmonyOS Sans SC',  /* 华为 */
+          'MiSans',             /* 小米 */
+          'OPPO Sans',          /* OPPO */
+          'vivo Sans',          /* vivo */
+          'Microsoft YaHei',    /* Windows */
+          sans-serif;
+        /* 防止 iOS Safari 文字大小自动调整 */
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        /* 禁止长按弹出菜单影响体验 */
+        -webkit-touch-callout: none;
+        /* 禁止双击缩放 */
+        touch-action: manipulation;
+        /* 滚动惯性（iOS） */
+        -webkit-overflow-scrolling: touch;
+        overflow-x: hidden;
+      }
+
+      /* 防止 iOS 滑动卡顿 */
+      #root {
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
+        overflow-x: hidden;
+      }
+
+      /* 滚动条样式统一（Android WebView / PC） */
+      ::-webkit-scrollbar { width: 0; height: 0; }
+    </style>
+
     <title>一诺千金</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>誓</text></svg>" />
   </head>
   <body>
     <div id="root"></div>
