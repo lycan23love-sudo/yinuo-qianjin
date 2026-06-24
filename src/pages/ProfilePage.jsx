@@ -549,7 +549,7 @@ function PledgeRow({ p, nav }) {
 
 const S = {
   topbar:    { display:'flex', alignItems:'center', justifyContent:'space-between',
-               padding:'12px 16px', borderBottom:'0.5px solid #E0D5C0',
+               padding:'calc(12px + env(safe-area-inset-top)) 16px 12px', borderBottom:'0.5px solid #E0D5C0',
                background:'#FAF7F2', position:'sticky', top:0, zIndex:10 },
   iconBtn:   { background:'none', border:'none', fontSize:20, cursor:'pointer',
                color:'#1A1208', padding:4 },
