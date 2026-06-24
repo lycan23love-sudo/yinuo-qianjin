@@ -13,6 +13,10 @@ html, body {
 
 #root {
   min-height: 100vh;
+  min-height: -webkit-fill-available;
+  /* 确保内容不被系统UI遮挡 */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 button { font-family: inherit; }
