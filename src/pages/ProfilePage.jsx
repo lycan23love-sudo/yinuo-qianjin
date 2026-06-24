@@ -214,7 +214,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div style={{ background:'#FAF7F2', minHeight:'100vh', paddingBottom:90 }}>
+    <div style={{ background:'#FAF7F2', minHeight:'100vh', paddingBottom: 'calc(90px + env(safe-area-inset-bottom))' }}>
 
       {/* Toast */}
       {toast && (
@@ -306,7 +306,7 @@ export default function ProfilePage() {
             ) : (
               <div onClick={() => setEditOpen(true)}
                 style={{ fontSize:11, color:'rgba(255,255,255,.35)', cursor:'pointer',
-                  borderBottom:'1px dashed rgba(255,255,255,.2)', paddingBottom:2,
+                  borderBottom:'1px dashed rgba(255,255,255,.2)', paddingBottom: 'calc(2px + env(safe-area-inset-bottom))',
                   display:'inline-block' }}>
                 + 添加一句话介绍
               </div>
