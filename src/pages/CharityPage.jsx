@@ -70,7 +70,7 @@ export default function CharityPage() {
 
   // ─── 捐款 Tab ───
   const DonateTab = () => (
-    <div style={{ padding:'14px 16px', paddingBottom:80 }}>
+    <div style={{ padding:'14px 16px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
 
       {/* 钱包条 */}
       <div style={{ ...S.walletStrip, cursor:'pointer' }} onClick={() => showToast('功德详情即将上线')}>
@@ -156,7 +156,7 @@ export default function CharityPage() {
 
   // ─── 公益活动 Tab ───
   const ActivityTab = () => (
-    <div style={{ padding:'14px 16px', paddingBottom:80 }}>
+    <div style={{ padding:'14px 16px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
       <div style={{ ...S.notice, marginBottom:14 }}>
         <div style={{ fontSize:13, fontWeight:700, color:C.goldD, marginBottom:4 }}>✨ 公益活动</div>
         <div style={{ fontSize:12, color:C.muted, lineHeight:1.6 }}>参与平台发起或用户发起的公益行动，完成誓言即是最好的公益贡献。</div>
@@ -230,7 +230,7 @@ export default function CharityPage() {
 
   // ─── 我的记录 Tab ───
   const RecordTab = () => (
-    <div style={{ padding:'14px 16px', paddingBottom:80 }}>
+    <div style={{ padding:'14px 16px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
         {[['4,300','累计捐出金币'],['3','参与机构数'],['68','受益人次'],['3,800','累计功德值']].map(([v,l]) => (
           <div key={l} style={S.statBox}>
@@ -265,7 +265,7 @@ export default function CharityPage() {
 
   // ─── 证书 Tab ───
   const CertTab = () => (
-    <div style={{ padding:'14px 16px', paddingBottom:80 }}>
+    <div style={{ padding:'14px 16px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
       <div style={{ fontSize:12, color:C.muted, lineHeight:1.7, marginBottom:16,
         background:C.soft, borderRadius:10, padding:'10px 12px' }}>
         慈善证书是你公益行动的凭证，可下载、分享、用于简历。累计捐出金币越多，证书等级越高。
