@@ -234,7 +234,7 @@ export default function CompanionsPage() {
   }
 
   return (
-    <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 80,
+    <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))',
       display: 'flex', flexDirection: 'column' }}>
 
       {/* Toast */}
