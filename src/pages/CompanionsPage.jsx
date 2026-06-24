@@ -423,7 +423,7 @@ export default function CompanionsPage() {
 /* ─── 样式对象 ─── */
 const S = {
   topbar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '14px 16px 12px', background: C.bg, borderBottom: `1px solid ${C.border}`, flexShrink: 0 },
+    padding: 'calc(14px + env(safe-area-inset-top)) 16px 12px', background: C.bg, borderBottom: `1px solid ${C.border}`, flexShrink: 0 },
   logo: { fontFamily: 'Noto Serif SC,serif', fontSize: 20, fontWeight: 900, color: C.ink, letterSpacing: .5 },
   iconBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, position: 'relative', padding: 2 },
   cCard: { background: C.surf, border: `1px solid ${C.border}`, borderRadius: 14,
