@@ -37,8 +37,20 @@ export default function ReminderSetup({ pledgeTitle, onClose }) {
   }, [])
 
   async function handleEnable() {
+    // 检查支持
+    if (!('serviceWorker' in navigator)) {
+      showToast('你的浏览器不支持 Service Worker，请使用 Chrome/Edge')
+      return
+    }
     if (!('Notification' in window)) {
-      showToast('你的浏览器不支持通知')
+      showToast('你的浏览器不支持通知，请使用 Chrome/Edge')
+      return
+    }
+    // iOS Safari 提示
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+    if (isIOS && !navigator.standalone) {
+      showToast('iOS 请先将网页添加到主屏幕，再开启提醒')
+      setStatus('off')
       return
     }
     setStatus('requesting')
