@@ -1,6 +1,17 @@
 // public/sw.js — 一诺千金 Service Worker
+// v3 — 强制清除旧缓存
+const CACHE_VERSION = 'yinuo-v3'
+
 self.addEventListener('install', () => self.skipWaiting())
-self.addEventListener('activate', e => e.waitUntil(clients.claim()))
+
+self.addEventListener('activate', e => {
+  // 清除所有旧版本缓存，强制客户端刷新
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_VERSION).map(k => caches.delete(k)))
+    ).then(() => clients.claim())
+  )
+})
 
 let reminderTimer = null
 
