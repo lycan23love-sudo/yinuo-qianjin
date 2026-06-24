@@ -170,7 +170,7 @@ function CalendarView({ checkins, pledge }) {
                                                       const canCheckin = isOwner && pledge.status === 'active' && !checkedToday
                                                         
                                                           return (
-                                                                <div style={{ paddingBottom:100, background:'#FAF7F2', minHeight:'100vh' }}>
+                                                                <div style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom))', background:'#FAF7F2', minHeight:'100vh' }}>
                                                                       <div style={S.topbar}>
                                                                               <button style={S.back} onClick={() => nav(-1)}>←</button>
                                                                               <div style={S.topbarTitle}>{pledge.title}</div>
