@@ -5,7 +5,7 @@
 
 html, body {
   height: 100%;
-  background: #E8E0D0;
+  background: #fff;  /* 与底部导航栏同色，home横条区域无缝铺满 */
   font-family: 'Noto Sans SC', -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   color: #1A1208;
