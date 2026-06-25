@@ -171,7 +171,25 @@ export default function IndexHallPage() {
         {/* ── 大盘行情 ── */}
         {tab === 'market' && (
           <div>
-            {/* 说明 */}
+            {/* 快捷入口 */}
+            <div style={{ display:'flex', gap:10, marginBottom:14 }}>
+              <button onClick={() => nav('/blind-bet')}
+                style={{ flex:1, padding:'12px 0', borderRadius:12, border:'1px solid #6A3ACA',
+                  background:'linear-gradient(135deg,rgba(106,58,202,.15),rgba(154,90,250,.1))',
+                  color:'#9A5AFA', fontSize:13, fontWeight:600, cursor:'pointer',
+                  fontFamily:'Noto Sans SC,sans-serif' }}>
+                🎲 盲盒结缘
+              </button>
+              <button onClick={() => nav('/jury')}
+                style={{ flex:1, padding:'12px 0', borderRadius:12, border:'1px solid #C8922A',
+                  background:'linear-gradient(135deg,rgba(200,146,42,.15),rgba(232,184,74,.1))',
+                  color:'#E8B84A', fontSize:13, fontWeight:600, cursor:'pointer',
+                  fontFamily:'Noto Sans SC,sans-serif' }}>
+                ⚖️ 陪审团
+              </button>
+            </div>
+
+            {/* 指数说明 */}
             <div style={{ background:'rgba(200,146,42,.1)', borderRadius:12, padding:'10px 14px',
               marginBottom:14, border:'1px solid rgba(200,146,42,.2)' }}>
               <div style={{ fontSize:12, color:'#C8922A', lineHeight:1.7 }}>
