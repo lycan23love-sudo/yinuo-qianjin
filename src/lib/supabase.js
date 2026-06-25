@@ -382,3 +382,222 @@ export function getMeritTitle(totalMerit) {
   if (totalMerit >= 500)   return { emoji: '🌿', title: '种善者', next: 2000 }
   return { emoji: '🌱', title: '初心者', next: 500 }
 }
+
+// ============================================================
+// V2：见证者系统 CRUD
+// ============================================================
+
+// ── 见证者（Witnesses）──
+
+// 押注见证某个誓言（支持 trust / 质疑 doubt）
+export async function addWitness(userId, pledgeId, type, stakeCoins = 100) {
+  // 1. 扣金币
+  const profile = await getProfile(userId)
+  if (profile.merit_coins < stakeCoins) throw new Error('金币不足，无法押注')
+
+  await supabase
+    .from('profiles')
+    .update({ merit_coins: profile.merit_coins - stakeCoins, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+
+  // 2. 写 coin_ledger
+  await supabase.from('coin_ledger').insert({
+    user_id: userId, amount: -stakeCoins, type: 'stake',
+    ref_id: pledgeId, note: `见证押注：${type === 'trust' ? '支持' : '质疑'}`,
+    balance_after: profile.merit_coins - stakeCoins,
+  })
+
+  // 3. 写 witnesses 记录
+  const { data, error } = await supabase
+    .from('witnesses')
+    .insert({ pledge_id: pledgeId, user_id: userId, type, stake_coins: stakeCoins })
+    .select()
+    .single()
+  if (error) throw new Error(error.message || '押注失败')
+
+  // 4. 更新 pledges 的 trust_pool / doubt_pool 缓存
+  const poolField = type === 'trust' ? 'trust_pool' : 'doubt_pool'
+  await supabase.rpc('increment_field', {
+    table_name: 'pledges', field_name: poolField,
+    row_id: pledgeId, amount: stakeCoins,
+  }).catch(() => {
+    // rpc 不存在时降级：直接读写
+    supabase.from('pledges').select(poolField).eq('id', pledgeId).single()
+      .then(({ data: p }) => {
+        supabase.from('pledges').update({ [poolField]: (p?.[poolField] || 0) + stakeCoins }).eq('id', pledgeId)
+      })
+  })
+
+  return data
+}
+
+// 获取某个誓言的所有见证者
+export async function getWitnesses(pledgeId) {
+  const { data, error } = await supabase
+    .from('witnesses')
+    .select('*, profiles:user_id(nickname, avatar_emoji)')
+    .eq('pledge_id', pledgeId)
+    .order('created_at', { ascending: false })
+  if (error) throw new Error(error.message || '获取见证者失败')
+  return data || []
+}
+
+// 获取当前用户对某个誓言的见证状态
+export async function getMyWitness(userId, pledgeId) {
+  const { data } = await supabase
+    .from('witnesses')
+    .select('*')
+    .eq('pledge_id', pledgeId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  return data  // null = 未见证
+}
+
+// ── 指数基金（Index Funds）──
+
+// 获取四大指数
+export async function getIndexFunds() {
+  const { data, error } = await supabase
+    .from('index_funds')
+    .select('*')
+    .order('code')
+  if (error) throw new Error(error.message || '获取指数失败')
+  return data || []
+}
+
+// 获取单个指数详情
+export async function getIndexFund(code) {
+  const { data, error } = await supabase
+    .from('index_funds')
+    .select('*')
+    .eq('code', code)
+    .single()
+  if (error) throw new Error(error.message || '指数不存在')
+  return data
+}
+
+// ── 指数下注（Index Bets）──
+
+// 对指数下多/空注
+export async function placeIndexBet(userId, indexCode, direction, amount) {
+  // 1. 校验
+  if (amount <= 0) throw new Error('押注金额必须大于0')
+  if (!['believe', 'doubt'].includes(direction)) throw new Error('方向错误')
+
+  const profile = await getProfile(userId)
+  if (profile.merit_coins < amount) throw new Error('金币不足')
+
+  // 2. 获取当前赔率
+  const fund = await getIndexFund(indexCode)
+  const odds = direction === 'believe' ? fund.bull_odds : fund.bear_odds
+
+  // 3. 扣金币
+  await supabase
+    .from('profiles')
+    .update({ merit_coins: profile.merit_coins - amount, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+
+  // 4. 写 coin_ledger
+  await supabase.from('coin_ledger').insert({
+    user_id: userId, amount: -amount, type: 'stake',
+    note: `指数下注：${indexCode} ${direction === 'believe' ? '看多' : '看空'}`,
+    balance_after: profile.merit_coins - amount,
+  })
+
+  // 5. 写 index_bets
+  const { data, error } = await supabase
+    .from('index_bets')
+    .insert({
+      user_id: userId, index_code: indexCode,
+      direction, amount, odds_at_bet: odds,
+    })
+    .select()
+    .single()
+  if (error) throw new Error(error.message || '下注失败')
+
+  // 6. 更新 index_funds 的 pool 缓存
+  const poolField = direction === 'believe' ? 'total_bull_pool' : 'total_bear_pool'
+  await supabase
+    .from('index_funds')
+    .update({
+      [poolField]: (fund[poolField] || 0) + amount,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('code', indexCode)
+
+  return data
+}
+
+// 获取我的指数下注记录
+export async function getMyIndexBets(userId, limit = 30) {
+  const { data, error } = await supabase
+    .from('index_bets')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) throw new Error(error.message || '获取下注记录失败')
+  return data || []
+}
+
+// ── 质疑/仲裁（Disputes）──
+
+// 质疑某次打卡
+export async function disputeCheckin(userId, checkinId, pledgeId, reason = '') {
+  // 1. 写 disputes 记录
+  const { data, error } = await supabase
+    .from('disputes')
+    .insert({
+      checkin_id: checkinId, pledge_id: pledgeId,
+      disputer_id: userId, reason,
+    })
+    .select()
+    .single()
+  if (error) throw new Error(error.message || '质疑提交失败')
+
+  // 2. 更新 checkins 的仲裁状态
+  await supabase
+    .from('checkins')
+    .update({
+      arbit_status: 'disputed',
+      dispute_count: supabase.sql`dispute_count + 1`,
+      disputed_by: userId,
+    })
+    .eq('id', checkinId)
+    .eq('arbit_status', 'pre_success')  // 只能质疑 pre_success 状态的
+
+  return data
+}
+
+// 获取某次打卡的质疑记录
+export async function getDisputesByCheckin(checkinId) {
+  const { data, error } = await supabase
+    .from('disputes')
+    .select('*, profiles:disputer_id(nickname, avatar_emoji)')
+    .eq('checkin_id', checkinId)
+    .order('created_at', { ascending: false })
+  if (error) throw new Error(error.message || '获取质疑记录失败')
+  return data || []
+}
+
+// ── 慈善总金库（Charity Vault）──
+
+// 获取金库流水（公开透明）
+export async function getCharityVault(limit = 50) {
+  const { data, error } = await supabase
+    .from('charity_vault')
+    .select('*, profiles:user_id(nickname)')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) throw new Error(error.message || '获取金库数据失败')
+  return data || []
+}
+
+// 获取金库累计总额
+export async function getCharityTotal() {
+  const { data, error } = await supabase
+    .from('charity_vault')
+    .select('amount')
+  if (error) return 0
+  return (data || []).reduce((sum, r) => sum + r.amount, 0)
+}
