@@ -305,8 +305,13 @@ export default function SquarePage() {
       {/* 顶栏 */}
       <div style={S.topbar}>
         <div style={S.logo}>广<em style={{ color: '#C8922A', fontStyle: 'normal' }}>场</em></div>
-        <div style={{ fontSize: 12, color: '#9A8A70' }}>
-          {pledges.length > 0 ? `${pledges.length} 条进行中` : ''}
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <button onClick={() => nav('/index-hall')}
+            style={{ background:'#1A1208', color:'#E8B84A', border:'none', borderRadius:20,
+              padding:'5px 12px', fontSize:11, fontWeight:600, cursor:'pointer',
+              fontFamily:'Noto Sans SC,sans-serif' }}>
+            📊 指数大厅
+          </button>
         </div>
       </div>
 
