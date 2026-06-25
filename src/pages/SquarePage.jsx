@@ -129,7 +129,15 @@ function LiveTab({ pledges, loading, cat, setCat, sort, setSort }) {
               <div style={{ fontSize: 11, color: '#B8A88A' }}>
                 {p.verify_type === 'screenshot' ? '📸 截图打卡' : p.verify_type === 'text' ? '✏️ 文字打卡' : '📍 定位打卡'}
               </div>
-              <div style={{ fontSize: 11, color: '#C8922A' }}>查看 ›</div>
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <button onClick={e => { e.stopPropagation(); nav(`/pledge/${p.id}?tab=witness`) }}
+                  style={{ background:'#1A1208', color:'#E8B84A', border:'none', borderRadius:16,
+                    padding:'4px 10px', fontSize:11, fontWeight:600, cursor:'pointer',
+                    fontFamily:'Noto Sans SC,sans-serif' }}>
+                  👁 去见证
+                </button>
+                <div style={{ fontSize: 11, color: '#C8922A' }}>查看 ›</div>
+              </div>
             </div>
           </div>
         )
