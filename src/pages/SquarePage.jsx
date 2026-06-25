@@ -267,6 +267,7 @@ function TopicTab({ pledges, donePledges }) {
 
 // ── 主组件
 export default function SquarePage() {
+  const nav = useNavigate()
   const [tab, setTab]         = useState('live')
   const [cat, setCat]         = useState('全部')
   const [sort, setSort]       = useState('created_at')
