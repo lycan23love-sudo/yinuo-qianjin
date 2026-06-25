@@ -25,7 +25,7 @@ export default function NewPledge() {
 
   const [form, setForm] = useState({
     title: '', period: 'month', stake: 500,
-    charity: '📚 山区图书馆', verify: 'screenshot', isPublic: true
+    charity: '📚 山区图书馆', verify: 'screenshot', isPublic: true, bounty: 0
   })
   const [loading, setLoading] = useState(false)
 
@@ -163,6 +163,24 @@ export default function NewPledge() {
             ))}
           </div>
         </div>
+
+        {/* 悬赏令（公开时可选） */}
+        {form.isPublic && (
+          <div style={{ marginBottom:16 }}>
+            <label style={S.label}>🏷 悬赏令 <span style={{ color:'#9A8A70', fontWeight:400 }}>（选填）</span></label>
+            <div style={{ fontSize:11, color:'#9A8A70', marginBottom:8, lineHeight:1.6 }}>
+              自掏腰包设置悬赏广告费，吸引围观者来挑战你的誓言。费用进入公益金库。
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              {[0, 10, 30, 50, 100].map(a => (
+                <button key={a} style={{ ...S.pubBtn, flex:1, ...(form.bounty===a ? S.pubOn : {}) }}
+                  onClick={() => set('bounty', a)}>
+                  {a === 0 ? '不设置' : `${a}币`}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Escrow notice */}
         <div style={S.notice}>
