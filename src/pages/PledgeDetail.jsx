@@ -1,6 +1,6 @@
 // src/pages/PledgeDetail.jsx
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../App'
 import { getPledgeDetail, getCheckins, hasCheckedInToday, getWitnesses, getMyWitness, addWitness } from '../lib/supabase'
 import { format, eachDayOfInterval, parseISO, getDay } from 'date-fns'
@@ -143,10 +143,11 @@ function CalendarView({ checkins, pledge }) {
                                   const { id } = useParams()
                                       const { session } = useAuth()
                                           const nav = useNavigate()
+                                          const [searchParams] = useSearchParams()
                                               const [pledge, setPledge] = useState(null)
                                                   const [checkins, setCheckins] = useState([])
                                                       const [checkedToday, setCheckedToday] = useState(false)
-                                                          const [tab, setTab] = useState('log')
+                                                          const [tab, setTab] = useState(searchParams.get('tab') || 'log')
                                                           const [witnesses, setWitnesses] = useState([])
                                                           const [myWitness, setMyWitness] = useState(null)
                                                           const [witnessLoading, setWitnessLoading] = useState(false)
