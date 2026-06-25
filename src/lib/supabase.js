@@ -601,3 +601,178 @@ export async function getCharityTotal() {
   if (error) return 0
   return (data || []).reduce((sum, r) => sum + r.amount, 0)
 }
+
+// ============================================================
+// V3：盲盒结缘 + 悬赏令 + 陪审团
+// ============================================================
+
+// ── 盲盒结缘（Blind Bet）──
+
+// 一键机选结缘：系统自动分配给最冷门的誓言
+export async function placeBlindBet(userId, totalAmount) {
+  if (totalAmount <= 0) throw new Error('金额必须大于0')
+
+  const profile = await getProfile(userId)
+  if (profile.merit_coins < totalAmount) throw new Error('金币不足')
+
+  // 找最冷门的 active 誓言（围观人数最少，排除自己的）
+  const { data: coldPledges } = await supabase
+    .from('pledges')
+    .select('id, title, viewer_count, trust_pool, doubt_pool')
+    .eq('status', 'active')
+    .eq('is_public', true)
+    .neq('user_id', userId)
+    .order('viewer_count', { ascending: true })
+    .limit(5)
+
+  if (!coldPledges || coldPledges.length === 0) throw new Error('当前没有可结缘的誓言')
+
+  // 拆分金币分配给冷门誓言（平均分配）
+  const count = Math.min(coldPledges.length, 3)  // 最多分给3个
+  const perAmount = Math.floor(totalAmount / count)
+  const splits = coldPledges.slice(0, count).map(p => ({
+    pledge_id: p.id, amount: perAmount, title: p.title,
+  }))
+
+  // 1. 扣金币
+  await supabase
+    .from('profiles')
+    .update({ merit_coins: profile.merit_coins - totalAmount, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+
+  // 2. 写金币流水
+  await supabase.from('coin_ledger').insert({
+    user_id: userId, amount: -totalAmount, type: 'stake',
+    note: `盲盒结缘 · 机选${count}个誓言`,
+    balance_after: profile.merit_coins - totalAmount,
+  })
+
+  // 3. 为每个冷门誓言创建 witness 记录（全部为 trust 支持）
+  for (const s of splits) {
+    await supabase.from('witnesses').insert({
+      pledge_id: s.pledge_id, user_id: userId,
+      type: 'trust', stake_coins: s.amount,
+    })
+    // 更新 trust_pool
+    const { data: p } = await supabase.from('pledges').select('trust_pool, viewer_count').eq('id', s.pledge_id).single()
+    await supabase.from('pledges').update({
+      trust_pool: (p?.trust_pool || 0) + s.amount,
+      viewer_count: (p?.viewer_count || 0) + 1,
+    }).eq('id', s.pledge_id)
+  }
+
+  // 4. 写 blind_bets 记录
+  const { data: bet, error } = await supabase
+    .from('blind_bets')
+    .insert({
+      user_id: userId, total_amount: totalAmount,
+      split_to: splits, honor_bonus: 1.2,
+    })
+    .select()
+    .single()
+  if (error) throw new Error(error.message || '结缘失败')
+
+  // 5. 加荣誉积分（1.2倍加成）
+  const honorGain = Math.round(totalAmount * 0.2)
+  await supabase.from('profiles').update({
+    honor_points: (profile.honor_points || 0) + honorGain,
+  }).eq('id', userId)
+
+  return { bet, splits, honorGain }
+}
+
+// 获取我的盲盒结缘记录
+export async function getMyBlindBets(userId, limit = 20) {
+  const { data, error } = await supabase
+    .from('blind_bets')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) throw new Error(error.message || '获取结缘记录失败')
+  return data || []
+}
+
+// ── 悬赏令（Bounty）──
+
+// 立誓者设置悬赏广告费
+export async function setBounty(userId, pledgeId, amount) {
+  if (amount <= 0) throw new Error('悬赏金额必须大于0')
+
+  const profile = await getProfile(userId)
+  if (profile.merit_coins < amount) throw new Error('金币不足')
+
+  // 扣金币
+  await supabase.from('profiles').update({
+    merit_coins: profile.merit_coins - amount, updated_at: new Date().toISOString(),
+  }).eq('id', userId)
+
+  // 写金币流水
+  await supabase.from('coin_ledger').insert({
+    user_id: userId, amount: -amount, type: 'stake',
+    ref_id: pledgeId, note: '悬赏令广告费',
+    balance_after: profile.merit_coins - amount,
+  })
+
+  // 更新 pledges 的 bounty_amount
+  const { data: pledge } = await supabase.from('pledges').select('bounty_amount').eq('id', pledgeId).single()
+  const { error } = await supabase.from('pledges').update({
+    bounty_amount: (pledge?.bounty_amount || 0) + amount,
+  }).eq('id', pledgeId)
+  if (error) throw new Error(error.message || '设置悬赏失败')
+
+  // 写慈善金库（悬赏费进入金库）
+  await supabase.from('charity_vault').insert({
+    source_type: 'bounty_fee', source_ref: pledgeId,
+    user_id: userId, amount, note: '悬赏令广告费',
+  })
+
+  return { newBounty: (pledge?.bounty_amount || 0) + amount }
+}
+
+// ── 陪审团（Jury）──
+
+// 陪审团投票（upheld = 维持打卡有效 / overturned = 推翻打卡）
+export async function castJuryVote(userId, disputeId, vote) {
+  if (!['upheld', 'overturned'].includes(vote)) throw new Error('投票选项无效')
+
+  // 更新 dispute 的 ruling
+  const { data, error } = await supabase
+    .from('disputes')
+    .update({ ruling: vote, ruled_by: userId, ruled_at: new Date().toISOString() })
+    .eq('id', disputeId)
+    .eq('ruling', 'pending')  // 只能投票 pending 状态的
+    .select()
+    .single()
+  if (error) throw new Error(error.message || '投票失败')
+
+  // 如果推翻打卡，更新 checkins 的 arbit_status
+  if (vote === 'overturned' && data) {
+    await supabase.from('checkins').update({
+      arbit_status: 'overturned',
+    }).eq('id', data.checkin_id)
+  }
+
+  // 如果维持打卡，更新为 confirmed
+  if (vote === 'upheld' && data) {
+    await supabase.from('checkins').update({
+      arbit_status: 'confirmed',
+    }).eq('id', data.checkin_id)
+  }
+
+  return data
+}
+
+// 获取待裁定的质疑（陪审团待办）
+export async function getPendingDisputes(limit = 20) {
+  const { data, error } = await supabase
+    .from('disputes')
+    .select(`*, 
+      checkins:checkin_id(*, pledges:pledge_id(title)),
+      profiles:disputer_id(nickname, avatar_emoji)`)
+    .eq('ruling', 'pending')
+    .order('created_at', { ascending: true })
+    .limit(limit)
+  if (error) throw new Error(error.message || '获取待裁定失败')
+  return data || []
+}
