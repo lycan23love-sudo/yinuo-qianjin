@@ -14,6 +14,8 @@ import SquarePage       from './pages/SquarePage'
 import CompanionsPage  from './pages/CompanionsPage'
 import CharityPage     from './pages/CharityPage'
 import IndexHallPage   from './pages/IndexHallPage'
+import BlindBetPage    from './pages/BlindBetPage'
+import JuryPage        from './pages/JuryPage'
 import BottomNav       from './components/BottomNav'
 import Toast       from './components/Toast'
 
@@ -96,6 +98,8 @@ function App() {
           <Route path="/companions"  element={session ? <CompanionsPage /> : <Navigate to="/auth" />} />
           <Route path="/charity"     element={session ? <CharityPage /> : <Navigate to="/auth" />} />
           <Route path="/index-hall"  element={session ? <IndexHallPage /> : <Navigate to="/auth" />} />
+          <Route path="/blind-bet"  element={session ? <BlindBetPage /> : <Navigate to="/auth" />} />
+          <Route path="/jury"       element={session ? <JuryPage /> : <Navigate to="/auth" />} />
           <Route path="/new"         element={session ? <NewPledge /> : <Navigate to="/auth" />} />
           <Route path="/pledge/:id"         element={session ? <PledgeDetail /> : <Navigate to="/auth" />} />
           <Route path="/pledge/:id/checkin" element={session ? <CheckinPage /> : <Navigate to="/auth" />} />
