@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
-import { getPledgeDetail, getCheckins, hasCheckedInToday } from '../lib/supabase'
+import { getPledgeDetail, getCheckins, hasCheckedInToday, getWitnesses, getMyWitness, addWitness } from '../lib/supabase'
 import { format, eachDayOfInterval, parseISO, getDay } from 'date-fns'
 
 const PERIOD_LABEL = { week:'周', month:'月', season:'季', year:'年' }
@@ -147,6 +147,17 @@ function CalendarView({ checkins, pledge }) {
                                                   const [checkins, setCheckins] = useState([])
                                                       const [checkedToday, setCheckedToday] = useState(false)
                                                           const [tab, setTab] = useState('log')
+                                                          const [witnesses, setWitnesses] = useState([])
+                                                          const [myWitness, setMyWitness] = useState(null)
+                                                          const [witnessLoading, setWitnessLoading] = useState(false)
+                                                          const [betAmount, setBetAmount] = useState(50)
+                                                          const [showBetPanel, setShowBetPanel] = useState(false)
+                                                          const [toast, setToast] = useState(null)
+
+                                                          function showToast(msg, type='info') {
+                                                            setToast({ msg, type })
+                                                            setTimeout(() => setToast(null), 2500)
+                                                          }
                                                             
                                                               useEffect(() => { load() }, [id])
                                                                 
@@ -155,6 +166,11 @@ function CalendarView({ checkins, pledge }) {
                                                                                 getPledgeDetail(id), getCheckins(id), hasCheckedInToday(id),
                                                                               ])
                                                                               setPledge(p); setCheckins(cks); setCheckedToday(checked)
+                                                                              // 加载见证者数据
+                                                                              getWitnesses(id).then(w => setWitnesses(w)).catch(() => {})
+                                                                              if (session?.user?.id) {
+                                                                                getMyWitness(session.user.id, id).then(w => setMyWitness(w)).catch(() => {})
+                                                                              }
                                                                   }
                                 
                                   if (!pledge) return (
@@ -171,6 +187,14 @@ function CalendarView({ checkins, pledge }) {
                                                         
                                                           return (
                                                                 <div style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom))', background:'#FAF7F2', minHeight:'100vh' }}>
+                                                                      {toast && (
+                                                                        <div style={{ position:'fixed', top:60, left:'50%', transform:'translateX(-50%)',
+                                                                          background: toast.type === 'error' ? '#C84040' : toast.type === 'success' ? '#3B7A4A' : 'rgba(26,18,8,.88)',
+                                                                          color:'#fff', padding:'9px 20px', borderRadius:20, fontSize:13,
+                                                                          zIndex:200, whiteSpace:'nowrap', boxShadow:'0 4px 16px rgba(0,0,0,.2)' }}>
+                                                                          {toast.msg}
+                                                                        </div>
+                                                                      )}
                                                                       <div style={S.topbar}>
                                                                               <button style={S.back} onClick={() => nav(-1)}>←</button>
                                                                               <div style={S.topbarTitle}>{pledge.title}</div>
@@ -263,13 +287,170 @@ function CalendarView({ checkins, pledge }) {
                                                                             </div>
                                                                               )}
                                                                         {tab === 'calendar' && <CalendarView checkins={checkins} pledge={pledge} />}
-                                                                        {tab === 'witness' && (
-                                                                            <div style={{ textAlign:'center', padding:'40px 20px' }}>
-                                                                                        <div style={{ fontSize:40, marginBottom:12 }}>👁</div>
-                                                                                        <div style={{ fontSize:14, fontWeight:600, color:'#1A1208', marginBottom:6 }}>见证者系统即将上线</div>
-                                                                                        <div style={{ fontSize:12, color:'#9A8A70', lineHeight:1.6 }}>邀请朋友押注见证你的誓言</div>
-                                                                            </div>
+                                                                        {tab === 'witness' && (() => {
+                                                                            const trustCount = witnesses.filter(w => w.type === 'trust').length
+                                                                            const doubtCount = witnesses.filter(w => w.type === 'doubt').length
+                                                                            const trustPool  = witnesses.filter(w => w.type === 'trust').reduce((s,w) => s + w.stake_coins, 0)
+                                                                            const doubtPool  = witnesses.filter(w => w.type === 'doubt').reduce((s,w) => s + w.stake_coins, 0)
+                                                                            const totalPool  = trustPool + doubtPool
+                                                                            const trustPct   = totalPool > 0 ? Math.round(trustPool / totalPool * 100) : 50
+
+                                                                            async function handleBet(type) {
+                                                                              if (!session?.user?.id) { showToast('请先登录', 'error'); return }
+                                                                              if (isOwner) { showToast('不能见证自己的誓言', 'error'); return }
+                                                                              if (myWitness) { showToast('你已经押注过了', 'error'); return }
+                                                                              setWitnessLoading(true)
+                                                                              try {
+                                                                                await addWitness(session.user.id, id, type, betAmount)
+                                                                                showToast(`${type === 'trust' ? '支持' : '质疑'}成功！押注${betAmount}金币`, 'success')
+                                                                                setShowBetPanel(false)
+                                                                                load()
+                                                                              } catch (err) {
+                                                                                showToast(err.message || '押注失败', 'error')
+                                                                              } finally { setWitnessLoading(false) }
+                                                                            }
+
+                                                                            return (
+                                                                            <div>
+                                                                              {/* 对赌池统计 */}
+                                                                              <div style={{ background:'#fff', borderRadius:14, padding:16, marginBottom:12, border:'0.5px solid #E0D5C0' }}>
+                                                                                <div style={{ fontSize:13, fontWeight:600, marginBottom:12 }}>⚡ 对赌池</div>
+                                                                                <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12 }}>
+                                                                                  <div style={{ flex:1, textAlign:'center' }}>
+                                                                                    <div style={{ fontSize:18, fontWeight:700, color:'#3B7A4A' }}>{trustPool}</div>
+                                                                                    <div style={{ fontSize:11, color:'#9A8A70' }}>支持方 · {trustCount}人</div>
+                                                                                  </div>
+                                                                                  <div style={{ fontSize:14, color:'#C8922A', fontWeight:700 }}>VS</div>
+                                                                                  <div style={{ flex:1, textAlign:'center' }}>
+                                                                                    <div style={{ fontSize:18, fontWeight:700, color:'#C84040' }}>{doubtPool}</div>
+                                                                                    <div style={{ fontSize:11, color:'#9A8A70' }}>质疑方 · {doubtCount}人</div>
+                                                                                  </div>
+                                                                                </div>
+                                                                                {/* 比例条 */}
+                                                                                <div style={{ display:'flex', height:8, borderRadius:4, overflow:'hidden', background:'#F0EAE0' }}>
+                                                                                  <div style={{ width:`${trustPct}%`, background:'#3B7A4A', transition:'width .3s' }} />
+                                                                                  <div style={{ width:`${100 - trustPct}%`, background:'#C84040', transition:'width .3s' }} />
+                                                                                </div>
+                                                                                <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#9A8A70', marginTop:4 }}>
+                                                                                  <span>支持 {trustPct}%</span>
+                                                                                  <span>质疑 {100 - trustPct}%</span>
+                                                                                </div>
+                                                                              </div>
+
+                                                                              {/* 我的押注状态 / 押注按钮 */}
+                                                                              {myWitness ? (
+                                                                                <div style={{ background: myWitness.type === 'trust' ? '#E8F5EC' : '#FCEBEB',
+                                                                                  borderRadius:14, padding:14, marginBottom:12, textAlign:'center',
+                                                                                  border: `1px solid ${myWitness.type === 'trust' ? '#3B7A4A' : '#C84040'}` }}>
+                                                                                  <div style={{ fontSize:14, fontWeight:600,
+                                                                                    color: myWitness.type === 'trust' ? '#3B7A4A' : '#C84040' }}>
+                                                                                    {myWitness.type === 'trust' ? '✊ 你支持了这个誓言' : '🤔 你质疑了这个誓言'}
+                                                                                  </div>
+                                                                                  <div style={{ fontSize:12, color:'#9A8A70', marginTop:4 }}>
+                                                                                    押注 {myWitness.stake_coins} 金币 · {myWitness.status === 'active' ? '等待结算' : myWitness.status}
+                                                                                  </div>
+                                                                                </div>
+                                                                              ) : isOwner ? (
+                                                                                <div style={{ background:'#FDF3E0', borderRadius:14, padding:14, marginBottom:12, textAlign:'center' }}>
+                                                                                  <div style={{ fontSize:13, color:'#7A5A18' }}>分享给朋友，邀请他们来见证你的誓言 💪</div>
+                                                                                </div>
+                                                                              ) : pledge.status === 'active' ? (
+                                                                                <div>
+                                                                                  {!showBetPanel ? (
+                                                                                    <button onClick={() => setShowBetPanel(true)}
+                                                                                      style={{ width:'100%', background:'linear-gradient(135deg,#C8922A,#E8B84A)',
+                                                                                        color:'#fff', border:'none', borderRadius:12, padding:'13px 0',
+                                                                                        fontSize:14, fontWeight:700, cursor:'pointer', marginBottom:12,
+                                                                                        fontFamily:'Noto Sans SC,sans-serif',
+                                                                                        boxShadow:'0 4px 16px rgba(200,146,42,.3)' }}>
+                                                                                      参与见证 · 押注支持或质疑
+                                                                                    </button>
+                                                                                  ) : (
+                                                                                    <div style={{ background:'#fff', borderRadius:14, padding:16, marginBottom:12,
+                                                                                      border:'1.5px solid #C8922A' }}>
+                                                                                      <div style={{ fontSize:13, fontWeight:600, marginBottom:12 }}>选择押注金额</div>
+                                                                                      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:14 }}>
+                                                                                        {[10, 30, 50, 100, 200].map(a => (
+                                                                                          <button key={a} onClick={() => setBetAmount(a)}
+                                                                                            style={{ padding:'7px 14px', borderRadius:20, fontSize:13, cursor:'pointer',
+                                                                                              fontFamily:'Noto Sans SC,sans-serif',
+                                                                                              background: betAmount === a ? '#C8922A' : '#FAF7F2',
+                                                                                              color: betAmount === a ? '#fff' : '#5A4A30',
+                                                                                              border: betAmount === a ? '1px solid #C8922A' : '1px solid #E0D5C0' }}>
+                                                                                            {a} 金币
+                                                                                          </button>
+                                                                                        ))}
+                                                                                      </div>
+                                                                                      <div style={{ display:'flex', gap:10 }}>
+                                                                                        <button onClick={() => handleBet('trust')} disabled={witnessLoading}
+                                                                                          style={{ flex:1, padding:'11px 0', borderRadius:10, border:'none',
+                                                                                            background:'#3B7A4A', color:'#fff', fontSize:14, fontWeight:600,
+                                                                                            cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif',
+                                                                                            opacity: witnessLoading ? .6 : 1 }}>
+                                                                                          ✊ 支持 Ta
+                                                                                        </button>
+                                                                                        <button onClick={() => handleBet('doubt')} disabled={witnessLoading}
+                                                                                          style={{ flex:1, padding:'11px 0', borderRadius:10, border:'none',
+                                                                                            background:'#C84040', color:'#fff', fontSize:14, fontWeight:600,
+                                                                                            cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif',
+                                                                                            opacity: witnessLoading ? .6 : 1 }}>
+                                                                                          🤔 质疑 Ta
+                                                                                        </button>
+                                                                                      </div>
+                                                                                      <button onClick={() => setShowBetPanel(false)}
+                                                                                        style={{ width:'100%', marginTop:8, background:'none', border:'none',
+                                                                                          color:'#9A8A70', fontSize:12, cursor:'pointer' }}>
+                                                                                        取消
+                                                                                      </button>
+                                                                                    </div>
+                                                                                  )}
+                                                                                </div>
+                                                                              ) : null}
+
+                                                                              {/* 见证者列表 */}
+                                                                              {witnesses.length > 0 ? (
+                                                                                <div>
+                                                                                  <div style={{ fontSize:12, fontWeight:600, color:'#9A8A70', marginBottom:8 }}>
+                                                                                    见证者 · {witnesses.length}人
+                                                                                  </div>
+                                                                                  {witnesses.map(w => (
+                                                                                    <div key={w.id} style={{ display:'flex', alignItems:'center', gap:10,
+                                                                                      padding:'10px 0', borderBottom:'0.5px solid #F0EAE0' }}>
+                                                                                      <div style={{ width:34, height:34, borderRadius:'50%',
+                                                                                        background: w.type === 'trust' ? '#E8F5EC' : '#FCEBEB',
+                                                                                        display:'flex', alignItems:'center', justifyContent:'center',
+                                                                                        fontSize:16, flexShrink:0 }}>
+                                                                                        {w.profiles?.avatar_emoji || (w.type === 'trust' ? '✊' : '🤔')}
+                                                                                      </div>
+                                                                                      <div style={{ flex:1, minWidth:0 }}>
+                                                                                        <div style={{ fontSize:13, fontWeight:500 }}>
+                                                                                          {w.profiles?.nickname || '匿名'}
+                                                                                        </div>
+                                                                                        <div style={{ fontSize:11, color:'#9A8A70' }}>
+                                                                                          {w.type === 'trust' ? '支持' : '质疑'} · 押注{w.stake_coins}金币
+                                                                                        </div>
+                                                                                      </div>
+                                                                                      <div style={{ fontSize:11, fontWeight:600, padding:'3px 9px',
+                                                                                        borderRadius:20, flexShrink:0,
+                                                                                        background: w.type === 'trust' ? '#E8F5EC' : '#FCEBEB',
+                                                                                        color: w.type === 'trust' ? '#3B7A4A' : '#C84040' }}>
+                                                                                        {w.type === 'trust' ? '支持方' : '质疑方'}
+                                                                                      </div>
+                                                                                    </div>
+                                                                                  ))}
+                                                                                </div>
+                                                                              ) : (
+                                                                                <div style={{ textAlign:'center', padding:'30px 20px' }}>
+                                                                                  <div style={{ fontSize:32, marginBottom:8 }}>👁</div>
+                                                                                  <div style={{ fontSize:13, color:'#9A8A70' }}>还没有人见证这个誓言</div>
+                                                                                  <div style={{ fontSize:12, color:'#B8A88A', marginTop:4 }}>
+                                                                                    {isOwner ? '分享给朋友来押注见证吧' : '成为第一个见证者'}
+                                                                                  </div>
+                                                                                </div>
                                                                               )}
+                                                                            </div>
+                                                                            )
+                                                                          })()}
                                                                               <div style={{ height:20 }} />
                                                                       </div>
                                                                   {pledge.status==='active' && isOwner && (
