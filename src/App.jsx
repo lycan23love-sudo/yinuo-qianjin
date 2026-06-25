@@ -13,6 +13,7 @@ import ProfilePage from './pages/ProfilePage'
 import SquarePage       from './pages/SquarePage'
 import CompanionsPage  from './pages/CompanionsPage'
 import CharityPage     from './pages/CharityPage'
+import IndexHallPage   from './pages/IndexHallPage'
 import BottomNav       from './components/BottomNav'
 import Toast       from './components/Toast'
 
@@ -94,6 +95,7 @@ function App() {
           <Route path="/square"      element={session ? <SquarePage /> : <Navigate to="/auth" />} />
           <Route path="/companions"  element={session ? <CompanionsPage /> : <Navigate to="/auth" />} />
           <Route path="/charity"     element={session ? <CharityPage /> : <Navigate to="/auth" />} />
+          <Route path="/index-hall"  element={session ? <IndexHallPage /> : <Navigate to="/auth" />} />
           <Route path="/new"         element={session ? <NewPledge /> : <Navigate to="/auth" />} />
           <Route path="/pledge/:id"         element={session ? <PledgeDetail /> : <Navigate to="/auth" />} />
           <Route path="/pledge/:id/checkin" element={session ? <CheckinPage /> : <Navigate to="/auth" />} />
