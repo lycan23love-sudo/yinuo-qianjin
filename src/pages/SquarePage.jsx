@@ -1,11 +1,12 @@
 // src/pages/SquarePage.jsx
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { getPublicPledges, getCompletedPledges } from '../lib/supabase'
 import { differenceInDays } from 'date-fns'
+import IndexHallPage from './IndexHallPage'
 
 // ── 分类映射（title 关键词 → 分类）
-const CAT_LIST = ['全部','健康运动','学习成长','游戏目标','生活习惯','财务目标','创作']
+const CAT_LIST = ['全部','健康运动','学习成长','生活习惯','财务目标','创作']
 const CAT_ICONS = { '健康运动':'🏃','学习成长':'📚','游戏目标':'🎮','生活习惯':'🌅','财务目标':'💰','创作':'🎨','全部':'🌐' }
 const PERIOD_LABEL = { week:'周', month:'月', season:'季', year:'年' }
 
@@ -63,29 +64,27 @@ function LiveTab({ pledges, loading, cat, setCat, sort, setSort }) {
 
   return (
     <div style={{ padding: '0 16px' }}>
-      {/* 分类 chips */}
-      <div style={{ display: 'flex', gap: 7, overflowX: 'auto', padding: '12px 0',
-        scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
-        {CAT_LIST.map(c => (
-          <div key={c} onClick={() => setCat(c)}
-            style={{ ...S.chip, whiteSpace: 'nowrap', flexShrink: 0,
-              ...(cat === c ? S.chipOn : {}) }}>
-            {CAT_ICONS[c]} {c}
-          </div>
-        ))}
+      {/* 筛选层：分类与排序合并为一层 */}
+      <div style={S.filterBar}>
+        <div style={S.filterRow}>
+          {CAT_LIST.map(c => (
+            <button key={c} onClick={() => setCat(c)}
+              style={{ ...S.chip, ...(cat === c ? S.chipOn : {}) }}>
+              {CAT_ICONS[c]} {c}
+            </button>
+          ))}
+        </div>
+        <div style={S.sortRow}>
+          {[['created_at','最新'],['ending_soon','将结束'],['stake','押注高']].map(([k, lbl]) => (
+            <button key={k} onClick={() => setSort(k)}
+              style={{ ...S.sortBtn, ...(sort === k ? S.sortBtnOn : {}) }}>
+              {lbl}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* 排序 */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        {[['created_at','最新发布'],['ending_soon','即将结束'],['stake','押注最高']].map(([k, lbl]) => (
-          <button key={k} onClick={() => setSort(k)}
-            style={{ ...S.sortBtn, ...(sort === k ? S.sortBtnOn : {}) }}>
-            {lbl}
-          </button>
-        ))}
-      </div>
-
-      {loading && [1,2,3].map(i => <Skeleton key={i} />)}
+      {loading      {loading && [1,2,3].map(i => <Skeleton key={i} />)}
       {!loading && filtered.length === 0 && (
         <Empty text={cat === '全部' ? '还没有公开誓言，成为第一个！' : `暂无「${cat}」类誓言`} />
       )}
@@ -273,9 +272,43 @@ function TopicTab({ pledges, donePledges }) {
   )
 }
 
+function PoolTab() {
+  const nav = useNavigate()
+  const cards = [
+    { title: '盲盒结缘', desc: '把善意押进未知池，随机结缘正在坚持的人。', icon: '🎲', path: '/blind-bet', color: '#6A3ACA' },
+    { title: '赛博陪审团', desc: '进入争议打卡现场，帮助共同判定誓言证据。', icon: '⚖️', path: '/jury', color: '#C8922A' },
+  ]
+
+  return (
+    <div style={{ padding: '14px 16px 0' }}>
+      {cards.map(card => (
+        <button key={card.path} onClick={() => nav(card.path)} style={S.poolCard}>
+          <div style={{ ...S.poolIcon, background: card.color }}>{card.icon}</div>
+          <div style={{ flex: 1, textAlign: 'left' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#1A1208', marginBottom: 4 }}>{card.title}</div>
+            <div style={{ fontSize: 12, color: '#7A6A50', lineHeight: 1.55 }}>{card.desc}</div>
+          </div>
+          <span style={{ fontSize: 18, color: '#C0B090' }}>›</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+
 // ── 主组件
 export default function SquarePage() {
   const nav = useNavigate()
+  const location = useLocation()
+  const section = location.pathname.startsWith('/square/index')
+    ? 'index'
+    : location.pathname.startsWith('/square/pool')
+      ? 'pool'
+      : 'oath'
+  const goSection = (next) => {
+    const path = next === 'index' ? '/square/index' : next === 'pool' ? '/square/pool' : '/square'
+    if (location.pathname !== path) nav(path)
+  }
   const [tab, setTab]         = useState('live')
   const [cat, setCat]         = useState('全部')
   const [sort, setSort]       = useState('created_at')
@@ -314,42 +347,63 @@ export default function SquarePage() {
       {/* 顶栏 */}
       <div style={S.topbar}>
         <div style={S.logo}>广<em style={{ color: '#C8922A', fontStyle: 'normal' }}>场</em></div>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <button onClick={() => nav('/index-hall')}
-            style={{ background:'#1A1208', color:'#E8B84A', border:'none', borderRadius:20,
-              padding:'5px 12px', fontSize:11, fontWeight:600, cursor:'pointer',
-              fontFamily:'Noto Sans SC,sans-serif' }}>
-            📊 指数大厅
-          </button>
-        </div>
       </div>
 
-      {/* Tab 切换 */}
-      <div style={S.tabRow}>
-        {[['live','进行中'],['done','✨ 成功经验'],['topic','📌 主题榜']].map(([k, lbl]) => (
-          <button key={k} onClick={() => setTab(k)}
-            style={{ ...S.tab, ...(tab === k ? S.tabOn : {}) }}>
-            {lbl}
+
+      {/* 广场二级导航 */}
+      <div style={S.squareNav}>
+        {[
+          ['oath', '行者林', '誓言大厅'],
+          ['index', '众生相', '自律指数'],
+          ['pool', '洗心池', '盲盒与审判'],
+        ].map(([k, prefix, suffix]) => (
+          <button key={k} onClick={() => goSection(k)}
+            style={{ ...S.squareNavBtn, ...(section === k ? S.squareNavBtnOn : {}) }}>
+            <span>【{prefix}</span><span>· {suffix}】</span>
           </button>
         ))}
       </div>
 
-      {tab === 'live'  && <LiveTab pledges={pledges} loading={loading} cat={cat} setCat={setCat} sort={sort} setSort={setSort} />}
-      {tab === 'done'  && <DoneTab donePledges={donePledges} loading={loadingDone} />}
-      {tab === 'topic' && <TopicTab pledges={pledges} donePledges={donePledges} />}
+
+      {section === 'oath' && (
+        <>
+          {/* 誓言大厅内部 Tab */}
+          <div style={S.tabRow}>
+            {[['live','进行中'],['done','✨ 成功经验'],['topic','📌 主题榜']].map(([k, lbl]) => (
+              <button key={k} onClick={() => setTab(k)}
+                style={{ ...S.tab, ...(tab === k ? S.tabOn : {}) }}>
+                {lbl}
+              </button>
+            ))}
+          </div>
+
+
+          {tab === 'live'  && <LiveTab pledges={pledges} loading={loading} cat={cat} setCat={setCat} sort={sort} setSort={setSort} />}
+          {tab === 'done'  && <DoneTab donePledges={donePledges} loading={loadingDone} />}
+          {tab === 'topic' && <TopicTab pledges={pledges} donePledges={donePledges} />}
+        </>
+      )}
+      {section === 'index' && <IndexHallPage embedded />}
+      {section === 'pool' && <PoolTab />}
     </div>
   )
 }
 
 const S = {
-  topbar:    { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'calc(12px + env(safe-area-inset-top)) 16px 10px', background:'#FAF7F2', borderBottom:'0.5px solid #E0D5C0', position:'sticky', top:0, zIndex:10 },
+  topbar:    { display:'flex', alignItems:'center', justifyContent:'center', padding:'calc(12px + env(safe-area-inset-top)) 16px 10px', background:'#FAF7F2', borderBottom:'0.5px solid #E0D5C0', position:'sticky', top:0, zIndex:10 },
   logo:      { fontFamily:'Noto Serif SC,serif', fontSize:20, fontWeight:900, color:'#1A1208' },
-  tabRow:    { display:'flex', borderBottom:'0.5px solid #E0D5C0', background:'#FAF7F2', position:'sticky', top:51, zIndex:9 },
+  squareNav: { display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:6, padding:'8px 10px', background:'#FAF7F2', borderBottom:'0.5px solid #E0D5C0', position:'sticky', top:51, zIndex:9 },
+  squareNavBtn:{ minHeight:46, border:'0.5px solid #E0D5C0', borderRadius:10, background:'#fff', color:'#7A6A50', fontSize:11, fontWeight:700, lineHeight:1.35, cursor:'pointer', fontFamily:'Noto Serif SC,serif', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'4px 2px' },
+  squareNavBtnOn:{ background:'#1A1208', color:'#E8B84A', borderColor:'#1A1208', boxShadow:'0 4px 12px rgba(26,18,8,.14)' },
+  tabRow:    { display:'flex', borderBottom:'0.5px solid #E0D5C0', background:'#FAF7F2', position:'sticky', top:114, zIndex:8 },
   tab:       { flex:1, padding:'10px 4px', fontSize:12, fontWeight:500, color:'#9A8A70', background:'none', border:'none', borderBottom:'2px solid transparent', cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
   tabOn:     { color:'#C8922A', borderBottomColor:'#C8922A', fontWeight:700 },
-  chip:      { padding:'6px 12px', borderRadius:20, fontSize:12, cursor:'pointer', background:'#fff', border:'0.5px solid #E0D5C0', color:'#7A6A50', fontFamily:'Noto Sans SC,sans-serif' },
+  filterBar: { margin:'12px 0', padding:10, borderRadius:12, background:'#fff', border:'0.5px solid #E0D5C0', boxShadow:'0 1px 6px rgba(26,18,8,.04)' },
+  filterRow: { display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', paddingBottom:8 },
+  sortRow:   { display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:6 },
+  chip:      { padding:'6px 10px', borderRadius:20, fontSize:11, cursor:'pointer', background:'#FAF7F2', border:'0.5px solid #E0D5C0', color:'#7A6A50', fontFamily:'Noto Sans SC,sans-serif', whiteSpace:'nowrap', flexShrink:0 },
   chipOn:    { background:'#C8922A', color:'#fff', border:'0.5px solid #C8922A' },
-  sortBtn:   { background:'none', border:'0.5px solid #E0D5C0', borderRadius:20, padding:'4px 12px', fontSize:11, color:'#9A8A70', cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
+  sortBtn:   { background:'#FAF7F2', border:'0.5px solid #E0D5C0', borderRadius:9, padding:'7px 4px', fontSize:11, color:'#9A8A70', cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
   sortBtnOn: { background:'#1A1208', color:'#fff', borderColor:'#1A1208' },
   pledgeCard:{ background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:14, padding:14, marginBottom:10, cursor:'pointer', boxShadow:'0 1px 6px rgba(26,18,8,.05)' },
   tag:       { fontSize:10, fontWeight:600, padding:'3px 10px', borderRadius:20 },
@@ -359,4 +413,6 @@ const S = {
   expTag:    { fontSize:11, color:'#7A6A50', background:'#F5F0E8', borderRadius:20, padding:'3px 10px' },
   actionBtn: { background:'none', border:'none', cursor:'pointer', fontSize:12, color:'#9A8A70', display:'flex', alignItems:'center', gap:4, fontFamily:'Noto Sans SC,sans-serif', padding:'4px 6px' },
   topicCard: { background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:14, padding:14, marginBottom:10, boxShadow:'0 1px 4px rgba(26,18,8,.04)' },
+  poolCard:  { width:'100%', display:'flex', alignItems:'center', gap:12, background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:14, padding:14, marginBottom:10, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif', boxShadow:'0 1px 6px rgba(26,18,8,.05)' },
+  poolIcon:  { width:42, height:42, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:22, flexShrink:0 },
 }
