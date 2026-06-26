@@ -3,6 +3,7 @@
 -- 在 Supabase Dashboard → SQL Editor 中运行
 -- ============================================================
 
+
 -- 1. 用户扩展信息表（Supabase Auth 已有基础用户，这里存扩展字段）
 CREATE TABLE public.profiles (
   id          UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -17,6 +18,7 @@ CREATE TABLE public.profiles (
   created_at  TIMESTAMPTZ DEFAULT NOW(),
   updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
+
 
 -- 2. 誓言表
 CREATE TABLE public.pledges (
@@ -41,6 +43,7 @@ CREATE TABLE public.pledges (
   updated_at     TIMESTAMPTZ DEFAULT NOW()
 );
 
+
 -- 3. 打卡记录表
 CREATE TABLE public.checkins (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -59,6 +62,21 @@ CREATE TABLE public.checkins (
   UNIQUE(pledge_id, checkin_date)      -- 一天只能打一次
 );
 
+
+-- 3.1 打卡质疑/陪审团案件表
+CREATE TABLE public.disputes (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  checkin_id   UUID NOT NULL REFERENCES public.checkins(id) ON DELETE CASCADE,
+  pledge_id    UUID NOT NULL REFERENCES public.pledges(id) ON DELETE CASCADE,
+  disputer_id  UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  reason       TEXT,
+  ruling       TEXT NOT NULL DEFAULT 'pending' CHECK (ruling IN ('pending','upheld','overturned')),
+  ruled_by     UUID REFERENCES public.profiles(id),
+  ruled_at     TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+
 -- 4. 金币流水账本（不可删除，只可追加）
 CREATE TABLE public.coin_ledger (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -75,6 +93,7 @@ CREATE TABLE public.coin_ledger (
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
+
 -- 5. 见证者押注表
 CREATE TABLE public.witnesses (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -86,6 +105,7 @@ CREATE TABLE public.witnesses (
   created_at   TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(pledge_id, user_id)
 );
+
 
 -- 6. 捐款记录表
 CREATE TABLE public.donations (
@@ -99,15 +119,18 @@ CREATE TABLE public.donations (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+
 -- ============================================================
 -- Row Level Security（数据安全，必须开启）
 -- ============================================================
 ALTER TABLE public.profiles   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pledges     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.checkins    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.disputes    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coin_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.witnesses   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.donations   ENABLE ROW LEVEL SECURITY;
+
 
 -- profiles：自己能读写自己的，公开信息所有人可读
 CREATE POLICY "profiles_self_rw" ON public.profiles
@@ -115,11 +138,13 @@ CREATE POLICY "profiles_self_rw" ON public.profiles
 CREATE POLICY "profiles_public_r" ON public.profiles
   FOR SELECT USING (true);
 
+
 -- pledges：自己能读写自己的，公开誓言所有人可读
 CREATE POLICY "pledges_self_rw" ON public.pledges
   FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "pledges_public_r" ON public.pledges
   FOR SELECT USING (is_public = true OR auth.uid() = user_id);
+
 
 -- checkins：自己能读写，公开誓言的打卡所有人可读
 CREATE POLICY "checkins_self_rw" ON public.checkins
@@ -131,9 +156,20 @@ CREATE POLICY "checkins_public_r" ON public.checkins
     OR auth.uid() = user_id
   );
 
+
+-- disputes：认证用户可发起质疑，公开案件可读；裁定由前端权限控制
+CREATE POLICY "disputes_public_r" ON public.disputes
+  FOR SELECT USING (true);
+CREATE POLICY "disputes_self_insert" ON public.disputes
+  FOR INSERT WITH CHECK (auth.uid() = disputer_id);
+CREATE POLICY "disputes_authenticated_update" ON public.disputes
+  FOR UPDATE USING (auth.role() = 'authenticated');
+
+
 -- coin_ledger：只能读自己的，不能直接写（通过函数操作）
 CREATE POLICY "ledger_self_r" ON public.coin_ledger
   FOR SELECT USING (auth.uid() = user_id);
+
 
 -- witnesses：自己能操作，所有人可读
 CREATE POLICY "witnesses_self_rw" ON public.witnesses
@@ -141,9 +177,11 @@ CREATE POLICY "witnesses_self_rw" ON public.witnesses
 CREATE POLICY "witnesses_public_r" ON public.witnesses
   FOR SELECT USING (true);
 
+
 -- donations：自己能读写
 CREATE POLICY "donations_self_rw" ON public.donations
   FOR ALL USING (auth.uid() = user_id);
+
 
 -- ============================================================
 -- 核心函数：原子性金币操作（防止并发导致余额错误）
@@ -162,12 +200,15 @@ BEGIN
   SELECT merit_coins INTO v_balance FROM public.profiles
   WHERE id = p_user_id FOR UPDATE;
 
+
   v_balance := v_balance + p_amount;
+
 
   -- 余额不能为负
   IF v_balance < 0 THEN
     RAISE EXCEPTION '余额不足';
   END IF;
+
 
   -- 更新余额
   UPDATE public.profiles
@@ -176,13 +217,16 @@ BEGIN
       updated_at = NOW()
   WHERE id = p_user_id;
 
+
   -- 写流水
   INSERT INTO public.coin_ledger(user_id, amount, type, ref_id, note, balance_after)
   VALUES (p_user_id, p_amount, p_type, p_ref_id, p_note, v_balance);
 
+
   RETURN v_balance;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
 
 -- ============================================================
 -- 触发器：新用户注册自动创建 profile
@@ -193,15 +237,18 @@ BEGIN
   INSERT INTO public.profiles (id, phone, nickname)
   VALUES (NEW.id, NEW.phone, COALESCE(NEW.raw_user_meta_data->>'nickname', '立誓者'));
 
+
   -- 注册赠送500善缘
   PERFORM add_coins(NEW.id, 500, 'gift_register', NULL, '新用户注册赠送');
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
 
 -- ============================================================
 -- Supabase Storage：创建打卡图片桶
@@ -211,6 +258,7 @@ CREATE TRIGGER on_auth_user_created
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('checkins', 'checkins', true)
 ON CONFLICT DO NOTHING;
+
 
 CREATE POLICY "checkins_upload" ON storage.objects
   FOR INSERT WITH CHECK (bucket_id = 'checkins' AND auth.role() = 'authenticated');
