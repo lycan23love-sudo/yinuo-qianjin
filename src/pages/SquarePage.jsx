@@ -84,7 +84,7 @@ function LiveTab({ pledges, loading, cat, setCat, sort, setSort }) {
         </div>
       </div>
 
-      {loading      {loading && [1,2,3].map(i => <Skeleton key={i} />)}
+      {loading && [1,2,3].map(i => <Skeleton key={i} />)}
       {!loading && filtered.length === 0 && (
         <Empty text={cat === '全部' ? '还没有公开誓言，成为第一个！' : `暂无「${cat}」类誓言`} />
       )}
