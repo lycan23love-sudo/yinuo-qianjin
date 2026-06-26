@@ -2,16 +2,19 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../App'
-import { getPledgeDetail, getCheckins, hasCheckedInToday, getWitnesses, getMyWitness, addWitness } from '../lib/supabase'
+import { getPledgeDetail, getCheckins, hasCheckedInToday, getWitnesses, getMyWitness, addWitness, disputeCheckin } from '../lib/supabase'
 import { format, eachDayOfInterval, parseISO, getDay } from 'date-fns'
+
 
 const PERIOD_LABEL = { week:'周', month:'月', season:'季', year:'年' }
 const MOOD_LABEL = { great:'💪 超级顺利', grind:'😤 咬牙坚持', steady:'😌 平稳推进', danger:'🆘 差点放弃' }
+
 
 function ringDash(pct, r = 34) {
     const circ = 2 * Math.PI * r
     return `${(pct / 100) * circ} ${circ}`
 }
+
 
 function WeekHeatmap({ checkinDates, startDate }) {
     const today = new Date()
@@ -62,6 +65,7 @@ function WeekHeatmap({ checkinDates, startDate }) {
         )
 }
 
+
 function MilestoneAxis({ totalDays, checkinCount }) {
     const milestones = []
         if (totalDays >= 7)  milestones.push({ day:7, label:'1周' })
@@ -99,6 +103,7 @@ function MilestoneAxis({ totalDays, checkinCount }) {
           </div>
         )
 }
+
 
 function CalendarView({ checkins, pledge }) {
     const start = parseISO(pledge.start_date)
@@ -155,6 +160,7 @@ function CalendarView({ checkins, pledge }) {
                                                           const [showBetPanel, setShowBetPanel] = useState(false)
                                                           const [toast, setToast] = useState(null)
 
+
                                                           function showToast(msg, type='info') {
                                                             setToast({ msg, type })
                                                             setTimeout(() => setToast(null), 2500)
@@ -174,6 +180,25 @@ function CalendarView({ checkins, pledge }) {
                                                                               }
                                                                   }
                                 
+                                                                  async function handleDispute(checkin) {
+                                                                        if (!session?.user?.id) { showToast('请先登录', 'error'); return }
+                                                                        if (session.user.id === pledge.user_id) { showToast('不能质疑自己的打卡', 'error'); return }
+                                                                        if (checkin.status === 'disputed') { showToast('这条打卡已进入陪审团', 'info'); return }
+                                                                        const reason = window.prompt('请输入质疑理由，例如：截图不清晰、内容与誓言不符')
+                                                                        if (reason === null) return
+                                                                        setWitnessLoading(true)
+                                                                        try {
+                                                                          await disputeCheckin(session.user.id, checkin.id, pledge.id, reason.trim())
+                                                                          showToast('质疑已提交，等待陪审团裁定', 'success')
+                                                                          load()
+                                                                        } catch (err) {
+                                                                          showToast(err.message || '质疑提交失败', 'error')
+                                                                        } finally {
+                                                                          setWitnessLoading(false)
+                                                                        }
+                                                                  }
+
+
                                   if (!pledge) return (
                                         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
                                               <div style={{ color:'#9A8A70' }}>加载中…</div>
@@ -277,9 +302,15 @@ function CalendarView({ checkins, pledge }) {
                                                                                               {c.image_url && <img src={c.image_url} alt="打卡" style={{ width:'100%', borderRadius:10, maxHeight:180, objectFit:'cover', marginBottom:8 }} />}
                                                                                               {c.note && <div style={{ fontSize:13, lineHeight:1.7, color:'#3A2A18', borderLeft:'3px solid #C8922A', paddingLeft:10, fontStyle:'italic', marginBottom:8 }}>「{c.note}」</div>}
                                                                                               {c.mood && <div style={{ fontSize:11, color:'#9A8A70' }}>{MOOD_LABEL[c.mood]||c.mood}</div>}
-                                                                                                              <div style={{ display:'flex', justifyContent:'flex-end', marginTop:8 }}>
-                                                                                                                                  <div style={{ fontSize:10, fontWeight:600, color:c.status==='valid'?'#3B7A4A':'#9A8A70', background:c.status==='valid'?'#E8F5EC':'#F5F0E8', padding:'2px 8px', borderRadius:20 }}>
-                                                                                                                                    {c.status==='valid'?'✓ 已验证':c.status==='pending'?'⏳ 审核中':c.status}
+                                                                                                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginTop:8 }}>
+                                                                                                                {!isOwner && c.status === 'valid' ? (
+                                                                                                                  <button onClick={() => handleDispute(c)} disabled={witnessLoading}
+                                                                                                                    style={{ border:'1px solid #E0D5C0', background:'#fff', color:'#7A5A18', borderRadius:20, padding:'4px 10px', fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' }}>
+                                                                                                                    质疑此打卡
+                                                                                                                  </button>
+                                                                                                                ) : <div />}
+                                                                                                                                  <div style={{ fontSize:10, fontWeight:600, color:c.status==='valid'?'#3B7A4A':c.status==='disputed'?'#C84040':'#9A8A70', background:c.status==='valid'?'#E8F5EC':c.status==='disputed'?'#FCEBEB':'#F5F0E8', padding:'2px 8px', borderRadius:20 }}>
+                                                                                                                                    {c.status==='valid'?'✓ 已验证':c.status==='disputed'?'⚖️ 已质疑':c.status==='pending'?'⏳ 审核中':c.status}
                                                                                                                                     </div>
                                                                                                                 </div>
                                                                                               </div>
@@ -296,6 +327,7 @@ function CalendarView({ checkins, pledge }) {
                                                                             const totalPool  = trustPool + doubtPool
                                                                             const trustPct   = totalPool > 0 ? Math.round(trustPool / totalPool * 100) : 50
 
+
                                                                             async function handleBet(type) {
                                                                               if (!session?.user?.id) { showToast('请先登录', 'error'); return }
                                                                               if (isOwner) { showToast('不能见证自己的誓言', 'error'); return }
@@ -310,6 +342,7 @@ function CalendarView({ checkins, pledge }) {
                                                                                 showToast(err.message || '押注失败', 'error')
                                                                               } finally { setWitnessLoading(false) }
                                                                             }
+
 
                                                                             return (
                                                                             <div>
@@ -337,6 +370,7 @@ function CalendarView({ checkins, pledge }) {
                                                                                   <span>质疑 {100 - trustPct}%</span>
                                                                                 </div>
                                                                               </div>
+
 
                                                                               {/* 我的押注状态 / 押注按钮 */}
                                                                               {myWitness ? (
@@ -407,6 +441,7 @@ function CalendarView({ checkins, pledge }) {
                                                                                   )}
                                                                                 </div>
                                                                               ) : null}
+
 
                                                                               {/* 见证者列表 */}
                                                                               {witnesses.length > 0 ? (
