@@ -1,9 +1,10 @@
 // src/pages/NewPledge.jsx
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useToast } from '../App'
 import { createPledge } from '../lib/supabase'
 import { addDays, format } from 'date-fns'
+
 
 const PERIODS = [
   { key:'week',   icon:'📅', label:'周誓言',   days:7,   locked:false },
@@ -12,31 +13,48 @@ const PERIODS = [
   { key:'year',   icon:'🏔️', label:'年度誓言', days:365, locked:true, need:'完成3个解锁' },
 ]
 const STAKES = [200, 500, 1000, 2000]
-const CHARITIES = ['🐾 动物保护联盟','📚 山区图书馆','❤️ 儿童健康基金','🌳 绿色公益','🏥 贫困h助学基金']
+const CHARITIES = ['🐾 动物保护联盟','📚 山区图书馆','❤️ 儿童健康基金','🌳 绿色公益','🏥 贫困助学基金']
 const VERIFY = [
   { key:'screenshot', icon:'📷', label:'截图证明', desc:'上传截图，见证者可质疑' },
   { key:'text',       icon:'✍️', label:'文字日记', desc:'每天写今天的记录' },
 ]
+
 
 export default function NewPledge() {
   const { session, profile, refreshProfile } = useAuth()
   const { showToast } = useToast()
   const nav = useNavigate()
 
+
   const [form, setForm] = useState({
-    title: '', period: 'month', stake: 500,
+    title: '', period: 'month', stake: 200,
     charity: '📚 山区图书馆', verify: 'screenshot', isPublic: true, bounty: 0
   })
   const [loading, setLoading] = useState(false)
 
+
+  useEffect(() => {
+    if (!profile) return
+    const coins = profile.merit_coins ?? 0
+    setForm(f => {
+      if (f.stake <= coins) return f
+      const affordable = [...STAKES].reverse().find(s => s <= coins) || STAKES[0]
+      return { ...f, stake: affordable }
+    })
+  }, [profile?.merit_coins])
+
+
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
+
 
   const period = PERIODS.find(p => p.key === form.period)
   const endDate = format(addDays(new Date(), period.days - 1), 'yyyy年M月d日')
 
+
   // Check quota
   const quotaFull = profile && (profile.merit_coins < form.stake)
   const noCoins = profile && profile.merit_coins < form.stake
+
 
   async function handleSubmit() {
     if (!form.title.trim()) { showToast('请填写承诺内容'); return }
@@ -61,6 +79,7 @@ export default function NewPledge() {
     }
   }
 
+
   return (
     <div style={{ paddingBottom: 100 }}>
       <div style={S.topbar}>
@@ -68,6 +87,7 @@ export default function NewPledge() {
         <div style={S.title}>立下誓言</div>
         <div style={{ width:32 }} />
       </div>
+
 
       <div style={{ padding:'0 16px' }}>
         {/* Pledge content */}
@@ -77,6 +97,7 @@ export default function NewPledge() {
             placeholder="具体的目标更容易坚持&#10;例：每天跑步5公里，不跑完不算数"
             value={form.title} onChange={e => set('title', e.target.value)} />
         </div>
+
 
         {/* Period */}
         <div style={S.group}>
@@ -106,6 +127,7 @@ export default function NewPledge() {
           </div>
         </div>
 
+
         {/* Stake */}
         <div style={S.group}>
           <label style={S.label}>赌注金币（失败时捐出）</label>
@@ -123,6 +145,7 @@ export default function NewPledge() {
           </div>
         </div>
 
+
         {/* Charity */}
         <div style={S.group}>
           <label style={S.label}>失败时捐给</label>
@@ -135,6 +158,7 @@ export default function NewPledge() {
             ))}
           </div>
         </div>
+
 
         {/* Verify type */}
         <div style={S.group}>
@@ -151,6 +175,7 @@ export default function NewPledge() {
           ))}
         </div>
 
+
         {/* Public toggle */}
         <div style={S.group}>
           <label style={S.label}>是否公开到广场</label>
@@ -163,6 +188,7 @@ export default function NewPledge() {
             ))}
           </div>
         </div>
+
 
         {/* 悬赏令（公开时可选） */}
         {form.isPublic && (
@@ -182,6 +208,7 @@ export default function NewPledge() {
           </div>
         )}
 
+
         {/* Escrow notice */}
         <div style={S.notice}>
           <div style={{ fontSize:12, fontWeight:600, color:'#7A5A18', marginBottom:4 }}>
@@ -192,6 +219,7 @@ export default function NewPledge() {
           </div>
         </div>
 
+
         <button style={{ ...S.btnGold, width:'100%', padding:14, fontSize:15 }}
           onClick={handleSubmit} disabled={loading || noCoins}>
           {loading ? '立誓中…' : `立下誓言，托管 ${form.stake} 金币`}
@@ -200,6 +228,7 @@ export default function NewPledge() {
     </div>
   )
 }
+
 
 const S = {
   topbar: { display:'flex', alignItems:'center', justifyContent:'space-between',
