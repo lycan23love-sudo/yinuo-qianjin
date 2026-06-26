@@ -141,14 +141,15 @@ function LiveTab({ pledges, loading, cat, setCat, sort, setSort }) {
               <div style={{ fontSize: 11, color: '#B8A88A' }}>
                 {p.verify_type === 'screenshot' ? '📸 截图打卡' : p.verify_type === 'text' ? '✏️ 文字打卡' : '📍 定位打卡'}
               </div>
-              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+              <div style={S.cardActions}>
                 <button onClick={e => { e.stopPropagation(); nav(`/pledge/${p.id}?tab=witness`) }}
-                  style={{ background:'#1A1208', color:'#E8B84A', border:'none', borderRadius:16,
-                    padding:'4px 10px', fontSize:11, fontWeight:600, cursor:'pointer',
-                    fontFamily:'Noto Sans SC,sans-serif' }}>
+                  style={S.witnessBtn}>
                   👁 去见证
                 </button>
-                <div style={{ fontSize: 11, color: '#C8922A' }}>查看 ›</div>
+                <button onClick={e => { e.stopPropagation(); nav(`/pledge/${p.id}`) }}
+                  style={S.detailBtn}>
+                  查看 ›
+                </button>
               </div>
             </div>
           </div>
@@ -247,16 +248,19 @@ export default function SquarePage() {
 const S = {
   topbar:    { display:'flex', alignItems:'center', justifyContent:'center', padding:'calc(10px + env(safe-area-inset-top)) 16px 8px', background:'#FAF7F2', position:'sticky', top:0, zIndex:10 },
   logo:      { fontFamily:'Noto Serif SC,serif', fontSize:19, fontWeight:900, color:'#1A1208', letterSpacing:1 },
-  squareNav: { display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:4, padding:'6px 14px 8px', background:'#FAF7F2', borderBottom:'0.5px solid #E8DDC8', position:'sticky', top:46, zIndex:9 },
-  squareNavBtn:{ minHeight:34, border:'none', borderRadius:18, background:'transparent', color:'#7A6A50', fontSize:11, fontWeight:700, lineHeight:1.2, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'4px 2px' },
-  squareNavBtnOn:{ background:'#1A1208', color:'#E8B84A', boxShadow:'0 2px 8px rgba(26,18,8,.10)' },
-  navPrimary:{ fontSize:11, fontWeight:800 },
-  navSub:    { fontSize:10, opacity:.78, marginTop:1 },
+  squareNav: { display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:0, padding:'0 18px', background:'#FAF7F2', borderBottom:'0.5px solid #E0D5C0', position:'sticky', top:46, zIndex:9 },
+  squareNavBtn:{ minHeight:58, border:'none', borderRadius:0, background:'transparent', color:'#7A6A50', fontSize:12, fontWeight:700, lineHeight:1.2, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'8px 2px 10px', position:'relative' },
+  squareNavBtnOn:{ color:'#C8922A', boxShadow:'inset 0 -3px 0 #C8922A' },
+  navPrimary:{ fontSize:13, fontWeight:800 },
+  navSub:    { fontSize:11, opacity:.72, marginTop:2 },
   filterBar: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, margin:'10px 0 12px' },
   selectBox: { minWidth:0, display:'flex', alignItems:'center', gap:6, border:'0.5px solid #E0D5C0', borderRadius:12, background:'#fff', padding:'7px 10px' },
   selectLabel:{ fontSize:10, color:'#B09A72', fontWeight:700, flexShrink:0 },
   select:    { minWidth:0, flex:1, border:'none', outline:'none', background:'transparent', color:'#4A3A24', fontSize:12, fontWeight:700, fontFamily:'Noto Sans SC,sans-serif' },
   pledgeCard:{ background:'#fff', border:'0.5px solid #E6DCCB', borderRadius:13, padding:13, marginBottom:10, cursor:'pointer', boxShadow:'0 1px 4px rgba(26,18,8,.035)' },
+  cardActions:{ display:'flex', gap:8, alignItems:'center' },
+  witnessBtn:{ background:'#C89A32', color:'#fff', border:'none', borderRadius:18, padding:'6px 14px', fontSize:12, fontWeight:800, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif', minWidth:88 },
+  detailBtn: { background:'#fff', color:'#9A7A3A', border:'0.5px solid #E0D5C0', borderRadius:18, padding:'5px 12px', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
   tag:       { fontSize:10, fontWeight:600, padding:'3px 10px', borderRadius:20 },
   secLabel:  { fontSize:11, fontWeight:600, color:'#9A8A70', letterSpacing:.5, marginBottom:10, marginTop:4 },
   successCard:{ background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:14, padding:14, marginBottom:10, boxShadow:'0 1px 6px rgba(26,18,8,.05)' },
