@@ -2,8 +2,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../App'
-import { getPledgeDetail, getCheckins, hasCheckedInToday, getWitnesses, getMyWitness, addWitness, disputeCheckin } from '../lib/supabase'
+import { getPledgeDetail, getCheckins, hasCheckedInToday, getWitnesses, getMyWitness, addWitness, disputeCheckin, completePledge } from '../lib/supabase'
 import { format, eachDayOfInterval, parseISO, getDay } from 'date-fns'
+
+
+
+
 
 
 
@@ -14,10 +18,18 @@ const MOOD_LABEL = { great:'💪 超级顺利', grind:'😤 咬牙坚持', stead
 
 
 
+
+
+
+
 function ringDash(pct, r = 34) {
     const circ = 2 * Math.PI * r
     return `${(pct / 100) * circ} ${circ}`
 }
+
+
+
+
 
 
 
@@ -74,6 +86,10 @@ function WeekHeatmap({ checkinDates, startDate }) {
 
 
 
+
+
+
+
 function MilestoneAxis({ totalDays, checkinCount }) {
     const milestones = []
         if (totalDays >= 7)  milestones.push({ day:7, label:'1周' })
@@ -111,6 +127,10 @@ function MilestoneAxis({ totalDays, checkinCount }) {
           </div>
         )
 }
+
+
+
+
 
 
 
@@ -156,7 +176,7 @@ function CalendarView({ checkins, pledge }) {
                               
                               export default function PledgeDetail() {
                                   const { id } = useParams()
-                                      const { session } = useAuth()
+                                      const { session, refreshProfile } = useAuth()
                                           const nav = useNavigate()
                                           const [searchParams] = useSearchParams()
                                               const [pledge, setPledge] = useState(null)
@@ -166,11 +186,16 @@ function CalendarView({ checkins, pledge }) {
                                                           const [witnesses, setWitnesses] = useState([])
                                                           const [myWitness, setMyWitness] = useState(null)
                                                           const [witnessLoading, setWitnessLoading] = useState(false)
+                                                          const [settlementLoading, setSettlementLoading] = useState(false)
                                                           const [betAmount, setBetAmount] = useState(50)
                                                           const [showBetPanel, setShowBetPanel] = useState(false)
                                                           const [disputeTarget, setDisputeTarget] = useState(null)
                                                           const [disputeReason, setDisputeReason] = useState('')
                                                           const [toast, setToast] = useState(null)
+
+
+
+
 
 
 
@@ -216,6 +241,31 @@ function CalendarView({ checkins, pledge }) {
 
 
 
+
+
+
+
+                                                                  async function handleSettlement(success) {
+                                                                        if (!session?.user?.id) { showToast('请先登录', 'error'); return }
+                                                                        if (!pledge || session.user.id !== pledge.user_id) { showToast('只能结算自己的誓言', 'error'); return }
+                                                                        const ok = window.confirm(success
+                                                                          ? '确认誓言已完成并开始结算？'
+                                                                          : '确认誓言失败，将押注捐出并进入冷静期？')
+                                                                        if (!ok) return
+                                                                        setSettlementLoading(true)
+                                                                        try {
+                                                                          await completePledge(pledge.id, session.user.id, success)
+                                                                          showToast(success ? '誓言已完成，结算成功' : '誓言已失败，押注已进入公益', 'success')
+                                                                          refreshProfile?.()
+                                                                          load()
+                                                                        } catch (err) {
+                                                                          showToast(err.message || '结算失败', 'error')
+                                                                        } finally {
+                                                                          setSettlementLoading(false)
+                                                                        }
+                                                                  }
+
+
                                   if (!pledge) return (
                                         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
                                               <div style={{ color:'#9A8A70' }}>加载中…</div>
@@ -227,6 +277,8 @@ function CalendarView({ checkins, pledge }) {
                                               const checkinDates = new Set(checkins.map(c => c.checkin_date))
                                                   const isOwner = session?.user?.id === pledge.user_id
                                                       const canCheckin = isOwner && pledge.status === 'active' && !checkedToday
+                                                      const canSettleSuccess = isOwner && pledge.status === 'active' && pledge.checkin_count >= pledge.total_days
+                                                      const canSettleFailure = isOwner && pledge.status === 'active' && daysLeft <= 0 && pledge.checkin_count < pledge.total_days
                                                         
                                                           return (
                                                                 <div style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom))', background:'#FAF7F2', minHeight:'100vh' }}>
@@ -290,6 +342,29 @@ function CalendarView({ checkins, pledge }) {
                                                                                         </div>
                                                                                         <WeekHeatmap checkinDates={checkinDates} startDate={pledge.start_date} />
                                                                                         <MilestoneAxis totalDays={pledge.total_days} checkinCount={pledge.checkin_count} />
+                                                                                        {isOwner && pledge.status === 'active' && (
+                                                                                          <div style={{ marginTop:14, background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', borderRadius:12, padding:12 }}>
+                                                                                            <div style={{ fontSize:12, fontWeight:700, color:'#E8B84A', marginBottom:6 }}>结算中心</div>
+                                                                                            <div style={{ fontSize:11, color:'rgba(255,255,255,.55)', lineHeight:1.6, marginBottom:10 }}>
+                                                                                              完成后返还你的押注，并结算支持方；失败后你的押注进入公益，并结算质疑方。
+                                                                                            </div>
+                                                                                            <div style={{ display:'flex', gap:8 }}>
+                                                                                              <button onClick={() => handleSettlement(true)} disabled={!canSettleSuccess || settlementLoading}
+                                                                                                style={{ flex:1, border:'none', borderRadius:10, background: canSettleSuccess ? '#3B7A4A' : 'rgba(255,255,255,.12)', color:'#fff', padding:'9px 0', fontSize:12, fontWeight:700, opacity: canSettleSuccess ? 1 : .55, fontFamily:'Noto Sans SC,sans-serif' }}>
+                                                                                                完成并结算
+                                                                                              </button>
+                                                                                              <button onClick={() => handleSettlement(false)} disabled={!canSettleFailure || settlementLoading}
+                                                                                                style={{ flex:1, border:'none', borderRadius:10, background: canSettleFailure ? '#C84040' : 'rgba(255,255,255,.12)', color:'#fff', padding:'9px 0', fontSize:12, fontWeight:700, opacity: canSettleFailure ? 1 : .55, fontFamily:'Noto Sans SC,sans-serif' }}>
+                                                                                                失败并捐出
+                                                                                              </button>
+                                                                                            </div>
+                                                                                            {!canSettleSuccess && !canSettleFailure && (
+                                                                                              <div style={{ fontSize:10, color:'rgba(255,255,255,.45)', marginTop:8 }}>
+                                                                                                当前还未到结算条件：需完成全部打卡，或到期后未完成。
+                                                                                              </div>
+                                                                                            )}
+                                                                                          </div>
+                                                                                        )}
                                                                               </div>
                                                                         {tab === 'log' && (
                                                                             <div>
@@ -365,6 +440,10 @@ function CalendarView({ checkins, pledge }) {
 
 
 
+
+
+
+
                                                                             async function handleBet(type) {
                                                                               if (!session?.user?.id) { showToast('请先登录', 'error'); return }
                                                                               if (isOwner) { showToast('不能见证自己的誓言', 'error'); return }
@@ -379,6 +458,10 @@ function CalendarView({ checkins, pledge }) {
                                                                                 showToast(err.message || '押注失败', 'error')
                                                                               } finally { setWitnessLoading(false) }
                                                                             }
+
+
+
+
 
 
 
@@ -413,6 +496,10 @@ function CalendarView({ checkins, pledge }) {
 
 
 
+
+
+
+
                                                                               {/* 我的押注状态 / 押注按钮 */}
                                                                               {myWitness ? (
                                                                                 <div style={{ background: myWitness.type === 'trust' ? '#E8F5EC' : '#FCEBEB',
@@ -423,7 +510,7 @@ function CalendarView({ checkins, pledge }) {
                                                                                     {myWitness.type === 'trust' ? '✊ 你支持了这个誓言' : '🤔 你质疑了这个誓言'}
                                                                                   </div>
                                                                                   <div style={{ fontSize:12, color:'#9A8A70', marginTop:4 }}>
-                                                                                    押注 {myWitness.stake_coins} 金币 · {myWitness.status === 'active' ? '等待结算' : myWitness.status}
+                                                                                    押注 {myWitness.stake_coins} 金币 · {myWitness.status === 'active' ? '等待结算' : myWitness.status === 'won' ? '已赢' : myWitness.status === 'lost' ? '已输' : myWitness.status}
                                                                                   </div>
                                                                                 </div>
                                                                               ) : isOwner ? (
@@ -486,6 +573,10 @@ function CalendarView({ checkins, pledge }) {
 
 
 
+
+
+
+
                                                                               {/* 见证者列表 */}
                                                                               {witnesses.length > 0 ? (
                                                                                 <div>
@@ -506,7 +597,7 @@ function CalendarView({ checkins, pledge }) {
                                                                                           {w.profiles?.nickname || '匿名'}
                                                                                         </div>
                                                                                         <div style={{ fontSize:11, color:'#9A8A70' }}>
-                                                                                          {w.type === 'trust' ? '支持' : '质疑'} · 押注{w.stake_coins}金币
+                                                                                          {w.type === 'trust' ? '支持' : '质疑'} · 押注{w.stake_coins}金币{w.status === 'won' ? ' · 已赢' : w.status === 'lost' ? ' · 已输' : ''}
                                                                                         </div>
                                                                                       </div>
                                                                                       <div style={{ fontSize:11, fontWeight:600, padding:'3px 9px',
