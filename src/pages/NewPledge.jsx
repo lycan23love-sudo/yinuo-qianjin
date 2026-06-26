@@ -52,8 +52,8 @@ export default function NewPledge() {
 
 
   // Check quota
-  const quotaFull = profile && (profile.merit_coins < form.stake)
-  const noCoins = profile && profile.merit_coins < form.stake
+  const currentCoins = profile?.merit_coins ?? 0
+  const noCoins = currentCoins < form.stake
 
 
   async function handleSubmit() {
@@ -140,7 +140,7 @@ export default function NewPledge() {
             ))}
           </div>
           <div style={{ fontSize:11, color:'#9A8A70', marginTop:6 }}>
-            当前余额：{(profile?.merit_coins ?? 0).toLocaleString()} 金币
+            当前余额：{currentCoins.toLocaleString()} 金币
             {noCoins && <span style={{ color:'#C84040', marginLeft:8 }}>余额不足</span>}
           </div>
         </div>
@@ -221,8 +221,8 @@ export default function NewPledge() {
 
 
         <button style={{ ...S.btnGold, width:'100%', padding:14, fontSize:15 }}
-          onClick={handleSubmit} disabled={loading || noCoins}>
-          {loading ? '立誓中…' : `立下誓言，托管 ${form.stake} 金币`}
+          onClick={handleSubmit} disabled={loading || !profile || noCoins}>
+          {!profile ? '加载账户中…' : loading ? '立誓中…' : `立下誓言，托管 ${form.stake} 金币`}
         </button>
       </div>
     </div>
