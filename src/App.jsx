@@ -78,7 +78,7 @@ function App() {
     )
   }
 
-  const PAGED_ROUTES = ['/', '/square', '/companions', '/charity', '/profile', '/new']
+  const PAGED_ROUTES = ['/', '/square', '/square/index', '/square/pool', '/companions', '/charity', '/profile', '/new']
   const showNav = session && PAGED_ROUTES.includes(location.pathname)
 
   return (
@@ -95,9 +95,11 @@ function App() {
           {/* 需要登录 */}
           <Route path="/"       element={session ? <HomePage /> : <Navigate to="/auth" />} />
           <Route path="/square"      element={session ? <SquarePage /> : <Navigate to="/auth" />} />
+          <Route path="/square/index" element={session ? <SquarePage /> : <Navigate to="/auth" />} />
+          <Route path="/square/pool"  element={session ? <SquarePage /> : <Navigate to="/auth" />} />
           <Route path="/companions"  element={session ? <CompanionsPage /> : <Navigate to="/auth" />} />
           <Route path="/charity"     element={session ? <CharityPage /> : <Navigate to="/auth" />} />
-          <Route path="/index-hall"  element={session ? <IndexHallPage /> : <Navigate to="/auth" />} />
+          <Route path="/index-hall"  element={session ? <Navigate to="/square/index" /> : <Navigate to="/auth" />} />
           <Route path="/blind-bet"  element={session ? <BlindBetPage /> : <Navigate to="/auth" />} />
           <Route path="/jury"       element={session ? <JuryPage /> : <Navigate to="/auth" />} />
           <Route path="/new"         element={session ? <NewPledge /> : <Navigate to="/auth" />} />
