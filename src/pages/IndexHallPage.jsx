@@ -8,7 +8,7 @@ const DIR_LABEL = { believe:'看多 📈', doubt:'看空 📉' }
 const STATUS_LABEL = { active:'进行中', won:'赢了', lost:'输了', settled:'已结算' }
 const STATUS_COLOR = { active:'#C8922A', won:'#3B7A4A', lost:'#C84040', settled:'#9A8A70' }
 
-export default function IndexHallPage() {
+export default function IndexHallPage({ embedded = false }) {
   const { session, profile } = useAuth()
   const nav = useNavigate()
 
@@ -71,8 +71,8 @@ export default function IndexHallPage() {
   }
 
   return (
-    <div style={{ background:'#0D0D12', minHeight:'100vh',
-      paddingBottom:'calc(90px + env(safe-area-inset-bottom))' }}>
+    <div style={{ background:'#0D0D12', minHeight: embedded ? 'auto' : '100vh',
+      paddingBottom: embedded ? 0 : 'calc(90px + env(safe-area-inset-bottom))' }}>
 
       {/* Toast */}
       {toast && (
@@ -152,11 +152,13 @@ export default function IndexHallPage() {
       )}
 
       {/* 顶栏 */}
-      <div style={S.topbar}>
-        <button style={S.back} onClick={() => nav(-1)}>←</button>
-        <div style={{ fontSize:16, fontWeight:700, color:'#fff' }}>📊 自律指数大厅</div>
-        <div style={{ width:32 }} />
-      </div>
+      {!embedded && (
+        <div style={S.topbar}>
+          <button style={S.back} onClick={() => nav(-1)}>←</button>
+          <div style={{ fontSize:16, fontWeight:700, color:'#fff' }}>📊 自律指数大厅</div>
+          <div style={{ width:32 }} />
+        </div>
+      )}
 
       {/* Tab */}
       <div style={S.tabRow}>
@@ -166,29 +168,11 @@ export default function IndexHallPage() {
           onClick={() => setTab('mybets')}>我的持仓</button>
       </div>
 
-      <div style={{ padding:'12px 16px' }}>
+      <div style={{ padding: embedded ? '12px 16px 0' : '12px 16px' }}>
 
         {/* ── 大盘行情 ── */}
         {tab === 'market' && (
           <div>
-            {/* 快捷入口 */}
-            <div style={{ display:'flex', gap:10, marginBottom:14 }}>
-              <button onClick={() => nav('/blind-bet')}
-                style={{ flex:1, padding:'12px 0', borderRadius:12, border:'1px solid #6A3ACA',
-                  background:'linear-gradient(135deg,rgba(106,58,202,.15),rgba(154,90,250,.1))',
-                  color:'#9A5AFA', fontSize:13, fontWeight:600, cursor:'pointer',
-                  fontFamily:'Noto Sans SC,sans-serif' }}>
-                🎲 盲盒结缘
-              </button>
-              <button onClick={() => nav('/jury')}
-                style={{ flex:1, padding:'12px 0', borderRadius:12, border:'1px solid #C8922A',
-                  background:'linear-gradient(135deg,rgba(200,146,42,.15),rgba(232,184,74,.1))',
-                  color:'#E8B84A', fontSize:13, fontWeight:600, cursor:'pointer',
-                  fontFamily:'Noto Sans SC,sans-serif' }}>
-                ⚖️ 陪审团
-              </button>
-            </div>
-
             {/* 指数说明 */}
             <div style={{ background:'rgba(200,146,42,.1)', borderRadius:12, padding:'10px 14px',
               marginBottom:14, border:'1px solid rgba(200,146,42,.2)' }}>
