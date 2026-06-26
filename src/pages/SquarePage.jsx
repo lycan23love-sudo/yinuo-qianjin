@@ -64,24 +64,22 @@ function LiveTab({ pledges, loading, cat, setCat, sort, setSort }) {
 
   return (
     <div style={{ padding: '0 16px' }}>
-      {/* 筛选层：分类与排序合并为一层 */}
+      {/* 筛选工具条 */}
       <div style={S.filterBar}>
-        <div style={S.filterRow}>
-          {CAT_LIST.map(c => (
-            <button key={c} onClick={() => setCat(c)}
-              style={{ ...S.chip, ...(cat === c ? S.chipOn : {}) }}>
-              {CAT_ICONS[c]} {c}
-            </button>
-          ))}
-        </div>
-        <div style={S.sortRow}>
-          {[['created_at','最新'],['ending_soon','将结束'],['stake','押注高']].map(([k, lbl]) => (
-            <button key={k} onClick={() => setSort(k)}
-              style={{ ...S.sortBtn, ...(sort === k ? S.sortBtnOn : {}) }}>
-              {lbl}
-            </button>
-          ))}
-        </div>
+        <label style={S.selectBox}>
+          <span style={S.selectLabel}>分类</span>
+          <select value={cat} onChange={e => setCat(e.target.value)} style={S.select}>
+            {CAT_LIST.map(c => <option key={c} value={c}>{CAT_ICONS[c]} {c}</option>)}
+          </select>
+        </label>
+        <label style={S.selectBox}>
+          <span style={S.selectLabel}>排序</span>
+          <select value={sort} onChange={e => setSort(e.target.value)} style={S.select}>
+            <option value="created_at">最新发布</option>
+            <option value="ending_soon">即将结束</option>
+            <option value="stake">押注最高</option>
+          </select>
+        </label>
       </div>
 
       {loading && [1,2,3].map(i => <Skeleton key={i} />)}
@@ -359,7 +357,7 @@ export default function SquarePage() {
         ].map(([k, prefix, suffix]) => (
           <button key={k} onClick={() => goSection(k)}
             style={{ ...S.squareNavBtn, ...(section === k ? S.squareNavBtnOn : {}) }}>
-            <span>【{prefix}</span><span>· {suffix}】</span>
+            <span style={S.navPrimary}>{prefix}</span><span style={S.navSub}>{suffix}</span>
           </button>
         ))}
       </div>
@@ -369,7 +367,7 @@ export default function SquarePage() {
         <>
           {/* 誓言大厅内部 Tab */}
           <div style={S.tabRow}>
-            {[['live','进行中'],['done','✨ 成功经验'],['topic','📌 主题榜']].map(([k, lbl]) => (
+            {[['live','进行中'],['done','成功经验'],['topic','主题榜']].map(([k, lbl]) => (
               <button key={k} onClick={() => setTab(k)}
                 style={{ ...S.tab, ...(tab === k ? S.tabOn : {}) }}>
                 {lbl}
@@ -390,22 +388,21 @@ export default function SquarePage() {
 }
 
 const S = {
-  topbar:    { display:'flex', alignItems:'center', justifyContent:'center', padding:'calc(12px + env(safe-area-inset-top)) 16px 10px', background:'#FAF7F2', borderBottom:'0.5px solid #E0D5C0', position:'sticky', top:0, zIndex:10 },
-  logo:      { fontFamily:'Noto Serif SC,serif', fontSize:20, fontWeight:900, color:'#1A1208' },
-  squareNav: { display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:6, padding:'8px 10px', background:'#FAF7F2', borderBottom:'0.5px solid #E0D5C0', position:'sticky', top:51, zIndex:9 },
-  squareNavBtn:{ minHeight:46, border:'0.5px solid #E0D5C0', borderRadius:10, background:'#fff', color:'#7A6A50', fontSize:11, fontWeight:700, lineHeight:1.35, cursor:'pointer', fontFamily:'Noto Serif SC,serif', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'4px 2px' },
-  squareNavBtnOn:{ background:'#1A1208', color:'#E8B84A', borderColor:'#1A1208', boxShadow:'0 4px 12px rgba(26,18,8,.14)' },
-  tabRow:    { display:'flex', borderBottom:'0.5px solid #E0D5C0', background:'#FAF7F2', position:'sticky', top:114, zIndex:8 },
-  tab:       { flex:1, padding:'10px 4px', fontSize:12, fontWeight:500, color:'#9A8A70', background:'none', border:'none', borderBottom:'2px solid transparent', cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
-  tabOn:     { color:'#C8922A', borderBottomColor:'#C8922A', fontWeight:700 },
-  filterBar: { margin:'12px 0', padding:10, borderRadius:12, background:'#fff', border:'0.5px solid #E0D5C0', boxShadow:'0 1px 6px rgba(26,18,8,.04)' },
-  filterRow: { display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', paddingBottom:8 },
-  sortRow:   { display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:6 },
-  chip:      { padding:'6px 10px', borderRadius:20, fontSize:11, cursor:'pointer', background:'#FAF7F2', border:'0.5px solid #E0D5C0', color:'#7A6A50', fontFamily:'Noto Sans SC,sans-serif', whiteSpace:'nowrap', flexShrink:0 },
-  chipOn:    { background:'#C8922A', color:'#fff', border:'0.5px solid #C8922A' },
-  sortBtn:   { background:'#FAF7F2', border:'0.5px solid #E0D5C0', borderRadius:9, padding:'7px 4px', fontSize:11, color:'#9A8A70', cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
-  sortBtnOn: { background:'#1A1208', color:'#fff', borderColor:'#1A1208' },
-  pledgeCard:{ background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:14, padding:14, marginBottom:10, cursor:'pointer', boxShadow:'0 1px 6px rgba(26,18,8,.05)' },
+  topbar:    { display:'flex', alignItems:'center', justifyContent:'center', padding:'calc(10px + env(safe-area-inset-top)) 16px 8px', background:'#FAF7F2', position:'sticky', top:0, zIndex:10 },
+  logo:      { fontFamily:'Noto Serif SC,serif', fontSize:19, fontWeight:900, color:'#1A1208', letterSpacing:1 },
+  squareNav: { display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:4, padding:'6px 14px 8px', background:'#FAF7F2', borderBottom:'0.5px solid #E8DDC8', position:'sticky', top:46, zIndex:9 },
+  squareNavBtn:{ minHeight:34, border:'none', borderRadius:18, background:'transparent', color:'#7A6A50', fontSize:11, fontWeight:700, lineHeight:1.2, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'4px 2px' },
+  squareNavBtnOn:{ background:'#1A1208', color:'#E8B84A', boxShadow:'0 2px 8px rgba(26,18,8,.10)' },
+  navPrimary:{ fontSize:11, fontWeight:800 },
+  navSub:    { fontSize:10, opacity:.78, marginTop:1 },
+  tabRow:    { display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:4, margin:'8px 16px 0', padding:3, borderRadius:18, background:'#EEE6D8' },
+  tab:       { padding:'7px 4px', fontSize:12, fontWeight:600, color:'#8A7A62', background:'transparent', border:'none', borderRadius:15, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
+  tabOn:     { color:'#1A1208', background:'#fff', fontWeight:800, boxShadow:'0 1px 4px rgba(26,18,8,.06)' },
+  filterBar: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, margin:'10px 0 12px' },
+  selectBox: { minWidth:0, display:'flex', alignItems:'center', gap:6, border:'0.5px solid #E0D5C0', borderRadius:12, background:'#fff', padding:'7px 10px' },
+  selectLabel:{ fontSize:10, color:'#B09A72', fontWeight:700, flexShrink:0 },
+  select:    { minWidth:0, flex:1, border:'none', outline:'none', background:'transparent', color:'#4A3A24', fontSize:12, fontWeight:700, fontFamily:'Noto Sans SC,sans-serif' },
+  pledgeCard:{ background:'#fff', border:'0.5px solid #E6DCCB', borderRadius:13, padding:13, marginBottom:10, cursor:'pointer', boxShadow:'0 1px 4px rgba(26,18,8,.035)' },
   tag:       { fontSize:10, fontWeight:600, padding:'3px 10px', borderRadius:20 },
   secLabel:  { fontSize:11, fontWeight:600, color:'#9A8A70', letterSpacing:.5, marginBottom:10, marginTop:4 },
   successCard:{ background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:14, padding:14, marginBottom:10, boxShadow:'0 1px 6px rgba(26,18,8,.05)' },
