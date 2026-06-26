@@ -246,7 +246,7 @@ export default function SquarePage() {
 }
 
 const S = {
-  topbar:    { display:'flex', alignItems:'center', justifyContent:'center', padding:'calc(10px + env(safe-area-inset-top)) 16px 8px', background:'#FAF7F2', position:'sticky', top:0, zIndex:10 },
+  topbar:    { display:'flex', alignItems:'center', justifyContent:'flex-start', padding:'calc(10px + env(safe-area-inset-top)) 30px 8px', background:'#FAF7F2', position:'sticky', top:0, zIndex:10 },
   logo:      { fontFamily:'Noto Serif SC,serif', fontSize:19, fontWeight:900, color:'#1A1208', letterSpacing:1 },
   squareNav: { display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:0, padding:'0 18px', background:'#FAF7F2', borderBottom:'0.5px solid #E0D5C0', position:'sticky', top:46, zIndex:9 },
   squareNavBtn:{ minHeight:58, border:'none', borderRadius:0, background:'transparent', color:'#7A6A50', fontSize:12, fontWeight:700, lineHeight:1.2, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'8px 2px 10px', position:'relative' },
