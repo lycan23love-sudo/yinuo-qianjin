@@ -3,14 +3,22 @@
 // 在 Supabase Dashboard → Project Settings → API 里找到
 
 
+
+
 import { createClient } from '@supabase/supabase-js'
+
+
 
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 
+
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+
 
 
 // ============================================================
@@ -27,6 +35,8 @@ export async function signUp({ email, password, nickname }) {
 }
 
 
+
+
 export async function signIn({ email, password }) {
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
@@ -37,6 +47,8 @@ export async function signIn({ email, password }) {
 }
 
 
+
+
 // 游客模式：匿名登录（Supabase 需开启 Anonymous sign-ins）
 export async function signInAnonymous() {
   const { data, error } = await supabase.auth.signInAnonymously()
@@ -45,15 +57,21 @@ export async function signInAnonymous() {
 }
 
 
+
+
 export async function signOut() {
   await supabase.auth.signOut()
 }
+
+
 
 
 export async function getSession() {
   const { data } = await supabase.auth.getSession()
   return data.session
 }
+
+
 
 
 // ============================================================
@@ -70,6 +88,8 @@ export async function getProfile(userId) {
 }
 
 
+
+
 export async function updateProfile(userId, updates) {
   const { data, error } = await supabase
     .from('profiles')
@@ -82,6 +102,8 @@ export async function updateProfile(userId, updates) {
 }
 
 
+
+
 // ============================================================
 // PLEDGES（誓言）
 // ============================================================
@@ -90,6 +112,8 @@ export async function createPledge(userId, pledge) {
   const endDate = new Date(startDate)
   const days = { week: 7, month: 30, season: 90, year: 365 }
   endDate.setDate(endDate.getDate() + days[pledge.period] - 1)
+
+
 
 
   const { data, error } = await supabase
@@ -111,12 +135,18 @@ export async function createPledge(userId, pledge) {
   if (error) throw error
 
 
+
+
   // 扣除押注金币
   await addCoins(userId, -pledge.stakeCoins, 'stake', data.id, `立誓「${pledge.title}」押注`)
 
 
+
+
   return data
 }
+
+
 
 
 export async function getMyPledges(userId) {
@@ -128,6 +158,8 @@ export async function getMyPledges(userId) {
   if (error) throw error
   return data
 }
+
+
 
 
 export async function getPledgeDetail(pledgeId) {
@@ -146,12 +178,16 @@ export async function getPledgeDetail(pledgeId) {
 }
 
 
+
+
 export async function getPublicPledges({ category, sort = 'created_at' } = {}) {
   let query = supabase
     .from('pledges')
     .select(`*, profiles:user_id(nickname, avatar_url), witnesses(count), checkins(count)`)
     .eq('is_public', true)
     .eq('status', 'active')
+
+
 
 
   if (sort === 'ending_soon') {
@@ -162,10 +198,14 @@ export async function getPublicPledges({ category, sort = 'created_at' } = {}) {
   query = query.limit(20)
 
 
+
+
   const { data, error } = await query
   if (error) throw error
   return data
 }
+
+
 
 
 export async function getCompletedPledges({ limit = 20 } = {}) {
@@ -181,16 +221,22 @@ export async function getCompletedPledges({ limit = 20 } = {}) {
 }
 
 
+
+
 // 完成/失败誓言
 export async function completePledge(pledgeId, userId, success) {
   const pledge = await getPledgeDetail(pledgeId)
   const status = success ? 'done' : 'fail'
 
 
+
+
   await supabase
     .from('pledges')
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', pledgeId)
+
+
 
 
   if (success) {
@@ -225,6 +271,8 @@ export async function completePledge(pledgeId, userId, success) {
 }
 
 
+
+
 // ============================================================
 // CHECKINS（打卡）
 // ============================================================
@@ -243,12 +291,16 @@ export async function submitCheckin(userId, pledgeId, { imageFile, note, mood })
   }
 
 
+
+
   // 2. 获取誓言信息和已有打卡
   const pledge = await getPledgeDetail(pledgeId)
   const today = new Date().toISOString().split('T')[0]
   const startDate = new Date(pledge.start_date)
   const todayDate = new Date(today)
   const dayNum = Math.floor((todayDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+
+
 
 
   // 计算连续天数
@@ -266,12 +318,16 @@ export async function submitCheckin(userId, pledgeId, { imageFile, note, mood })
   }
 
 
+
+
   // 计算奖励金币
   const baseCoins = 10
   const streakBonus = streak >= 14 ? 30 : streak >= 7 ? 20 : 0
   const milestones = [7, 14, 21, 28]
   const milestoneBonus = milestones.includes(dayNum) ? 100 : 0
   const totalCoins = baseCoins + streakBonus + milestoneBonus
+
+
 
 
   // 3. 写打卡记录
@@ -293,6 +349,8 @@ export async function submitCheckin(userId, pledgeId, { imageFile, note, mood })
   if (error) throw error
 
 
+
+
   // 4. 更新誓言统计
   const newCheckinCount = pledge.checkin_count + 1
   const newMaxStreak = Math.max(pledge.max_streak, streak)
@@ -307,6 +365,8 @@ export async function submitCheckin(userId, pledgeId, { imageFile, note, mood })
     .eq('id', pledgeId)
 
 
+
+
   // 5. 发放金币
   await addCoins(userId, baseCoins, 'checkin', checkin.id, `第${dayNum}天打卡`)
   if (streakBonus > 0) {
@@ -317,8 +377,12 @@ export async function submitCheckin(userId, pledgeId, { imageFile, note, mood })
   }
 
 
+
+
   return { checkin, totalCoins, streak, dayNum }
 }
+
+
 
 
 export async function getCheckins(pledgeId) {
@@ -332,6 +396,8 @@ export async function getCheckins(pledgeId) {
 }
 
 
+
+
 export async function hasCheckedInToday(pledgeId) {
   const today = new Date().toISOString().split('T')[0]
   const { data } = await supabase
@@ -342,6 +408,8 @@ export async function hasCheckedInToday(pledgeId) {
     .maybeSingle()
   return !!data
 }
+
+
 
 
 // ============================================================
@@ -360,6 +428,8 @@ export async function addCoins(userId, amount, type, refId = null, note = null) 
 }
 
 
+
+
 export async function getCoinLedger(userId, limit = 20) {
   const { data, error } = await supabase
     .from('coin_ledger')
@@ -372,12 +442,16 @@ export async function getCoinLedger(userId, limit = 20) {
 }
 
 
+
+
 // ============================================================
 // DONATIONS
 // ============================================================
 export async function donate(userId, { coins, orgName, message }) {
   // 先扣金币
   await addCoins(userId, -coins, 'donate', null, `捐款给${orgName}`)
+
+
 
 
   // 再写记录
@@ -389,6 +463,8 @@ export async function donate(userId, { coins, orgName, message }) {
   if (error) throw error
 
 
+
+
   // 更新功德值（total_merit 由 add_coins 函数自动处理收入，捐款是支出不更新，
   // 但为了称号计算，捐出的也要加到功德值）
   await supabase
@@ -397,8 +473,12 @@ export async function donate(userId, { coins, orgName, message }) {
     .eq('id', userId)
 
 
+
+
   return data
 }
+
+
 
 
 export async function getDonations(userId) {
@@ -410,6 +490,8 @@ export async function getDonations(userId) {
   if (error) throw error
   return data
 }
+
+
 
 
 // ============================================================
@@ -425,12 +507,18 @@ export function getMeritTitle(totalMerit) {
 }
 
 
+
+
 // ============================================================
 // V2：见证者系统 CRUD
 // ============================================================
 
 
+
+
 // ── 见证者（Witnesses）──
+
+
 
 
 // 押注见证某个誓言（支持 trust / 质疑 doubt）
@@ -440,10 +528,14 @@ export async function addWitness(userId, pledgeId, type, stakeCoins = 100) {
   if (profile.merit_coins < stakeCoins) throw new Error('金币不足，无法押注')
 
 
+
+
   await supabase
     .from('profiles')
     .update({ merit_coins: profile.merit_coins - stakeCoins, updated_at: new Date().toISOString() })
     .eq('id', userId)
+
+
 
 
   // 2. 写 coin_ledger
@@ -454,6 +546,8 @@ export async function addWitness(userId, pledgeId, type, stakeCoins = 100) {
   })
 
 
+
+
   // 3. 写 witnesses 记录
   const { data, error } = await supabase
     .from('witnesses')
@@ -461,6 +555,8 @@ export async function addWitness(userId, pledgeId, type, stakeCoins = 100) {
     .select()
     .single()
   if (error) throw new Error(error.message || '押注失败')
+
+
 
 
   // 4. 更新 pledges 的 trust_pool / doubt_pool 缓存
@@ -477,8 +573,12 @@ export async function addWitness(userId, pledgeId, type, stakeCoins = 100) {
   })
 
 
+
+
   return data
 }
+
+
 
 
 // 获取某个誓言的所有见证者
@@ -493,6 +593,8 @@ export async function getWitnesses(pledgeId) {
 }
 
 
+
+
 // 获取当前用户对某个誓言的见证状态
 export async function getMyWitness(userId, pledgeId) {
   const { data } = await supabase
@@ -505,7 +607,11 @@ export async function getMyWitness(userId, pledgeId) {
 }
 
 
+
+
 // ── 指数基金（Index Funds）──
+
+
 
 
 // 获取四大指数
@@ -517,6 +623,8 @@ export async function getIndexFunds() {
   if (error) throw new Error(error.message || '获取指数失败')
   return data || []
 }
+
+
 
 
 // 获取单个指数详情
@@ -531,7 +639,11 @@ export async function getIndexFund(code) {
 }
 
 
+
+
 // ── 指数下注（Index Bets）──
+
+
 
 
 // 对指数下多/空注
@@ -541,13 +653,19 @@ export async function placeIndexBet(userId, indexCode, direction, amount) {
   if (!['believe', 'doubt'].includes(direction)) throw new Error('方向错误')
 
 
+
+
   const profile = await getProfile(userId)
   if (profile.merit_coins < amount) throw new Error('金币不足')
+
+
 
 
   // 2. 获取当前赔率
   const fund = await getIndexFund(indexCode)
   const odds = direction === 'believe' ? fund.bull_odds : fund.bear_odds
+
+
 
 
   // 3. 扣金币
@@ -557,12 +675,16 @@ export async function placeIndexBet(userId, indexCode, direction, amount) {
     .eq('id', userId)
 
 
+
+
   // 4. 写 coin_ledger
   await supabase.from('coin_ledger').insert({
     user_id: userId, amount: -amount, type: 'stake',
     note: `指数下注：${indexCode} ${direction === 'believe' ? '看多' : '看空'}`,
     balance_after: profile.merit_coins - amount,
   })
+
+
 
 
   // 5. 写 index_bets
@@ -577,6 +699,8 @@ export async function placeIndexBet(userId, indexCode, direction, amount) {
   if (error) throw new Error(error.message || '下注失败')
 
 
+
+
   // 6. 更新 index_funds 的 pool 缓存
   const poolField = direction === 'believe' ? 'total_bull_pool' : 'total_bear_pool'
   await supabase
@@ -588,8 +712,12 @@ export async function placeIndexBet(userId, indexCode, direction, amount) {
     .eq('code', indexCode)
 
 
+
+
   return data
 }
+
+
 
 
 // 获取我的指数下注记录
@@ -605,7 +733,11 @@ export async function getMyIndexBets(userId, limit = 30) {
 }
 
 
+
+
 // ── 质疑/仲裁（Disputes）──
+
+
 
 
 // 质疑某次打卡
@@ -622,6 +754,8 @@ export async function disputeCheckin(userId, checkinId, pledgeId, reason = '') {
   if (error) throw new Error(error.message || '质疑提交失败')
 
 
+
+
   // 2. 标记打卡进入陪审团；当前 checkins 表使用 status 字段
   const { error: updateError } = await supabase
     .from('checkins')
@@ -629,11 +763,15 @@ export async function disputeCheckin(userId, checkinId, pledgeId, reason = '') {
     .eq('id', checkinId)
     .eq('pledge_id', pledgeId)
     .eq('status', 'valid')
-  if (updateError) throw new Error(updateError.message || '打卡状态更新失败')
+  if (updateError) console.warn('打卡状态更新失败', updateError.message)
+
+
 
 
   return data
 }
+
+
 
 
 // 获取某次打卡的质疑记录
@@ -648,7 +786,11 @@ export async function getDisputesByCheckin(checkinId) {
 }
 
 
+
+
 // ── 慈善总金库（Charity Vault）──
+
+
 
 
 // 获取金库流水（公开透明）
@@ -663,6 +805,8 @@ export async function getCharityVault(limit = 50) {
 }
 
 
+
+
 // 获取金库累计总额
 export async function getCharityTotal() {
   const { data, error } = await supabase
@@ -673,12 +817,18 @@ export async function getCharityTotal() {
 }
 
 
+
+
 // ============================================================
 // V3：盲盒结缘 + 悬赏令 + 陪审团
 // ============================================================
 
 
+
+
 // ── 盲盒结缘（Blind Bet）──
+
+
 
 
 // 一键机选结缘：系统自动分配给最冷门的誓言
@@ -686,8 +836,12 @@ export async function placeBlindBet(userId, totalAmount) {
   if (totalAmount <= 0) throw new Error('金额必须大于0')
 
 
+
+
   const profile = await getProfile(userId)
   if (profile.merit_coins < totalAmount) throw new Error('金币不足')
+
+
 
 
   // 找最冷门的 active 誓言（围观人数最少，排除自己的）
@@ -701,7 +855,11 @@ export async function placeBlindBet(userId, totalAmount) {
     .limit(5)
 
 
+
+
   if (!coldPledges || coldPledges.length === 0) throw new Error('当前没有可结缘的誓言')
+
+
 
 
   // 拆分金币分配给冷门誓言（平均分配）
@@ -712,11 +870,15 @@ export async function placeBlindBet(userId, totalAmount) {
   }))
 
 
+
+
   // 1. 扣金币
   await supabase
     .from('profiles')
     .update({ merit_coins: profile.merit_coins - totalAmount, updated_at: new Date().toISOString() })
     .eq('id', userId)
+
+
 
 
   // 2. 写金币流水
@@ -725,6 +887,8 @@ export async function placeBlindBet(userId, totalAmount) {
     note: `盲盒结缘 · 机选${count}个誓言`,
     balance_after: profile.merit_coins - totalAmount,
   })
+
+
 
 
   // 3. 为每个冷门誓言创建 witness 记录（全部为 trust 支持）
@@ -742,6 +906,8 @@ export async function placeBlindBet(userId, totalAmount) {
   }
 
 
+
+
   // 4. 写 blind_bets 记录
   const { data: bet, error } = await supabase
     .from('blind_bets')
@@ -754,6 +920,8 @@ export async function placeBlindBet(userId, totalAmount) {
   if (error) throw new Error(error.message || '结缘失败')
 
 
+
+
   // 5. 加荣誉积分（1.2倍加成）
   const honorGain = Math.round(totalAmount * 0.2)
   await supabase.from('profiles').update({
@@ -761,8 +929,12 @@ export async function placeBlindBet(userId, totalAmount) {
   }).eq('id', userId)
 
 
+
+
   return { bet, splits, honorGain }
 }
+
+
 
 
 // 获取我的盲盒结缘记录
@@ -778,7 +950,11 @@ export async function getMyBlindBets(userId, limit = 20) {
 }
 
 
+
+
 // ── 悬赏令（Bounty）──
+
+
 
 
 // 立誓者设置悬赏广告费
@@ -786,14 +962,20 @@ export async function setBounty(userId, pledgeId, amount) {
   if (amount <= 0) throw new Error('悬赏金额必须大于0')
 
 
+
+
   const profile = await getProfile(userId)
   if (profile.merit_coins < amount) throw new Error('金币不足')
+
+
 
 
   // 扣金币
   await supabase.from('profiles').update({
     merit_coins: profile.merit_coins - amount, updated_at: new Date().toISOString(),
   }).eq('id', userId)
+
+
 
 
   // 写金币流水
@@ -804,12 +986,16 @@ export async function setBounty(userId, pledgeId, amount) {
   })
 
 
+
+
   // 更新 pledges 的 bounty_amount
   const { data: pledge } = await supabase.from('pledges').select('bounty_amount').eq('id', pledgeId).single()
   const { error } = await supabase.from('pledges').update({
     bounty_amount: (pledge?.bounty_amount || 0) + amount,
   }).eq('id', pledgeId)
   if (error) throw new Error(error.message || '设置悬赏失败')
+
+
 
 
   // 写慈善金库（悬赏费进入金库）
@@ -819,16 +1005,24 @@ export async function setBounty(userId, pledgeId, amount) {
   })
 
 
+
+
   return { newBounty: (pledge?.bounty_amount || 0) + amount }
 }
+
+
 
 
 // ── 陪审团（Jury）──
 
 
+
+
 // 陪审团投票（upheld = 维持打卡有效 / overturned = 推翻打卡）
 export async function castJuryVote(userId, disputeId, vote) {
   if (!['upheld', 'overturned'].includes(vote)) throw new Error('投票选项无效')
+
+
 
 
   // 更新 dispute 的 ruling
@@ -842,6 +1036,8 @@ export async function castJuryVote(userId, disputeId, vote) {
   if (error) throw new Error(error.message || '投票失败')
 
 
+
+
   // 当前 checkins 表使用 status 字段：valid / disputed / pending
   if (data) {
     const nextStatus = vote === 'upheld' ? 'valid' : 'pending'
@@ -853,8 +1049,12 @@ export async function castJuryVote(userId, disputeId, vote) {
   }
 
 
+
+
   return data
 }
+
+
 
 
 // 获取待裁定的质疑（陪审团待办）
