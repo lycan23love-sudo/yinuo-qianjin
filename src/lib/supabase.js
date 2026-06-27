@@ -2152,6 +2152,68 @@ export async function addWitness(userId, pledgeId, type, stakeCoins = 100) {
 
 
 // 获取某个誓言的所有见证者
+export async function joinCompanionTeam(userId, pledgeId) {
+  const pledge = await getPledgeDetail(pledgeId)
+  if (!pledge?.is_public) throw new Error('该誓言还没有公开招募')
+  if (pledge.user_id === userId) throw new Error('不能加入自己的誓言团')
+
+  const activeMembers = (pledge.witnesses || []).filter(w => w.status === 'active')
+  if (activeMembers.some(w => w.user_id === userId)) return activeMembers.find(w => w.user_id === userId)
+  if (activeMembers.length >= 4) throw new Error('这个同行团已满员')
+
+  const { data, error } = await supabase
+    .from('witnesses')
+    .insert({ pledge_id: pledgeId, user_id: userId, type: 'trust', stake_coins: 0 })
+    .select('*, profiles:user_id(nickname, avatar_url)')
+    .single()
+  if (error) {
+    if (error.code === '23505') throw new Error('你已经加入过这个同行团')
+    throw new Error(error.message || '加入同行团失败')
+  }
+  return data
+}
+
+export async function getMyCompanionJoins(userId) {
+  const { data, error } = await supabase
+    .from('witnesses')
+    .select('pledge_id')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+  if (error) throw error
+  return (data || []).map(row => row.pledge_id)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export async function getWitnesses(pledgeId) {
   const { data, error } = await supabase
     .from('witnesses')
