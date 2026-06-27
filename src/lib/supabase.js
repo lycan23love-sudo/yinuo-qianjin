@@ -1045,8 +1045,8 @@ export async function completePledge(pledgeId, userId, success) {
 // ============================================================
 // CHECKINS（打卡）
 // ============================================================
-export async function submitCheckin(userId, pledgeId, { imageFile, note, mood }) {
-  // 1. 上传图片（如果有）
+export async function submitCheckin(userId, pledgeId, { imageFile, audioFile, note, mood }) {
+  // 1. 上传证明材料（如果有）
   let imageUrl = null
   if (imageFile) {
     const ext = imageFile.name.split('.').pop()
@@ -1057,6 +1057,22 @@ export async function submitCheckin(userId, pledgeId, { imageFile, note, mood })
     if (uploadError) throw uploadError
     const { data: urlData } = supabase.storage.from('checkins').getPublicUrl(path)
     imageUrl = urlData.publicUrl
+  }
+
+  let audioUrl = null
+  if (audioFile) {
+    const ext = (audioFile.name?.split('.').pop() || 'webm').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'webm'
+    const path = `${userId}/${pledgeId}/${Date.now()}-voice.${ext}`
+    const { error: audioUploadError } = await supabase.storage
+      .from('checkins')
+      .upload(path, audioFile, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: audioFile.type || 'audio/webm'
+      })
+    if (audioUploadError) throw audioUploadError
+    const { data: audioData } = supabase.storage.from('checkins').getPublicUrl(path)
+    audioUrl = audioData.publicUrl
   }
 
 
@@ -1212,6 +1228,7 @@ export async function submitCheckin(userId, pledgeId, { imageFile, note, mood })
 
 
   // 3. 写打卡记录
+  const finalNote = [note, audioUrl ? `语音证明：${audioUrl}` : ''].filter(Boolean).join('\n')
   const { data: checkin, error } = await supabase
     .from('checkins')
     .insert({
@@ -1220,7 +1237,7 @@ export async function submitCheckin(userId, pledgeId, { imageFile, note, mood })
       day_num: dayNum,
       checkin_date: today,
       image_url: imageUrl,
-      note,
+      note: finalNote,
       mood,
       coins_earned: totalCoins,
       streak
@@ -1228,6 +1245,14 @@ export async function submitCheckin(userId, pledgeId, { imageFile, note, mood })
     .select()
     .single()
   if (error) throw error
+
+  if (audioUrl) {
+    await supabase
+      .from('checkins')
+      .update({ audio_url: audioUrl, proof_type: imageUrl ? 'mixed' : 'audio' })
+      .eq('id', checkin.id)
+      .then(() => null)
+  }
 
 
 
@@ -1349,7 +1374,7 @@ export async function submitCheckin(userId, pledgeId, { imageFile, note, mood })
     settlement = await completePledge(pledgeId, userId, true)
   }
 
-  return { checkin, totalCoins, streak, dayNum, settlement }
+  return { checkin: { ...checkin, audio_url: audioUrl }, totalCoins, streak, dayNum, settlement }
 }
 
 
