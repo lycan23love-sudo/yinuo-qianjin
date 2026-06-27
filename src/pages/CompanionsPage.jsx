@@ -224,8 +224,8 @@ function DailyPost({ post }) {
 export default function CompanionsPage() {
   const { profile } = useAuth()
   const nav = useNavigate()
-  const [tab, setTab] = useState('my')           // my | circle | daily
-  const [joinedCircles, setJoinedCircles] = useState({})
+  const [tab, setTab] = useState('my')           // my | discover
+  const [appliedTeams, setAppliedTeams] = useState({})
   const [toast, setToast] = useState(null)
 
   function showToast(msg) {
@@ -233,11 +233,15 @@ export default function CompanionsPage() {
     setTimeout(() => setToast(null), 2200)
   }
 
+  const activeTeams = MY_TEAMS.filter(team => !team.recruiting)
+  const recruitingTeams = MY_TEAMS.filter(team => team.recruiting)
+  const unfinishedCount = activeTeams.reduce((sum, team) => sum + Math.max(0, team.members - team.members_list.filter(m => m.checked).length), 0)
+  const displayName = profile?.nickname || '行者'
+
   return (
     <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))',
       display: 'flex', flexDirection: 'column' }}>
 
-      {/* Toast */}
       {toast && (
         <div style={{ position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)',
           background: 'rgba(26,18,8,.88)', color: '#fff', padding: '9px 20px', borderRadius: 20,
@@ -246,186 +250,135 @@ export default function CompanionsPage() {
         </div>
       )}
 
-      {/* 顶部栏 */}
       <div style={S.topbar}>
         <div style={S.logo}>同<em style={{ color: C.gold, fontStyle: 'normal' }}>行</em></div>
-        <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-          <button style={S.iconBtn} onClick={() => showToast('发现功能即将上线')}>🧭</button>
-          <button style={{ ...S.iconBtn, position: 'relative' }} onClick={() => showToast('消息功能即将上线')}>
-            💬
-            <span style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8,
-              borderRadius: '50%', background: C.red, border: `2px solid ${C.bg}` }} />
-          </button>
-        </div>
+        <button style={S.textBtn} onClick={() => setTab('discover')}>发起招募</button>
       </div>
 
-      {/* Sub-tabs */}
-      <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, background: C.bg, flexShrink: 0 }}>
-        {[['my','我的团'],['circle','誓言圈'],['daily','每日广播']].map(([key, label]) => (
+      <div style={S.tabBar}>
+        {[['my','我的团'],['discover','发现同行']].map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} style={{
-            flex: 1, padding: '10px 0', background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 13, fontWeight: tab === key ? 700 : 400,
-            color: tab === key ? C.gold : C.muted,
-            borderBottom: tab === key ? `2px solid ${C.gold}` : '2px solid transparent',
-            fontFamily: 'Noto Sans SC,sans-serif', transition: 'all .15s',
+            ...S.tabBtn,
+            ...(tab === key ? S.tabBtnOn : {})
           }}>
             {label}
           </button>
         ))}
       </div>
 
-      {/* ═══ TAB: 我的团 ═══ */}
       {tab === 'my' && (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>
+        <div style={S.scrollArea}>
+          <div style={S.summaryCard}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
+              <div>
+                <div style={S.kicker}>守诺小队</div>
+                <div style={S.summaryTitle}>{displayName}，今天和同行者一起往前走。</div>
+              </div>
+              <Tag text={unfinishedCount === 0 ? '今日全员完成' : `${unfinishedCount}人待守`} bg={unfinishedCount === 0 ? C.greenL : C.goldL} color={unfinishedCount === 0 ? C.green : C.goldD} />
+            </div>
+            <div style={S.summaryGrid}>
+              <div><b>{activeTeams.length}</b><span>同行团</span></div>
+              <div><b>{activeTeams.reduce((n, t) => n + t.members, 0)}</b><span>同行者</span></div>
+              <div><b>{recruitingTeams.length}</b><span>招募中</span></div>
+            </div>
+          </div>
 
-          {/* 今日提醒 banner */}
           <div style={S.banner} onClick={() => nav('/')}>
             <span style={{ fontSize: 18, marginRight: 8, flexShrink: 0 }}>☀️</span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>早安！今天还没打卡</div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>同行者都已打卡，你落后了 1 天</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>今日守诺提醒</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>先完成自己的打卡，再回到团里互相鼓励。</div>
             </div>
             <span style={{ fontSize: 16, color: C.hint }}>›</span>
           </div>
 
-          {/* 我的同行团 */}
-          {MY_TEAMS.map(team =>
-            team.recruiting
-              ? <RecruitCard key={team.id} team={team}
-                  onRecruit={() => showToast('已发布招募，等待同行者加入')} />
-              : <TeamCard key={team.id} team={team}
-                  onEnter={() => showToast('团室功能即将上线')}
-                  onChat={() => showToast('聊天功能即将上线')} />
+          <SecLabel>我的同行团</SecLabel>
+          {activeTeams.map(team => (
+            <TeamCard key={team.id} team={team}
+              onEnter={() => showToast('团室功能即将上线')}
+              onChat={() => showToast('聊天功能即将上线')} />
+          ))}
+
+          {recruitingTeams.length > 0 && (
+            <>
+              <SecLabel style={{ marginTop: 6 }}>我发起的招募</SecLabel>
+              {recruitingTeams.map(team => (
+                <RecruitCard key={team.id} team={team}
+                  onRecruit={() => showToast('招募已重新发布，等待同行者加入')} />
+              ))}
+            </>
           )}
 
-          {/* 推荐加入 */}
-          <SecLabel style={{ marginTop: 6 }}>推荐加入</SecLabel>
+          <button style={S.primaryWide} onClick={() => setTab('discover')}>寻找新的同行者</button>
+        </div>
+      )}
+
+      {tab === 'discover' && (
+        <div style={S.scrollArea}>
+          <div style={S.discoverIntro}>
+            <div style={S.kicker}>发现同行</div>
+            <div style={S.summaryTitle}>找一个正在做同类誓言的人，彼此提醒、彼此看见。</div>
+            <button style={{ ...S.primaryWide, marginTop: 12 }} onClick={() => showToast('发起招募功能即将上线')}>发布同行招募</button>
+          </div>
+
+          <SecLabel>推荐小队</SecLabel>
           {RECOMMEND.map(r => (
             <div key={r.id} style={S.cCard}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ fontSize: 22 }}>{r.emoji}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{r.title}</div>
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                <div style={{ fontSize: 24 }}>{r.emoji}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: C.ink }}>{r.title}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>
                     {r.host}发起 · {r.members}人同行 · 进行第{r.day}天
                   </div>
                 </div>
-                <button style={{ ...S.btnSm, ...S.btnSmOn }}
-                  onClick={() => showToast(`已申请加入，等待确认`)}>加入</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ═══ TAB: 誓言圈 ═══ */}
-      {tab === 'circle' && (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>
-
-          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7, marginBottom: 14,
-            background: C.soft, borderRadius: 10, padding: '10px 12px' }}>
-            誓言圈是有相同目标的人聚在一起的社群——分享方法、讨论难题、互相鼓励，和广场不同，这里是
-            <b style={{ color: C.ink }}>深度交流</b>的地方。
-          </div>
-
-          <SecLabel>我加入的圈子</SecLabel>
-          {MY_CIRCLES.map(c => (
-            <div key={c.id} style={S.cCard}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <div style={{ fontSize: 28, width: 44, textAlign: 'center' }}>{c.emoji}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'Noto Serif SC,serif', color: C.ink }}>{c.name}</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{c.count.toLocaleString()}人 · 今天 {c.newPosts}条新帖</div>
-                </div>
-                <Tag text={`${c.unread}新`} bg={C.red} color="#fff" />
-              </div>
-              <div style={{ background: C.soft, borderRadius: 8, padding: '8px 10px', fontSize: 12, color: C.ink }}>
-                <div style={{ fontWeight: 600, color: C.muted, marginBottom: 4 }}>最新话题</div>
-                {c.topics.map((t, i) => (
-                  <div key={i} style={{ lineHeight: 1.7 }}>{t}</div>
-                ))}
+                {appliedTeams[r.id] ? (
+                  <Tag text="已申请" bg={C.greenL} color={C.green} />
+                ) : (
+                  <button style={{ ...S.btnSm, ...S.btnSmOn }}
+                    onClick={() => { setAppliedTeams(t => ({ ...t, [r.id]: true })); showToast('已申请加入，等待确认') }}>
+                    加入
+                  </button>
+                )}
               </div>
             </div>
           ))}
 
-          <SecLabel style={{ marginTop: 6 }}>推荐圈子</SecLabel>
-          {REC_CIRCLES.map(c => (
-            <div key={c.id} style={S.cCard}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ fontSize: 28, width: 44, textAlign: 'center' }}>{c.emoji}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'Noto Serif SC,serif', color: C.ink }}>{c.name}</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{c.count.toLocaleString()}人 · 今天 {c.newPosts}条新帖</div>
-                </div>
-                {joinedCircles[c.id]
-                  ? <Tag text="已加入" bg={C.greenL} color={C.green} />
-                  : <button style={{ ...S.btnSm, ...S.btnSmOn }}
-                      onClick={() => { setJoinedCircles(j => ({...j,[c.id]:true})); showToast(`已加入${c.name}！`) }}>
-                      加入
-                    </button>
-                }
-              </div>
-            </div>
-          ))}
-          <div style={{ height: 10 }} />
-        </div>
-      )}
-
-      {/* ═══ TAB: 每日广播 ═══ */}
-      {tab === 'daily' && (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>
-
-          {/* 早安广播卡 */}
-          <div style={{ ...S.cCard, background: 'linear-gradient(135deg,#FDF3E0,#FAF0D8)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 18 }}>🌤️</span>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.goldD }}>早安广播</div>
-              <div style={{ marginLeft: 'auto', fontSize: 11, color: C.muted }}>06:30</div>
-            </div>
-            <div style={{ fontFamily: 'Noto Serif SC,serif', fontSize: 14, fontWeight: 700,
-              color: C.ink, marginBottom: 8, lineHeight: 1.6 }}>
-              「每天早起的第一件事，应该是感谢自己又坚持了一天。」
-            </div>
-            <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
-              今天已有 <b style={{ color: C.ink }}>342人</b> 打卡早起 · <b style={{ color: C.ink }}>187人</b> 完成读书
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {[['🏃','跑步打卡'],['📚','读书打卡'],['🌅','早起打卡'],['🧘','冥想打卡']].map(([e,l]) => (
-                <button key={l} style={S.bcBtn} onClick={() => showToast(`${e} ${l}成功！`)}>
-                  {e} {l}
-                </button>
-              ))}
-            </div>
+          <SecLabel style={{ marginTop: 8 }}>同行原则</SecLabel>
+          <div style={S.ruleBox}>
+            <div>只做轻监督，不做复杂社区。</div>
+            <div>只提醒今天的守诺，不制造额外负担。</div>
+            <div>先陪用户坚持，再谈内容流和广场化。</div>
           </div>
-
-          {/* 今日话题 */}
-          <SecLabel>💬 今日话题</SecLabel>
-          <div style={{ background: C.goldL, borderLeft: `3px solid ${C.gold}`,
-            borderRadius: '0 8px 8px 0', padding: '12px 14px', marginBottom: 14, cursor: 'pointer' }}
-            onClick={() => showToast('话题功能即将上线')}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.goldD, marginBottom: 4 }}>
-              你今天最想放弃的一刻是什么时候？
-            </div>
-            <div style={{ fontSize: 12, color: C.goldD, opacity: .8 }}>128人已分享 · 点击参与</div>
-          </div>
-
-          {/* 同行者动态 */}
-          <SecLabel>🔔 同行者动态</SecLabel>
-          {DAILY_POSTS.map(p => <DailyPost key={p.id} post={p} />)}
-
-          <div style={{ height: 10 }} />
         </div>
       )}
     </div>
   )
 }
-
 /* ─── 样式对象 ─── */
 const S = {
   topbar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: 'calc(14px + env(safe-area-inset-top)) 16px 12px', background: C.bg, borderBottom: `1px solid ${C.border}`, flexShrink: 0 },
   logo: { fontFamily: 'Noto Serif SC,serif', fontSize: 20, fontWeight: 900, color: C.ink, letterSpacing: .5 },
+  textBtn: { border: `1px solid ${C.border}`, background: C.surf, color: C.goldD, borderRadius: 999,
+    padding: '6px 12px', fontSize: 12, fontWeight: 700, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   iconBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, position: 'relative', padding: 2 },
+  tabBar: { display: 'flex', gap: 0, borderBottom: `1px solid ${C.border}`, background: C.bg, flexShrink: 0 },
+  tabBtn: { flex: 1, padding: '11px 0', background: 'none', border: 'none', cursor: 'pointer',
+    fontSize: 14, fontWeight: 500, color: C.muted, borderBottom: '2px solid transparent',
+    fontFamily: 'Noto Sans SC,sans-serif' },
+  tabBtnOn: { color: C.gold, borderBottom: `2px solid ${C.gold}`, fontWeight: 800 },
+  scrollArea: { flex: 1, overflowY: 'auto', padding: '14px 16px' },
+  kicker: { fontSize: 11, color: C.goldD, fontWeight: 900, letterSpacing: 1.5, marginBottom: 6 },
+  summaryCard: { background: C.surf, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14,
+    marginBottom: 12, boxShadow: '0 2px 10px rgba(26,18,8,.06)' },
+  summaryTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 16, lineHeight: 1.45, fontWeight: 900, color: C.ink },
+  summaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 12 },
+  discoverIntro: { background: C.goldL, border: `1px solid #E8D4A0`, borderRadius: 14, padding: 14, marginBottom: 14 },
+  ruleBox: { background: C.soft, border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 14px',
+    color: C.muted, fontSize: 12, lineHeight: 1.9, marginBottom: 10 },
+  primaryWide: { width: '100%', background: C.gold, border: 'none', color: '#fff', borderRadius: 12,
+    padding: '11px 12px', fontSize: 13, fontWeight: 800, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   cCard: { background: C.surf, border: `1px solid ${C.border}`, borderRadius: 14,
     padding: 14, marginBottom: 10, boxShadow: '0 2px 10px rgba(26,18,8,.06)' },
   banner: { background: C.goldL, border: `1px solid #E8D4A0`, borderRadius: 12, padding: '12px 14px',
