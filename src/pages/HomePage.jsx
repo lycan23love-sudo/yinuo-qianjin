@@ -5,15 +5,10 @@ import { useAuth } from '../App'
 import { getMyPledges, hasCheckedInToday, getMeritTitle } from '../lib/supabase'
 import { differenceInDays } from 'date-fns'
 
-
-const today = new Date()
-
-
 function daysLeft(pledge) {
   if (!pledge?.end_date) return null
-  return Math.max(0, differenceInDays(new Date(pledge.end_date), today))
+  return Math.max(0, differenceInDays(new Date(pledge.end_date), new Date()))
 }
-
 
 function progressOf(pledge) {
   const done = pledge?.checkin_count || pledge?.current_days || pledge?.completed_days || 0
@@ -25,23 +20,310 @@ function progressOf(pledge) {
   }
 }
 
-
 function pledgeTitle(pledge) {
   return pledge?.title || pledge?.content || pledge?.description || '未命名诺言'
 }
 
+function getMeritDisplay(score) {
+  const merit = getMeritTitle(score || 0)
+  if (typeof merit === 'string') return { emoji: '', title: merit }
+  return { emoji: merit?.emoji || '', title: merit?.title || '初心者' }
+}
+
+const styles = {
+  page: {
+    minHeight: '100vh',
+    background: '#f8f5ef',
+    color: '#1d1309',
+    padding: '28px 20px 96px',
+    boxSizing: 'border-box'
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 20
+  },
+  title: {
+    margin: 0,
+    fontFamily: 'serif',
+    fontSize: 34,
+    lineHeight: 1.05,
+    fontWeight: 900,
+    letterSpacing: 0
+  },
+  subtitle: {
+    margin: '6px 0 0',
+    fontSize: 14,
+    color: '#8a7b67'
+  },
+  meritButton: {
+    border: '1px solid #dccfb9',
+    background: 'rgba(255,255,255,0.7)',
+    color: '#8a6a2d',
+    borderRadius: 999,
+    padding: '7px 11px',
+    fontSize: 13,
+    fontWeight: 700,
+    whiteSpace: 'nowrap'
+  },
+  stats: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    border: '1px solid #e0d4bf',
+    borderRadius: 8,
+    background: 'rgba(255,255,255,0.78)',
+    overflow: 'hidden',
+    boxShadow: '0 6px 18px rgba(79,55,20,0.06)',
+    marginBottom: 14
+  },
+  statItem: {
+    padding: '12px 6px',
+    textAlign: 'center',
+    borderRight: '1px solid #e8ddcb'
+  },
+  statItemLast: {
+    padding: '12px 6px',
+    textAlign: 'center'
+  },
+  statValue: {
+    fontSize: 22,
+    lineHeight: 1,
+    fontWeight: 900,
+    color: '#1d1309'
+  },
+  statLabel: {
+    marginTop: 7,
+    fontSize: 12,
+    color: '#8a7b67'
+  },
+  scrollCard: {
+    position: 'relative',
+    overflow: 'hidden',
+    border: '1px solid #d7c29a',
+    borderRadius: 8,
+    background: 'linear-gradient(180deg, #fff8e3 0%, #fff1c7 100%)',
+    padding: 20,
+    boxShadow: '0 10px 24px rgba(79,55,20,0.11)',
+    marginBottom: 16
+  },
+  scrollLineTop: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    top: 11,
+    height: 1,
+    background: 'rgba(213,174,92,0.7)'
+  },
+  scrollLineBottom: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 11,
+    height: 1,
+    background: 'rgba(213,174,92,0.7)'
+  },
+  eyebrow: {
+    margin: 0,
+    color: '#9a7130',
+    fontSize: 12,
+    fontWeight: 800,
+    letterSpacing: 3
+  },
+  pledgeName: {
+    margin: '8px 0 0',
+    maxWidth: '82%',
+    fontFamily: 'serif',
+    fontSize: 25,
+    lineHeight: 1.25,
+    fontWeight: 900
+  },
+  bodyText: {
+    maxWidth: '78%',
+    margin: '14px 0 0',
+    color: '#6f604e',
+    fontSize: 14,
+    lineHeight: 1.75
+  },
+  seal: {
+    position: 'absolute',
+    right: 10,
+    bottom: 74,
+    width: 70,
+    height: 70,
+    borderRadius: '50%',
+    border: '2px solid rgba(176, 36, 24, 0.82)',
+    background: 'rgba(255, 239, 230, 0.72)',
+    color: '#9b1f16',
+    transform: 'rotate(-12deg)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: 'serif',
+    boxSizing: 'border-box'
+  },
+  sealChar: {
+    fontSize: 21,
+    lineHeight: 1,
+    fontWeight: 900
+  },
+  sealText: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: 900,
+    letterSpacing: 2
+  },
+  progressMeta: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginTop: 18,
+    marginBottom: 8,
+    fontSize: 13,
+    color: '#7c6b57'
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 999,
+    background: '#eadfc9',
+    overflow: 'hidden'
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+    background: '#c99a2e'
+  },
+  actionRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 18
+  },
+  muted: {
+    color: '#7c6b57',
+    fontSize: 14
+  },
+  primaryButton: {
+    border: 0,
+    borderRadius: 8,
+    background: '#171008',
+    color: '#f6d486',
+    padding: '12px 22px',
+    fontSize: 14,
+    fontWeight: 900,
+    boxShadow: '0 4px 10px rgba(23,16,8,0.16)'
+  },
+  fullButton: {
+    width: '100%',
+    border: 0,
+    borderRadius: 8,
+    background: '#171008',
+    color: '#f6d486',
+    padding: '13px 16px',
+    fontSize: 15,
+    fontWeight: 900,
+    marginTop: 18
+  },
+  panel: {
+    border: '1px solid #e0d4bf',
+    borderRadius: 8,
+    background: '#fff',
+    padding: 16,
+    boxShadow: '0 6px 18px rgba(79,55,20,0.06)',
+    marginBottom: 16
+  },
+  panelHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12
+  },
+  panelTitle: {
+    margin: 0,
+    fontFamily: 'serif',
+    fontSize: 22,
+    fontWeight: 900
+  },
+  linkButton: {
+    border: 0,
+    background: 'transparent',
+    color: '#b88923',
+    fontSize: 14,
+    fontWeight: 900,
+    padding: 4
+  },
+  pledgeItem: {
+    width: '100%',
+    border: '1px solid #eee4d2',
+    borderRadius: 8,
+    background: '#fffdf8',
+    padding: 12,
+    textAlign: 'left',
+    marginBottom: 10
+  },
+  pledgeItemTop: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12
+  },
+  pledgeItemTitle: {
+    fontSize: 15,
+    fontWeight: 900,
+    color: '#1d1309'
+  },
+  pledgeMeta: {
+    marginTop: 5,
+    fontSize: 12,
+    color: '#8a7b67',
+    lineHeight: 1.45
+  },
+  empty: {
+    borderRadius: 8,
+    background: '#f8f5ef',
+    color: '#8a7b67',
+    padding: '18px 14px',
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 1.65
+  },
+  smallGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 12
+  },
+  smallCard: {
+    border: '1px solid #e0d4bf',
+    borderRadius: 8,
+    background: '#fff',
+    padding: 14,
+    textAlign: 'left',
+    boxShadow: '0 6px 18px rgba(79,55,20,0.05)'
+  },
+  smallLabel: {
+    color: '#8a7b67',
+    fontSize: 12
+  },
+  smallValue: {
+    marginTop: 5,
+    color: '#1d1309',
+    fontSize: 22,
+    fontWeight: 900
+  }
+}
 
 function Seal({ profile }) {
   const name = profile?.nickname || profile?.username || '我'
   const first = String(name).trim().slice(0, 1) || '我'
   return (
-    <div className="absolute -right-2 bottom-5 rotate-[-12deg] rounded-full border-2 border-red-700/80 bg-red-50/70 px-4 py-3 text-center font-serif text-red-800 shadow-sm">
-      <div className="text-lg font-black leading-none">{first}</div>
-      <div className="mt-1 text-[11px] font-bold tracking-widest">守诺印</div>
+    <div style={styles.seal}>
+      <div style={styles.sealChar}>{first}</div>
+      <div style={styles.sealText}>守诺印</div>
     </div>
   )
 }
-
 
 export default function HomePage() {
   const { profile, session } = useAuth()
@@ -50,11 +332,9 @@ export default function HomePage() {
   const [checkedMap, setCheckedMap] = useState({})
   const [loading, setLoading] = useState(true)
 
-
   useEffect(() => {
     if (session) load()
   }, [session])
-
 
   async function load() {
     setLoading(true)
@@ -62,7 +342,6 @@ export default function HomePage() {
       const data = await getMyPledges()
       const list = data || []
       setPledges(list)
-
 
       const checks = {}
       await Promise.all(
@@ -76,7 +355,6 @@ export default function HomePage() {
     }
   }
 
-
   const activePledges = pledges.filter(p => p.status === 'active' || p.status === 'ongoing')
   const unfinishedToday = activePledges.filter(p => !checkedMap[p.id])
   const todayPledge = [...(unfinishedToday.length ? unfinishedToday : activePledges)].sort((a, b) => {
@@ -85,153 +363,127 @@ export default function HomePage() {
     return aLeft - bLeft
   })[0]
 
-
   const completedToday = activePledges.filter(p => checkedMap[p.id]).length
   const totalCheckins = pledges.reduce((sum, p) => sum + (p.checkin_count || p.current_days || p.completed_days || 0), 0)
   const totalTarget = pledges.reduce((sum, p) => sum + (p.duration_days || p.target_days || p.days || 0), 0)
   const keepRate = totalTarget ? Math.round((totalCheckins / totalTarget) * 100) : 0
   const lockedCoins = activePledges.reduce((sum, p) => sum + Number(p.stake_amount || p.stake || 0), 0)
-  const merit = getMeritTitle(profile?.merit_score || 0)
-  const meritLabel = typeof merit === 'string' ? merit : (merit?.title || '初心者')
-  const meritEmoji = typeof merit === 'object' ? (merit?.emoji || '') : ''
+  const merit = getMeritDisplay(profile?.merit_score)
   const mainProgress = progressOf(todayPledge)
   const mainChecked = todayPledge ? checkedMap[todayPledge.id] : false
   const mainDaysLeft = daysLeft(todayPledge)
 
-
   if (!session) {
     return (
-      <div className="min-h-screen bg-[#f8f5ef] px-6 py-10 pb-24">
-        <h1 className="font-serif text-3xl font-bold text-[#1d1309]">一诺千金</h1>
-        <p className="mt-2 text-sm text-[#8a7b67]">先登录，再立下属于你的第一份诺言。</p>
-        <button onClick={() => nav('/auth')} className="mt-8 w-full rounded-lg bg-[#171008] py-3 font-bold text-[#f6d486]">
-          去登录
-        </button>
+      <div style={styles.page}>
+        <h1 style={styles.title}>一诺千金</h1>
+        <p style={styles.subtitle}>先登录，再立下属于你的第一份诺言。</p>
+        <button onClick={() => nav('/auth')} style={styles.fullButton}>去登录</button>
       </div>
     )
   }
 
-
   return (
-    <div className="min-h-screen bg-[#f8f5ef] px-5 pb-24 pt-8 text-[#1d1309]">
-      <header className="mb-6 flex items-start justify-between">
+    <div style={styles.page}>
+      <header style={styles.header}>
         <div>
-          <h1 className="font-serif text-3xl font-bold tracking-normal">一诺千金</h1>
-          <p className="mt-1 text-sm text-[#8a7b67]">守住今天，就是守住自己</p>
+          <h1 style={styles.title}>一诺千金</h1>
+          <p style={styles.subtitle}>守住今天，就是守住自己</p>
         </div>
-        <button onClick={() => nav('/profile')} className="rounded-full border border-[#dccfb9] px-3 py-1.5 text-sm font-semibold text-[#8a6a2d]">
-          {meritEmoji} {meritLabel}
+        <button onClick={() => nav('/profile')} style={styles.meritButton}>
+          {merit.emoji} {merit.title}
         </button>
       </header>
 
-
-      <section className="mb-4 grid grid-cols-3 overflow-hidden rounded-lg border border-[#e0d4bf] bg-white/70 text-center shadow-sm">
-        <div className="border-r border-[#e8ddcb] px-2 py-3">
-          <div className="text-xl font-black text-[#c39a32]">{Math.max(activePledges.length - completedToday, 0)}</div>
-          <div className="mt-1 text-xs text-[#8a7b67]">今日待守</div>
+      <section style={styles.stats}>
+        <div style={styles.statItem}>
+          <div style={{ ...styles.statValue, color: '#c39a32' }}>{Math.max(activePledges.length - completedToday, 0)}</div>
+          <div style={styles.statLabel}>今日待守</div>
         </div>
-        <div className="border-r border-[#e8ddcb] px-2 py-3">
-          <div className="text-xl font-black text-[#1d1309]">{completedToday}/{activePledges.length || 0}</div>
-          <div className="mt-1 text-xs text-[#8a7b67]">今日完成</div>
+        <div style={styles.statItem}>
+          <div style={styles.statValue}>{completedToday}/{activePledges.length || 0}</div>
+          <div style={styles.statLabel}>今日完成</div>
         </div>
-        <div className="px-2 py-3">
-          <div className="text-xl font-black text-[#1d1309]">{keepRate}%</div>
-          <div className="mt-1 text-xs text-[#8a7b67]">总守约率</div>
+        <div style={styles.statItemLast}>
+          <div style={styles.statValue}>{keepRate}%</div>
+          <div style={styles.statLabel}>总守约率</div>
         </div>
       </section>
 
-
-      <main className="relative mb-5 overflow-hidden rounded-lg border border-[#d7c29a] bg-[#fff7df] p-5 shadow-[0_8px_24px_rgba(79,55,20,0.10)]">
-        <div className="pointer-events-none absolute inset-x-4 top-3 h-px bg-[#d5ae5c]/60" />
-        <div className="pointer-events-none absolute inset-x-4 bottom-3 h-px bg-[#d5ae5c]/60" />
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold tracking-[0.28em] text-[#9a7130]">今日诺言</p>
-            <h2 className="mt-2 font-serif text-2xl font-bold leading-snug">
-              {loading ? '正在展开契约...' : todayPledge ? pledgeTitle(todayPledge) : '写下你的第一份军令状'}
-            </h2>
-          </div>
-          {todayPledge && <Seal profile={profile} />}
-        </div>
-
+      <main style={styles.scrollCard}>
+        <div style={styles.scrollLineTop} />
+        <div style={styles.scrollLineBottom} />
+        <p style={styles.eyebrow}>今日诺言</p>
+        <h2 style={styles.pledgeName}>
+          {loading ? '正在展开契约...' : todayPledge ? pledgeTitle(todayPledge) : '写下你的第一份军令状'}
+        </h2>
+        {todayPledge && <Seal profile={profile} />}
 
         {todayPledge ? (
           <>
-            <p className="max-w-[78%] text-sm leading-6 text-[#6f604e]">
-              这是一份已经盖印的诺言。今天只需要完成下一次证明，让契约继续有效。
-            </p>
-            <div className="mt-5">
-              <div className="mb-2 flex justify-between text-sm text-[#7c6b57]">
-                <span>第 {mainProgress.done} / {mainProgress.total} 天</span>
-                <span>{mainProgress.percent}%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-[#eadfc9]">
-                <div className="h-full rounded-full bg-[#c99a2e]" style={{ width: mainProgress.percent + '%' }} />
-              </div>
+            <p style={styles.bodyText}>这是一份已经盖印的诺言。今天只需要完成下一次证明，让契约继续有效。</p>
+            <div style={styles.progressMeta}>
+              <span>第 {mainProgress.done} / {mainProgress.total} 天</span>
+              <span>{mainProgress.percent}%</span>
             </div>
-            <div className="mt-5 flex items-center justify-between gap-3">
-              <div className="text-sm text-[#7c6b57]">
+            <div style={styles.progressTrack}>
+              <div style={{ ...styles.progressFill, width: mainProgress.percent + '%' }} />
+            </div>
+            <div style={styles.actionRow}>
+              <div style={styles.muted}>
                 {mainDaysLeft === null ? '持续守诺中' : mainDaysLeft === 0 ? '今日到期' : '还剩 ' + mainDaysLeft + ' 天'}
               </div>
               <button
                 onClick={() => nav(mainChecked ? '/pledge/' + todayPledge.id : '/pledge/' + todayPledge.id + '/checkin')}
-                className="rounded-lg bg-[#171008] px-6 py-3 text-sm font-bold text-[#f6d486] shadow-sm"
+                style={styles.primaryButton}
               >
                 {mainChecked ? '查看记录' : '去打卡'}
               </button>
             </div>
           </>
         ) : (
-          <div className="mt-5">
-            <p className="text-sm leading-6 text-[#6f604e]">
-              第一份诺言不用复杂，写清楚你每天要守住的一件事，再亲手盖下守诺印。
-            </p>
-            <button onClick={() => nav('/new')} className="mt-5 w-full rounded-lg bg-[#171008] py-3 font-bold text-[#f6d486]">
-              立下第一个誓言
-            </button>
-          </div>
+          <>
+            <p style={styles.bodyText}>第一份诺言不用复杂，写清楚你每天要守住的一件事，再亲手盖下守诺印。</p>
+            <button onClick={() => nav('/new')} style={styles.fullButton}>立下第一个誓言</button>
+          </>
         )}
       </main>
 
-
-      <section className="mb-5 rounded-lg border border-[#e0d4bf] bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="font-serif text-xl font-bold">我的誓言</h3>
-          <button onClick={() => nav('/new')} className="text-sm font-bold text-[#b88923]">立新誓</button>
+      <section style={styles.panel}>
+        <div style={styles.panelHeader}>
+          <h3 style={styles.panelTitle}>我的誓言</h3>
+          <button onClick={() => nav('/new')} style={styles.linkButton}>立新誓</button>
         </div>
         {activePledges.length ? (
-          <div className="space-y-3">
+          <div>
             {activePledges.slice(0, 3).map(pledge => {
               const progress = progressOf(pledge)
               return (
-                <button key={pledge.id} onClick={() => nav('/pledge/' + pledge.id)} className="w-full rounded-lg border border-[#eee4d2] bg-[#fffdf8] p-3 text-left">
-                  <div className="flex items-start justify-between gap-3">
+                <button key={pledge.id} onClick={() => nav('/pledge/' + pledge.id)} style={styles.pledgeItem}>
+                  <div style={styles.pledgeItemTop}>
                     <div>
-                      <div className="font-bold">{pledgeTitle(pledge)}</div>
-                      <div className="mt-1 text-xs text-[#8a7b67]">押注 {pledge.stake_amount || pledge.stake || 0} 金币 · {checkedMap[pledge.id] ? '今日已打卡' : '今日待打卡'}</div>
+                      <div style={styles.pledgeItemTitle}>{pledgeTitle(pledge)}</div>
+                      <div style={styles.pledgeMeta}>押注 {pledge.stake_amount || pledge.stake || 0} 金币 · {checkedMap[pledge.id] ? '今日已打卡' : '今日待打卡'}</div>
                     </div>
-                    <div className="text-sm font-bold text-[#c39a32]">{progress.percent}%</div>
+                    <div style={{ color: '#c39a32', fontSize: 14, fontWeight: 900 }}>{progress.percent}%</div>
                   </div>
                 </button>
               )
             })}
           </div>
         ) : (
-          <div className="rounded-lg bg-[#f8f5ef] px-4 py-5 text-center text-sm text-[#8a7b67]">
-            暂无进行中的诺言。让首页从第一份契约开始。
-          </div>
+          <div style={styles.empty}>暂无进行中的诺言。让首页从第一份契约开始。</div>
         )}
       </section>
 
-
-      <section className="grid grid-cols-2 gap-3">
-        <button onClick={() => nav('/charity')} className="rounded-lg border border-[#e0d4bf] bg-white p-4 text-left shadow-sm">
-          <div className="text-xs text-[#8a7b67]">公益金币</div>
-          <div className="mt-1 text-xl font-black text-[#1d1309]">{profile?.merit_coins || 0}</div>
+      <section style={styles.smallGrid}>
+        <button onClick={() => nav('/charity')} style={styles.smallCard}>
+          <div style={styles.smallLabel}>公益金币</div>
+          <div style={styles.smallValue}>{profile?.merit_coins || 0}</div>
         </button>
-        <button onClick={() => nav('/square')} className="rounded-lg border border-[#e0d4bf] bg-white p-4 text-left shadow-sm">
-          <div className="text-xs text-[#8a7b67]">契约押注中</div>
-          <div className="mt-1 text-xl font-black text-[#1d1309]">{lockedCoins}</div>
+        <button onClick={() => nav('/square')} style={styles.smallCard}>
+          <div style={styles.smallLabel}>契约押注中</div>
+          <div style={styles.smallValue}>{lockedCoins}</div>
         </button>
       </section>
     </div>
