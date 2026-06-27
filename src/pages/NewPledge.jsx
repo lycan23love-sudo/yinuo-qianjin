@@ -11,7 +11,7 @@ const PERIODS = [
   { key:'season', icon:'🌸', label:'季度誓言', days:90, locked:true, need:'完成1个解锁' },
   { key:'year', icon:'🏔️', label:'年度誓言', days:365, locked:true, need:'完成3个解锁' },
 ]
-const STAKES = [200, 500, 1000, 2000]
+const STAKES = [50, 100, 200, 500]
 const CHARITIES = ['🐾 动物保护联盟','📚 山区图书馆','❤️ 儿童健康基金','🌳 绿色公益','🏥 贫困助学基金']
 const VERIFY = [
   { key:'screenshot', icon:'📷', label:'截图证明', desc:'上传截图，见证者可质疑' },
@@ -70,7 +70,7 @@ export default function NewPledge() {
   const { showToast } = useToast()
   const nav = useNavigate()
   const [form, setForm] = useState({
-    title: '', period: 'month', stake: 200,
+    title: '', period: 'month', stake: 50,
     charity: '📚 山区图书馆', verify: 'screenshot', isPublic: true, bounty: 0
   })
   const [loading, setLoading] = useState(false)
