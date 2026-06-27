@@ -6,59 +6,17 @@ import { createPledge } from '../lib/supabase'
 import { addDays, format } from 'date-fns'
 
 const PERIODS = [
-  { key:'week', icon:'📅', label:'周誓言', days:7, locked:false },
-  { key:'month', icon:'🌙', label:'月誓言', days:30, locked:false },
-  { key:'season', icon:'🌸', label:'季度誓言', days:90, locked:true, need:'完成1个解锁' },
-  { key:'year', icon:'🏔️', label:'年度誓言', days:365, locked:true, need:'完成3个解锁' },
+  { key:'week', label:'七日令', days:7, locked:false },
+  { key:'month', label:'三十日令', days:30, locked:false },
+  { key:'season', label:'九十日令', days:90, locked:true, need:'完成1个解锁' },
+  { key:'year', label:'三百六十五日令', days:365, locked:true, need:'完成3个解锁' },
 ]
 const STAKES = [50, 100, 200, 500]
-const CHARITIES = ['🐾 动物保护联盟','📚 山区图书馆','❤️ 儿童健康基金','🌳 绿色公益','🏥 贫困助学基金']
+const CHARITIES = ['动物保护联盟','山区图书馆','儿童健康基金','绿色公益','贫困助学基金']
 const VERIFY = [
-  { key:'screenshot', icon:'📷', label:'截图证明', desc:'上传截图，见证者可质疑' },
-  { key:'text', icon:'✍️', label:'文字日记', desc:'每天写今天的记录' },
+  { key:'screenshot', label:'截图为证', desc:'上传截图，见证者可质疑' },
+  { key:'text', label:'文字为证', desc:'每天写下践诺记录' },
 ]
-
-const S = {
-  page: { minHeight:'100vh', background:'#f8f5ef', color:'#1d1309', paddingBottom:104 },
-  topbar: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid #e0d5c0', background:'#faf7f2', position:'sticky', top:0, zIndex:10 },
-  back: { width:34, height:34, border:0, borderRadius:17, background:'rgba(255,255,255,.72)', color:'#1d1309', fontSize:21, cursor:'pointer' },
-  pageTitle: { fontFamily:'serif', fontSize:19, fontWeight:900 },
-  content: { padding:'16px 16px 0' },
-  scroll: { position:'relative', border:'1px solid #d7c29a', borderRadius:8, background:'linear-gradient(180deg,#fff8e3 0%,#fff1c7 100%)', padding:'22px 18px 20px', boxShadow:'0 10px 24px rgba(79,55,20,.11)', overflow:'hidden' },
-  lineTop: { position:'absolute', left:16, right:16, top:11, height:1, background:'rgba(213,174,92,.72)' },
-  lineBottom: { position:'absolute', left:16, right:16, bottom:11, height:1, background:'rgba(213,174,92,.72)' },
-  eyebrow: { margin:0, color:'#9a7130', fontSize:12, fontWeight:900, letterSpacing:3 },
-  title: { margin:'8px 0 6px', fontFamily:'serif', fontSize:28, fontWeight:900, lineHeight:1.15 },
-  sub: { margin:'0 0 16px', color:'#74644f', fontSize:13, lineHeight:1.7 },
-  label: { display:'block', marginBottom:7, color:'#8a6a2d', fontSize:12, fontWeight:900, letterSpacing:1 },
-  textarea: { width:'100%', minHeight:110, boxSizing:'border-box', border:'1px solid #d8c497', borderRadius:8, background:'rgba(255,253,246,.86)', padding:'13px 14px', color:'#1d1309', fontSize:17, lineHeight:1.65, fontFamily:'serif', resize:'vertical', outline:'none' },
-  seal: { position:'absolute', right:14, bottom:18, width:76, height:76, borderRadius:'50%', border:'2px solid rgba(176,36,24,.86)', background:'rgba(255,239,230,.75)', color:'#9b1f16', transform:'rotate(-12deg)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontFamily:'serif', boxSizing:'border-box', boxShadow:'0 5px 14px rgba(176,36,24,.12)' },
-  sealGhost: { position:'absolute', right:18, bottom:20, width:70, height:70, borderRadius:'50%', border:'2px dashed rgba(176,36,24,.35)', color:'rgba(155,31,22,.42)', transform:'rotate(-12deg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:900, fontFamily:'serif' },
-  sealChar: { fontSize:23, lineHeight:1, fontWeight:900 },
-  sealText: { marginTop:5, fontSize:11, fontWeight:900, letterSpacing:2 },
-  group: { marginTop:16, border:'1px solid #e0d4bf', borderRadius:8, background:'#fff', padding:14, boxShadow:'0 6px 18px rgba(79,55,20,.05)' },
-  groupTitle: { margin:'0 0 11px', fontFamily:'serif', fontSize:18, fontWeight:900 },
-  grid2: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:9 },
-  periodBtn: { border:'1px solid #e0d5c0', borderRadius:8, background:'#fffdf8', padding:'12px 8px', textAlign:'center', cursor:'pointer', color:'#1d1309' },
-  periodOn: { border:'2px solid #c8922a', background:'#fdf3e0' },
-  row: { display:'flex', gap:8, flexWrap:'wrap' },
-  chip: { flex:'1 1 68px', border:'1px solid #e0d5c0', borderRadius:8, background:'#fffdf8', padding:'10px 8px', color:'#1d1309', fontSize:14, fontWeight:800, cursor:'pointer' },
-  chipOn: { border:'2px solid #c8922a', background:'#fdf3e0', color:'#7a5a18' },
-  charityBtn: { width:'100%', border:'1px solid #e0d5c0', borderRadius:8, background:'#fffdf8', padding:'11px 12px', marginBottom:8, textAlign:'left', color:'#1d1309', fontSize:14, cursor:'pointer' },
-  charityOn: { border:'2px solid #3b7a4a', background:'#e8f5ec', color:'#1a4a28', fontWeight:900 },
-  verifyOpt: { display:'flex', alignItems:'center', gap:12, border:'1px solid #e0d5c0', borderRadius:8, background:'#fffdf8', padding:12, marginBottom:8, cursor:'pointer' },
-  verifyOn: { border:'2px solid #c8922a', background:'#fdf3e0' },
-  publicRow: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 },
-  publicBtn: { border:'1px solid #e0d5c0', borderRadius:8, background:'#fffdf8', padding:'11px 8px', color:'#1d1309', fontSize:13, cursor:'pointer' },
-  notice: { marginTop:16, border:'1px solid rgba(200,146,42,.36)', borderRadius:8, background:'#fdf3e0', padding:13, color:'#7a5a18', fontSize:12, lineHeight:1.7 },
-  actionBox: { marginTop:16, border:'1px solid #d7c29a', borderRadius:8, background:'#fffdf8', padding:14 },
-  stampBtn: { width:'100%', border:'1px solid rgba(176,36,24,.45)', borderRadius:8, background:'#fff1e9', color:'#9b1f16', padding:'13px 12px', fontSize:15, fontWeight:900, cursor:'pointer' },
-  submitBtn: { width:'100%', border:0, borderRadius:8, background:'#171008', color:'#f6d486', padding:'14px 12px', fontSize:15, fontWeight:900, cursor:'pointer', marginTop:10, boxShadow:'0 5px 14px rgba(23,16,8,.18)' },
-  disabledBtn: { opacity:.5, cursor:'not-allowed' },
-  meta: { marginTop:7, color:'#9a8a70', fontSize:12, lineHeight:1.6 },
-  small: { color:'#9a8a70', fontSize:12, lineHeight:1.6 },
-  bold: { fontWeight:900 }
-}
 
 function userSeal(profile) {
   const name = profile?.nickname || profile?.username || '我'
@@ -69,11 +27,10 @@ export default function NewPledge() {
   const { session, profile, refreshProfile } = useAuth()
   const { showToast } = useToast()
   const nav = useNavigate()
-  const [form, setForm] = useState({
-    title: '', period: 'month', stake: 50,
-    charity: '📚 山区图书馆', verify: 'screenshot', isPublic: true, bounty: 0
-  })
+  const [form, setForm] = useState({ title: '', period: 'month', stake: 50, charity: '山区图书馆', verify: 'screenshot', isPublic: true })
   const [loading, setLoading] = useState(false)
+  const [opened, setOpened] = useState(false)
+  const [sealing, setSealing] = useState(false)
   const [sealed, setSealed] = useState(false)
 
   useEffect(() => {
@@ -88,6 +45,7 @@ export default function NewPledge() {
 
   function set(k, v) {
     setSealed(false)
+    setSealing(false)
     setForm(f => ({ ...f, [k]: v }))
   }
 
@@ -98,28 +56,26 @@ export default function NewPledge() {
   const sealChar = userSeal(profile)
 
   function stamp() {
-    if (!form.title.trim()) { showToast('请先写下你的誓言'); return }
+    if (!opened) { setOpened(true); return }
+    if (!form.title.trim()) { showToast('请先写下誓言'); return }
     if (noCoins) { showToast('金币不足，需要' + form.stake + '金币'); return }
-    setSealed(true)
-    showToast('印已落，诺已成。', 'success')
+    setSealing(true)
+    setTimeout(() => {
+      setSealed(true)
+      setSealing(false)
+      showToast('印已落，诺已成。', 'success')
+    }, 680)
   }
 
   async function handleSubmit() {
     if (!form.title.trim()) { showToast('请填写承诺内容'); return }
     if (noCoins) { showToast('金币不足，需要' + form.stake + '金币'); return }
-    if (!sealed) { showToast('请先盖下守诺印'); return }
+    if (!sealed) { showToast('请先压上守诺印'); return }
     setLoading(true)
     try {
-      const pledge = await createPledge(session.user.id, {
-        title: form.title,
-        period: form.period,
-        stakeCoins: form.stake,
-        charityTarget: form.charity,
-        verifyType: form.verify,
-        isPublic: form.isPublic,
-      })
+      const pledge = await createPledge(session.user.id, { title: form.title, period: form.period, stakeCoins: form.stake, charityTarget: form.charity, verifyType: form.verify, isPublic: form.isPublic })
       refreshProfile()
-      showToast('军令状已立，金币已托管 🔒', 'success')
+      showToast('契约已立，金币已托管', 'success')
       nav('/pledge/' + pledge.id)
     } catch (err) {
       showToast(err.message || '立誓失败', 'error')
@@ -129,105 +85,29 @@ export default function NewPledge() {
   }
 
   return (
-    <div style={S.page}>
-      <div style={S.topbar}>
-        <button style={S.back} onClick={() => nav(-1)}>‹</button>
-        <div style={S.pageTitle}>立下军令状</div>
-        <div style={{ width:34 }} />
-      </div>
-
-      <div style={S.content}>
-        <section style={S.scroll}>
-          <div style={S.lineTop} />
-          <div style={S.lineBottom} />
-          <p style={S.eyebrow}>守诺契约</p>
-          <h1 style={S.title}>写下你的军令状</h1>
-          <p style={S.sub}>这一页不是普通表单。写下你愿意每天证明的事，再亲手盖下守诺印。</p>
-          <label style={S.label}>吾今日立誓</label>
-          <textarea
-            style={S.textarea}
-            rows={4}
-            placeholder={'例：每天学习 AI 2 小时，并上传截图证明。'}
-            value={form.title}
-            onChange={e => set('title', e.target.value)}
-          />
-          {sealed ? (
-            <div style={S.seal}>
-              <div style={S.sealChar}>{sealChar}</div>
-              <div style={S.sealText}>守诺印</div>
-            </div>
-          ) : (
-            <div style={S.sealGhost}>待盖印</div>
-          )}
-        </section>
-
-        <section style={S.group}>
-          <h2 style={S.groupTitle}>期限</h2>
-          <div style={S.grid2}>
-            {PERIODS.map(p => (
-              <button key={p.key} style={{ ...S.periodBtn, ...(form.period === p.key ? S.periodOn : {}), ...(p.locked ? { opacity:.45, cursor:'not-allowed' } : {}) }} onClick={() => !p.locked && set('period', p.key)}>
-                <div style={{ fontSize:22 }}>{p.icon}</div>
-                <div style={{ marginTop:4, fontWeight:900 }}>{p.label}</div>
-                <div style={S.small}>{p.days}天</div>
-                {p.locked && <div style={{ marginTop:4, color:'#c8922a', fontSize:11 }}>{p.need}</div>}
-              </button>
-            ))}
-          </div>
-          <div style={S.meta}>今日生效，至 {endDate}</div>
-        </section>
-
-        <section style={S.group}>
-          <h2 style={S.groupTitle}>押注</h2>
-          <div style={S.row}>
-            {STAKES.map(s => (
-              <button key={s} style={{ ...S.chip, ...(form.stake === s ? S.chipOn : {}) }} onClick={() => set('stake', s)}>{s}</button>
-            ))}
-          </div>
-          <div style={S.meta}>当前余额：{currentCoins.toLocaleString()} 金币{noCoins && <span style={{ color:'#c84040', marginLeft:8 }}>余额不足</span>}</div>
-        </section>
-
-        <section style={S.group}>
-          <h2 style={S.groupTitle}>若失信，捐给</h2>
-          {CHARITIES.map(c => (
-            <button key={c} style={{ ...S.charityBtn, ...(form.charity === c ? S.charityOn : {}) }} onClick={() => set('charity', c)}>{c}</button>
-          ))}
-        </section>
-
-        <section style={S.group}>
-          <h2 style={S.groupTitle}>每日证明</h2>
-          {VERIFY.map(v => (
-            <div key={v.key} style={{ ...S.verifyOpt, ...(form.verify === v.key ? S.verifyOn : {}) }} onClick={() => set('verify', v.key)}>
-              <span style={{ fontSize:22 }}>{v.icon}</span>
-              <div>
-                <div style={{ fontSize:14, fontWeight:900 }}>{v.label}</div>
-                <div style={S.small}>{v.desc}</div>
-              </div>
-            </div>
-          ))}
-        </section>
-
-        <section style={S.group}>
-          <h2 style={S.groupTitle}>公开方式</h2>
-          <div style={S.publicRow}>
-            <button style={{ ...S.publicBtn, ...(form.isPublic ? S.chipOn : {}) }} onClick={() => set('isPublic', true)}>🌐 公开见证</button>
-            <button style={{ ...S.publicBtn, ...(!form.isPublic ? S.chipOn : {}) }} onClick={() => set('isPublic', false)}>🔒 仅自己可见</button>
+    <div className="contractPage">
+      <style>{css}</style>
+      <div className="contractTopbar"><button className="backBtn" onClick={() => nav(-1)}>‹</button><div className="topTitle">立下契约</div><div className="topSpacer" /></div>
+      <div className="contractBody">
+        <section className={'scrollScene ' + (opened ? 'isOpen' : '')}>
+          <div className="rod rodTop" /><div className="rod rodBottom" />
+          <div className="paperSurface"><div className="paperTexture" />
+            {!opened && <div className="closedIntro"><div className="introMark">一诺千金</div><h1>展开契约</h1><p>写下要守住的事，再亲手压印。</p><button className="darkBtn" onClick={() => setOpened(true)}>展开卷轴</button></div>}
+            <div className="writingLayer"><div className="contractMeta">守诺契 · {period.label}</div><h1 className="contractTitle">吾立此诺</h1><label className="fieldLabel">誓言正文</label><textarea className="oathInput" rows={5} disabled={!opened || sealed || sealing} placeholder="例：每日学习 AI 两小时，并以截图为证。" value={form.title} onChange={e => set('title', e.target.value)} /><div className="oathPreview"><span>自今日起，至 {endDate}，每日为证。</span></div><div className="signatureLine"><span>立约人</span><strong>{profile?.nickname || profile?.username || '我'}</strong></div></div>
+            {(sealing || sealed) && <div className={'sealImprint ' + (sealing ? 'isDropping' : 'isSet')}><div className="sealChar">{sealChar}</div><div className="sealText">守诺印</div></div>}
           </div>
         </section>
-
-        <div style={S.notice}>
-          <div style={S.bold}>立誓即托管</div>
-          <div>{form.stake} 金币将在盖印后冻结。成功返还，失败捐给「{form.charity}」。</div>
-        </div>
-
-        <section style={S.actionBox}>
-          <button style={{ ...S.stampBtn, ...(loading || !profile || noCoins ? S.disabledBtn : {}) }} onClick={stamp} disabled={loading || !profile || noCoins}>
-            {sealed ? '印已落，诺已成' : '盖下守诺印'}
-          </button>
-          <button style={{ ...S.submitBtn, ...(!sealed || loading || !profile || noCoins ? S.disabledBtn : {}) }} onClick={handleSubmit} disabled={!sealed || loading || !profile || noCoins}>
-            {!profile ? '加载账户中…' : loading ? '立誓中…' : '正式立誓，托管 ' + form.stake + ' 金币'}
-          </button>
+        <section className="termsPanel"><div className="termsHead"><h2>契约条款</h2><span>{currentCoins.toLocaleString()} 金币可用</span></div>
+          <div className="termGroup"><div className="termLabel">期限</div><div className="optionGrid">{PERIODS.map(p => <button key={p.key} className={'optionBtn ' + (form.period === p.key ? 'active' : '')} disabled={p.locked} onClick={() => !p.locked && set('period', p.key)}><strong>{p.label}</strong><span>{p.days}天{p.locked ? ' · ' + p.need : ''}</span></button>)}</div></div>
+          <div className="termGroup"><div className="termLabel">托管金币</div><div className="chipRow">{STAKES.map(s => <button key={s} className={'chipBtn ' + (form.stake === s ? 'active' : '')} onClick={() => set('stake', s)}>{s}</button>)}</div>{noCoins && <div className="dangerText">余额不足，请降低托管额</div>}</div>
+          <div className="termGroup"><div className="termLabel">失信去向</div><div className="listOptions">{CHARITIES.map(c => <button key={c} className={'listBtn ' + (form.charity === c ? 'active' : '')} onClick={() => set('charity', c)}>{c}</button>)}</div></div>
+          <div className="termGroup"><div className="termLabel">每日证明</div><div className="verifyGrid">{VERIFY.map(v => <button key={v.key} className={'verifyBtn ' + (form.verify === v.key ? 'active' : '')} onClick={() => set('verify', v.key)}><strong>{v.label}</strong><span>{v.desc}</span></button>)}</div></div>
+          <div className="termGroup lastGroup"><div className="termLabel">公开</div><div className="verifyGrid"><button className={'verifyBtn ' + (form.isPublic ? 'active' : '')} onClick={() => set('isPublic', true)}><strong>公开见证</strong><span>进入广场，允许他人见证</span></button><button className={'verifyBtn ' + (!form.isPublic ? 'active' : '')} onClick={() => set('isPublic', false)}><strong>仅自己可见</strong><span>只保留个人契约</span></button></div></div>
         </section>
+        <section className="ritualPanel"><p>{form.stake} 金币将在立约后托管。若失败，捐给「{form.charity}」。</p><button className="stampBtn" onClick={stamp} disabled={loading || !profile || noCoins || sealing}>{!opened ? '展开卷轴' : sealed ? '印已落，诺已成' : sealing ? '落印中...' : '压上守诺印'}</button><button className="submitBtn" onClick={handleSubmit} disabled={!sealed || loading || !profile || noCoins}>{!profile ? '加载账户中...' : loading ? '立约中...' : '正式立约，托管 ' + form.stake + ' 金币'}</button></section>
       </div>
     </div>
   )
 }
+
+const css = ".contractPage{min-height:100vh;background:#f3eee6;color:#1b1208;padding-bottom:104px}.contractTopbar{position:sticky;top:0;z-index:10;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #ded2bf;background:rgba(248,245,239,.96);backdrop-filter:blur(8px);box-sizing:border-box}.backBtn{width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.72);color:#1b1208;font-size:25px;line-height:1}.topTitle{font-family:serif;font-size:19px;font-weight:900}.topSpacer{width:34px}.contractBody{padding:16px}.scrollScene{position:relative;margin:4px 0 16px;min-height:154px;perspective:900px}.rod{position:absolute;left:12px;right:12px;height:15px;border-radius:999px;background:linear-gradient(90deg,#5b3218,#9b6934 18%,#3a1d0e 50%,#9b6934 82%,#5b3218);box-shadow:0 5px 10px rgba(45,25,10,.28);z-index:2}.rodTop{top:0}.rodBottom{bottom:0;transform:translateY(0);transition:transform 800ms cubic-bezier(.2,.75,.18,1)}.paperSurface{position:relative;min-height:130px;overflow:hidden;border:1px solid #cdb07a;border-radius:8px;background:#f9edcf;box-shadow:0 14px 30px rgba(55,35,14,.16);transform-origin:top center;transition:min-height 760ms cubic-bezier(.2,.75,.18,1),background 400ms ease}.scrollScene.isOpen .paperSurface{min-height:408px;background:#fbf0d4}.scrollScene.isOpen .rodBottom{transform:translateY(276px)}.paperTexture{position:absolute;inset:0;pointer-events:none;opacity:.56;background:radial-gradient(circle at 12% 16%,rgba(125,82,30,.10),transparent 22%),radial-gradient(circle at 76% 24%,rgba(125,82,30,.08),transparent 24%),linear-gradient(90deg,rgba(120,72,20,.13),transparent 8%,transparent 92%,rgba(120,72,20,.12)),repeating-linear-gradient(0deg,rgba(70,42,12,.035) 0 1px,transparent 1px 22px)}.closedIntro{position:absolute;inset:22px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity 240ms ease,transform 240ms ease}.scrollScene.isOpen .closedIntro{opacity:0;transform:translateY(-10px);pointer-events:none}.introMark{font-size:12px;font-weight:900;letter-spacing:4px;color:#8a6227}.closedIntro h1{margin:8px 0 4px;font-family:serif;font-size:28px;line-height:1}.closedIntro p{margin:0 0 14px;color:#76644d;font-size:13px}.darkBtn{border:0;border-radius:8px;background:#1b1208;color:#f6d486;padding:10px 22px;font-weight:900}.writingLayer{position:relative;z-index:1;opacity:0;transform:translateY(14px);padding:36px 18px 22px;transition:opacity 360ms ease 420ms,transform 360ms ease 420ms}.scrollScene.isOpen .writingLayer{opacity:1;transform:translateY(0)}.contractMeta{font-size:12px;letter-spacing:3px;color:#8a6227;font-weight:900}.contractTitle{margin:8px 0 20px;font-family:serif;font-size:31px;line-height:1}.fieldLabel{display:block;margin-bottom:8px;color:#7d6238;font-size:12px;font-weight:900;letter-spacing:2px}.oathInput{width:100%;min-height:132px;box-sizing:border-box;border:0;border-bottom:1px solid rgba(104,75,36,.42);border-radius:0;outline:none;background:transparent;color:#1b1208;font-family:serif;font-size:20px;line-height:1.8;resize:none}.oathInput::placeholder{color:rgba(72,55,32,.42)}.oathInput:disabled{color:#1b1208;opacity:1}.oathPreview{margin-top:12px;color:#6e5b42;font-size:13px}.signatureLine{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:22px;padding-right:92px;color:#6e5b42;font-size:13px}.signatureLine strong{color:#1b1208;font-size:16px;font-family:serif}.sealImprint{position:absolute;right:26px;bottom:30px;z-index:3;width:82px;height:82px;border-radius:50%;border:2px solid rgba(144,22,16,.88);background:rgba(158,28,18,.08);color:#921610;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:serif;transform:rotate(-12deg);box-shadow:inset 0 0 0 6px rgba(144,22,16,.05)}.sealImprint.isDropping{animation:stampDrop 680ms cubic-bezier(.18,.82,.2,1) both}.sealImprint.isSet{opacity:.92}.sealChar{font-size:26px;font-weight:900;line-height:1}.sealText{margin-top:5px;font-size:11px;font-weight:900;letter-spacing:2px}@keyframes stampDrop{0%{opacity:0;transform:translateY(-90px) scale(1.35) rotate(-12deg);filter:blur(1px)}55%{opacity:1;transform:translateY(8px) scale(.9) rotate(-12deg)}74%{transform:translateY(-4px) scale(1.04) rotate(-12deg)}100%{opacity:.94;transform:translateY(0) scale(1) rotate(-12deg);filter:blur(0)}}.termsPanel,.ritualPanel{border:1px solid #ded2bf;border-radius:8px;background:rgba(255,255,255,.84);box-shadow:0 8px 22px rgba(55,35,14,.07);padding:15px;margin-bottom:14px}.termsHead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}.termsHead h2{margin:0;font-family:serif;font-size:21px}.termsHead span{color:#8d7a62;font-size:12px}.termGroup{margin-top:15px}.termGroup:first-of-type{margin-top:0}.lastGroup{margin-bottom:2px}.termLabel{margin-bottom:8px;color:#8a6227;font-size:12px;font-weight:900;letter-spacing:2px}.optionGrid,.verifyGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.optionBtn,.verifyBtn,.chipBtn,.listBtn{border:1px solid #dfd2bd;border-radius:8px;background:#fffdf8;color:#1b1208;cursor:pointer}.optionBtn{min-height:62px;padding:9px 8px;text-align:left}.optionBtn strong,.verifyBtn strong{display:block;font-size:13px}.optionBtn span,.verifyBtn span{display:block;margin-top:4px;color:#8d7a62;font-size:11px;line-height:1.45}.optionBtn.active,.verifyBtn.active,.chipBtn.active{border-color:#b88923;background:#f8ecd0;box-shadow:inset 0 0 0 1px rgba(184,137,35,.28)}.optionBtn:disabled{opacity:.45;cursor:not-allowed}.chipRow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.chipBtn{padding:10px 6px;font-weight:900}.listOptions{display:grid;gap:7px}.listBtn{padding:11px 12px;text-align:left;font-weight:700}.listBtn.active{border-color:#3b7a4a;background:#e8f2eb;color:#1a4a28}.verifyBtn{padding:11px 10px;text-align:left}.dangerText{margin-top:7px;color:#b6352c;font-size:12px}.ritualPanel p{margin:0 0 12px;color:#725f45;font-size:13px;line-height:1.65}.stampBtn,.submitBtn{width:100%;border:0;border-radius:8px;padding:13px 12px;font-size:15px;font-weight:900}.stampBtn{margin-bottom:9px;border:1px solid rgba(144,22,16,.36);background:#f6e3dc;color:#921610}.submitBtn{background:#1b1208;color:#f6d486;box-shadow:0 5px 14px rgba(27,18,8,.18)}.stampBtn:disabled,.submitBtn:disabled{opacity:.48;cursor:not-allowed}"
