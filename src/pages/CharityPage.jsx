@@ -1,7 +1,9 @@
 // src/pages/CharityPage.jsx
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
+import { getDonations } from '../lib/supabase'
+
 
 const C = {
   gold:'#C8922A', goldL:'#FDF3E0', goldD:'#7A5A18',
@@ -13,6 +15,7 @@ const C = {
   blue:'#3A6A9A', blueL:'#E8F0FA',
 }
 
+
 const ORGS = [
   { id:'animal',  emoji:'🐾', name:'中国动物保护联盟', desc:'救助流浪动物、反虐待倡导、野生动物保育',   total: 42800 },
   { id:'library', emoji:'📚', name:'山区图书馆计划',   desc:'为偏远山区儿童建立图书室，捐书捐课',       total: 28400 },
@@ -21,13 +24,16 @@ const ORGS = [
   { id:'poverty', emoji:'🏥', name:'贫困助学基金',     desc:'资助寒门学子完成学业，改变命运',           total: 31000 },
 ]
 
+
 const AMOUNTS = [200, 500, 1000, '全部']
+
 
 const RECORDS = [
   { emoji:'🐾', org:'中国动物保护联盟', reason:'冥想30天完成',         date:'2025年4月', coins:500,  type:'gain', note:'「希望每只小动物都能被温柔对待」' },
   { emoji:'📚', org:'山区图书馆计划',   reason:'阅读21天失败捐出',     date:'2025年3月', coins:300,  type:'loss', note:'失败的代价流向了有意义的地方' },
   { emoji:'❤️', org:'儿童健康基金',     reason:'见证他人誓言失败分得', date:'2025年2月', coins:240,  type:'gain', note:'押对了，这笔钱由我来决定去向' },
 ]
+
 
 const CERTS = [
   { emoji:'🌿', name:'初级善行证书',  need:500,   done:500,  color:C.green,  earned:true,  date:'2025年4月', desc:'累计捐出 500 金币达成' },
@@ -36,16 +42,19 @@ const CERTS = [
   { emoji:'🪷', name:'至高菩萨证书',  need:50000, done:500,  color:'#7F77DD',earned:false, desc:'区块链存证 · 终身荣誉' },
 ]
 
+
 function SecLabel({ children, style }) {
   return <div style={{ fontSize:11, fontWeight:600, color:C.muted, letterSpacing:.5, marginBottom:10, ...style }}>{children}</div>
 }
+
 
 function Tag({ text, bg, color }) {
   return <div style={{ background:bg, color, fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:20, flexShrink:0 }}>{text}</div>
 }
 
+
 export default function CharityPage() {
-  const { profile } = useAuth()
+  const { profile, session } = useAuth()
   const nav = useNavigate()
   const [tab, setTab]         = useState('donate')
   const [selOrg, setSelOrg]   = useState('animal')
@@ -53,24 +62,66 @@ export default function CharityPage() {
   const [message, setMessage] = useState('')
   const [toast, setToast]     = useState(null)
   const [joined, setJoined]   = useState({})
+  const [donationRecords, setDonationRecords] = useState([])
+  const [recordsLoading, setRecordsLoading] = useState(false)
 
-  const coins   = profile?.merit_coins  ?? 1240
-  const merit   = profile?.total_merit  ?? 3800
-  const donated = 4300   // mock累计捐出
+
+  const coins   = profile?.merit_coins  ?? 0
+  const merit   = profile?.total_merit  ?? 0
+  const donated = donationRecords.reduce((sum, r) => sum + (Number(r.coins) || 0), 0)
+
 
   function showToast(msg) {
     setToast(msg)
     setTimeout(() => setToast(null), 2400)
   }
 
+
+  useEffect(() => {
+    if (!session?.user?.id) return
+    setRecordsLoading(true)
+    getDonations(session.user.id)
+      .then(data => setDonationRecords(data || []))
+      .catch(() => setDonationRecords([]))
+      .finally(() => setRecordsLoading(false))
+  }, [session?.user?.id])
+
+
+  function donationEmoji(orgName = '') {
+    if (orgName.includes('动物')) return '🐾'
+    if (orgName.includes('图书') || orgName.includes('书')) return '📚'
+    if (orgName.includes('儿童') || orgName.includes('健康')) return '❤️'
+    if (orgName.includes('绿') || orgName.includes('环保')) return '🌳'
+    if (orgName.includes('助学') || orgName.includes('贫困')) return '🏥'
+    return '🪷'
+  }
+
+
+  function donationReason(row) {
+    if (row.source === 'pledge_fail') return '誓言失败押注捐出'
+    if (row.source === 'witness_pool') return '见证池结余进入公益'
+    if (row.source === 'manual') return '主动捐赠'
+    return row.source || '公益记录'
+  }
+
+
+  function donationDate(row) {
+    if (!row.created_at) return ''
+    const d = new Date(row.created_at)
+    return Number.isNaN(d.getTime()) ? '' : `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
+  }
+
+
   function doDonate() {
     const amt = selAmt === '全部' ? coins : selAmt
     showToast(`❤️ 已捐出 ${amt} 金币，感谢你的善行！`)
   }
 
+
   // ─── 捐款 Tab ───
   const DonateTab = () => (
     <div style={{ padding:'14px 16px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
+
 
       {/* 钱包条 */}
       <div style={{ ...S.walletStrip, cursor:'pointer' }} onClick={() => showToast('功德详情即将上线')}>
@@ -88,6 +139,7 @@ export default function CharityPage() {
           <div style={{ fontSize:16, fontWeight:500, color:C.greenD }}>{merit.toLocaleString()}</div>
         </div>
       </div>
+
 
       {/* 称号进度 */}
       <div style={{ ...S.card, marginBottom:14 }}>
@@ -107,6 +159,7 @@ export default function CharityPage() {
         </div>
       </div>
 
+
       <SecLabel>选择捐款机构</SecLabel>
       <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
         {ORGS.map(org => (
@@ -124,6 +177,7 @@ export default function CharityPage() {
         ))}
       </div>
 
+
       <SecLabel>捐出金额</SecLabel>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:10 }}>
         {AMOUNTS.map(a => (
@@ -133,6 +187,7 @@ export default function CharityPage() {
           </div>
         ))}
       </div>
+
 
       <div style={{ marginBottom:12 }}>
         <div style={{ fontSize:12, color:C.muted, marginBottom:6 }}>留言给受益者（选填）</div>
@@ -144,6 +199,7 @@ export default function CharityPage() {
             color:C.ink, background:C.surf, outline:'none', resize:'none' }} />
       </div>
 
+
       <button style={S.btnGold} onClick={doDonate}>
         ❤️ 捐出 {selAmt === '全部' ? coins.toLocaleString() : selAmt} 金币
       </button>
@@ -154,6 +210,7 @@ export default function CharityPage() {
     </div>
   )
 
+
   // ─── 公益活动 Tab ───
   const ActivityTab = () => (
     <div style={{ padding:'14px 16px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
@@ -162,7 +219,9 @@ export default function CharityPage() {
         <div style={{ fontSize:12, color:C.muted, lineHeight:1.6 }}>参与平台发起或用户发起的公益行动，完成誓言即是最好的公益贡献。</div>
       </div>
 
+
       <SecLabel>平台发起</SecLabel>
+
 
       {/* 活动卡1 */}
       <div style={S.actCard}>
@@ -185,6 +244,7 @@ export default function CharityPage() {
         </div>
       </div>
 
+
       {/* 活动卡2 */}
       <div style={S.actCard}>
         <div style={{ display:'flex', alignItems:'flex-start', gap:10, marginBottom:10 }}>
@@ -202,7 +262,9 @@ export default function CharityPage() {
           onClick={() => showToast('已加入书香计划！')}>加入活动</button>
       </div>
 
+
       <SecLabel style={{ marginTop:4 }}>用户发起</SecLabel>
+
 
       <div style={S.actCard}>
         <div style={{ display:'flex', alignItems:'flex-start', gap:10, marginBottom:8 }}>
@@ -219,6 +281,7 @@ export default function CharityPage() {
           onClick={() => showToast('已加入健身公益跑！')}>加入</button>
       </div>
 
+
       <div style={{ marginTop:16 }}>
         <button style={S.btnOutline} onClick={() => showToast('需达到功德大师称号才能发起活动')}>
           ＋ 发起公益活动（功德大师以上）
@@ -228,11 +291,26 @@ export default function CharityPage() {
     </div>
   )
 
+
   // ─── 我的记录 Tab ───
-  const RecordTab = () => (
+  const RecordTab = () => {
+    const records = donationRecords.length
+      ? donationRecords.map(r => ({
+          emoji: donationEmoji(r.org_name),
+          org: r.org_name || '公益金库',
+          reason: donationReason(r),
+          date: donationDate(r),
+          coins: Number(r.coins) || 0,
+          type: 'loss',
+          note: r.message || '这笔金币已进入公益记录',
+        }))
+      : RECORDS
+    const orgCount = donationRecords.length ? new Set(donationRecords.map(r => r.org_name).filter(Boolean)).size : 0
+    const beneficiaryCount = Math.max(donationRecords.length, Math.floor(donated / 100))
+    return (
     <div style={{ padding:'14px 16px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
-        {[['4,300','累计捐出金币'],['3','参与机构数'],['68','受益人次'],['3,800','累计功德值']].map(([v,l]) => (
+        {[[donated.toLocaleString(),'累计捐出金币'],[orgCount || '-','参与机构数'],[beneficiaryCount || '-','公益记录数'],[merit.toLocaleString(),'累计功德值']].map(([v,l]) => (
           <div key={l} style={S.statBox}>
             <div style={{ fontFamily:'Noto Serif SC,serif', fontSize:20, fontWeight:700, color:C.ink }}>{v}</div>
             <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{l}</div>
@@ -240,18 +318,18 @@ export default function CharityPage() {
         ))}
       </div>
 
-      <SecLabel>捐款记录</SecLabel>
-      {RECORDS.map((r, i) => (
+
+      <SecLabel>{recordsLoading ? '正在读取公益记录' : '捐款记录'}</SecLabel>
+      {records.map((r, i) => (
         <div key={i} style={S.recItem}>
           <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
             <span style={{ fontSize:18 }}>{r.emoji}</span>
             <div style={{ flex:1 }}>
               <div style={{ fontSize:13, fontWeight:600, color:C.ink }}>{r.org}</div>
-              <div style={{ fontSize:11, color:C.muted }}>{r.reason} · {r.date}</div>
+              <div style={{ fontSize:11, color:C.muted }}>{r.reason}{r.date ? ` · ${r.date}` : ''}</div>
             </div>
-            <div style={{ fontSize:14, fontWeight:600,
-              color: r.type === 'gain' ? C.greenD : C.redD }}>
-              {r.type === 'gain' ? '+' : ''}{r.coins}金币
+            <div style={{ fontSize:14, fontWeight:600, color:C.redD }}>
+              {r.coins}金币
             </div>
           </div>
           <div style={{ fontSize:12, color:C.hint, fontStyle:'italic', marginLeft:28 }}>
@@ -261,7 +339,9 @@ export default function CharityPage() {
       ))}
       <div style={{ height:16 }} />
     </div>
-  )
+    )
+  }
+
 
   // ─── 证书 Tab ───
   const CertTab = () => (
@@ -270,6 +350,7 @@ export default function CharityPage() {
         background:C.soft, borderRadius:10, padding:'10px 12px' }}>
         慈善证书是你公益行动的凭证，可下载、分享、用于简历。累计捐出金币越多，证书等级越高。
       </div>
+
 
       {CERTS.map((cert, i) => cert.earned ? (
         /* 已获得证书 */
@@ -307,12 +388,15 @@ export default function CharityPage() {
         </div>
       ))}
 
+
       <div style={{ height:16 }} />
     </div>
   )
 
+
   return (
     <div style={{ background:C.bg, minHeight:'100vh', display:'flex', flexDirection:'column' }}>
+
 
       {/* Toast */}
       {toast && (
@@ -323,11 +407,13 @@ export default function CharityPage() {
         </div>
       )}
 
+
       {/* 顶栏 */}
       <div style={S.topbar}>
         <div style={S.logo}>公<em style={{ color:C.gold, fontStyle:'normal' }}>益</em></div>
         <button style={S.iconBtn} onClick={() => showToast('功德账户即将上线')}>🪙</button>
       </div>
+
 
       {/* Sub-tabs */}
       <div style={{ display:'flex', borderBottom:`1px solid ${C.border}`, background:C.bg, flexShrink:0 }}>
@@ -342,6 +428,7 @@ export default function CharityPage() {
         ))}
       </div>
 
+
       {/* 内容区 */}
       <div style={{ flex:1, overflowY:'auto' }}>
         {tab === 'donate'   && <DonateTab />}
@@ -352,6 +439,7 @@ export default function CharityPage() {
     </div>
   )
 }
+
 
 const S = {
   topbar:    { display:'flex', alignItems:'center', justifyContent:'space-between',
