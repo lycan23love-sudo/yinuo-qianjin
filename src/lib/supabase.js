@@ -572,7 +572,7 @@ export async function createPledge(userId, pledge) {
 export async function getMyPledges(userId) {
   const { data, error } = await supabase
     .from('pledges')
-    .select('*, checkins(count)')
+    .select('*, checkins(count), witnesses(count)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
   if (error) throw error
@@ -736,6 +736,49 @@ export async function getPublicPledges({ category, sort = 'created_at' } = {}) {
   if (error) throw error
   return data
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+export async function publishCompanionRecruit(pledgeId, userId) {
+  const { data, error } = await supabase
+    .from('pledges')
+    .update({ is_public: true, updated_at: new Date().toISOString() })
+    .eq('id', pledgeId)
+    .eq('user_id', userId)
+    .select('*, checkins(count), witnesses(count)')
+    .single()
+  if (error) throw error
+  return data
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
