@@ -5,14 +5,16 @@ import { useAuth } from '../App'
 import { getMyPledges, hasCheckedInToday, getMeritTitle } from '../lib/supabase'
 import { differenceInDays } from 'date-fns'
 
+
 function daysLeft(pledge) {
   if (!pledge?.end_date) return null
   return Math.max(0, differenceInDays(new Date(pledge.end_date), new Date()))
 }
 
+
 function progressOf(pledge) {
   const done = pledge?.checkin_count || pledge?.current_days || pledge?.completed_days || 0
-  const total = pledge?.duration_days || pledge?.target_days || pledge?.days || 1
+  const total = pledge?.total_days || pledge?.duration_days || pledge?.target_days || pledge?.days || 1
   return {
     done,
     total,
@@ -20,15 +22,63 @@ function progressOf(pledge) {
   }
 }
 
+
 function pledgeTitle(pledge) {
   return pledge?.title || pledge?.content || pledge?.description || '未命名诺言'
 }
+
 
 function getMeritDisplay(score) {
   const merit = getMeritTitle(score || 0)
   if (typeof merit === 'string') return { emoji: '', title: merit }
   return { emoji: merit?.emoji || '', title: merit?.title || '初心者' }
 }
+
+
+function getHomeFeedback({ pledge, progress, checkedToday, daysLeft }) {
+  if (!pledge) {
+    return {
+      label: '第一份契约',
+      title: '先写下一件每天能守住的小事',
+      body: '诺言不必宏大，真正改变人的，是每天都能重复一次的行动。',
+      next: '立下誓言后，首页会每天陪你守住它。'
+    }
+  }
+
+  const left = Math.max(0, progress.total - progress.done)
+  const nextMilestone = [7, 14, 21, 30, 60, 90, 365].find(day => day > progress.done && day <= progress.total)
+  if (checkedToday) {
+    return {
+      label: '今日回响',
+      title: '今天已经守住了',
+      body: '不用再证明给任何人看，今天这一笔已经写进你的契约。',
+      next: left <= 0 ? '这份契约已经走到终点，等待结算。' : '明天继续，还差 ' + left + ' 次完成全程。'
+    }
+  }
+  if (progress.percent >= 80) {
+    return {
+      label: '临近圆满',
+      title: '最后这段最有分量',
+      body: '很多诺言不是败在开始，而是败在接近完成时。今天守住，它就更像真的了。',
+      next: daysLeft === 0 ? '今日到期，完成这次证明。' : '还剩 ' + left + ' 次，别让前面的努力断在这里。'
+    }
+  }
+  if (progress.done === 0) {
+    return {
+      label: '起誓之后',
+      title: '第一天不是仪式的结束',
+      body: '盖印只是开始，第一次打卡才是你真正把诺言带进生活。',
+      next: '完成今天这一次，契约就开始有重量。'
+    }
+  }
+  return {
+    label: '守诺回响',
+    title: nextMilestone ? '向第 ' + nextMilestone + ' 天靠近' : '稳稳推进中',
+    body: '你不需要每天都很热血，只要在该做的时候继续做。',
+    next: daysLeft === 0 ? '今日到期，完成最后的证明。' : '已完成 ' + progress.done + ' 次，今天再添一笔。'
+  }
+}
+
 
 const styles = {
   page: {
@@ -194,6 +244,38 @@ const styles = {
     borderRadius: 999,
     background: '#c99a2e'
   },
+  feedbackCard: {
+    marginTop: 14,
+    border: '1px solid rgba(201,154,46,0.24)',
+    borderRadius: 8,
+    background: 'rgba(255,255,255,0.54)',
+    padding: '12px 13px'
+  },
+  feedbackLabel: {
+    color: '#a97922',
+    fontSize: 11,
+    fontWeight: 900,
+    letterSpacing: 1.5,
+    marginBottom: 6
+  },
+  feedbackTitle: {
+    color: '#1d1309',
+    fontSize: 15,
+    fontWeight: 900,
+    lineHeight: 1.35,
+    marginBottom: 5
+  },
+  feedbackBody: {
+    color: '#6f604e',
+    fontSize: 13,
+    lineHeight: 1.65
+  },
+  feedbackNext: {
+    marginTop: 8,
+    color: '#9a7130',
+    fontSize: 12,
+    fontWeight: 800
+  },
   actionRow: {
     display: 'flex',
     alignItems: 'center',
@@ -314,6 +396,7 @@ const styles = {
   }
 }
 
+
 function Seal({ profile }) {
   const name = profile?.nickname || profile?.username || '我'
   const first = String(name).trim().slice(0, 1) || '我'
@@ -325,6 +408,7 @@ function Seal({ profile }) {
   )
 }
 
+
 export default function HomePage() {
   const { profile, session } = useAuth()
   const nav = useNavigate()
@@ -332,9 +416,11 @@ export default function HomePage() {
   const [checkedMap, setCheckedMap] = useState({})
   const [loading, setLoading] = useState(true)
 
+
   useEffect(() => {
     if (session) load()
   }, [session])
+
 
   async function load() {
     setLoading(true)
@@ -342,6 +428,7 @@ export default function HomePage() {
       const data = await getMyPledges()
       const list = data || []
       setPledges(list)
+
 
       const checks = {}
       await Promise.all(
@@ -355,6 +442,7 @@ export default function HomePage() {
     }
   }
 
+
   const activePledges = pledges.filter(p => p.status === 'active' || p.status === 'ongoing')
   const unfinishedToday = activePledges.filter(p => !checkedMap[p.id])
   const todayPledge = [...(unfinishedToday.length ? unfinishedToday : activePledges)].sort((a, b) => {
@@ -363,15 +451,18 @@ export default function HomePage() {
     return aLeft - bLeft
   })[0]
 
+
   const completedToday = activePledges.filter(p => checkedMap[p.id]).length
   const totalCheckins = pledges.reduce((sum, p) => sum + (p.checkin_count || p.current_days || p.completed_days || 0), 0)
   const totalTarget = pledges.reduce((sum, p) => sum + (p.duration_days || p.target_days || p.days || 0), 0)
   const keepRate = totalTarget ? Math.round((totalCheckins / totalTarget) * 100) : 0
-  const lockedCoins = activePledges.reduce((sum, p) => sum + Number(p.stake_amount || p.stake || 0), 0)
+  const lockedCoins = activePledges.reduce((sum, p) => sum + Number(p.stake_coins || p.stake_amount || p.stake || 0), 0)
   const merit = getMeritDisplay(profile?.merit_score)
   const mainProgress = progressOf(todayPledge)
   const mainChecked = todayPledge ? checkedMap[todayPledge.id] : false
   const mainDaysLeft = daysLeft(todayPledge)
+  const homeFeedback = getHomeFeedback({ pledge: todayPledge, progress: mainProgress, checkedToday: mainChecked, daysLeft: mainDaysLeft })
+
 
   if (!session) {
     return (
@@ -382,6 +473,7 @@ export default function HomePage() {
       </div>
     )
   }
+
 
   return (
     <div style={styles.page}>
@@ -394,6 +486,7 @@ export default function HomePage() {
           {merit.emoji} {merit.title}
         </button>
       </header>
+
 
       <section style={styles.stats}>
         <div style={styles.statItem}>
@@ -410,6 +503,7 @@ export default function HomePage() {
         </div>
       </section>
 
+
       <main style={styles.scrollCard}>
         <div style={styles.scrollLineTop} />
         <div style={styles.scrollLineBottom} />
@@ -418,6 +512,7 @@ export default function HomePage() {
           {loading ? '正在展开契约...' : todayPledge ? pledgeTitle(todayPledge) : '写下你的第一份军令状'}
         </h2>
         {todayPledge && <Seal profile={profile} />}
+
 
         {todayPledge ? (
           <>
@@ -428,6 +523,12 @@ export default function HomePage() {
             </div>
             <div style={styles.progressTrack}>
               <div style={{ ...styles.progressFill, width: mainProgress.percent + '%' }} />
+            </div>
+            <div style={styles.feedbackCard}>
+              <div style={styles.feedbackLabel}>{homeFeedback.label}</div>
+              <div style={styles.feedbackTitle}>{homeFeedback.title}</div>
+              <div style={styles.feedbackBody}>{homeFeedback.body}</div>
+              <div style={styles.feedbackNext}>{homeFeedback.next}</div>
             </div>
             <div style={styles.actionRow}>
               <div style={styles.muted}>
@@ -444,10 +545,17 @@ export default function HomePage() {
         ) : (
           <>
             <p style={styles.bodyText}>第一份诺言不用复杂，写清楚你每天要守住的一件事，再亲手盖下守诺印。</p>
+            <div style={styles.feedbackCard}>
+              <div style={styles.feedbackLabel}>{homeFeedback.label}</div>
+              <div style={styles.feedbackTitle}>{homeFeedback.title}</div>
+              <div style={styles.feedbackBody}>{homeFeedback.body}</div>
+              <div style={styles.feedbackNext}>{homeFeedback.next}</div>
+            </div>
             <button onClick={() => nav('/new')} style={styles.fullButton}>立下第一个誓言</button>
           </>
         )}
       </main>
+
 
       <section style={styles.panel}>
         <div style={styles.panelHeader}>
@@ -463,7 +571,7 @@ export default function HomePage() {
                   <div style={styles.pledgeItemTop}>
                     <div>
                       <div style={styles.pledgeItemTitle}>{pledgeTitle(pledge)}</div>
-                      <div style={styles.pledgeMeta}>押注 {pledge.stake_amount || pledge.stake || 0} 金币 · {checkedMap[pledge.id] ? '今日已打卡' : '今日待打卡'}</div>
+                      <div style={styles.pledgeMeta}>押注 {pledge.stake_coins || pledge.stake_amount || pledge.stake || 0} 金币 · {checkedMap[pledge.id] ? '今日已打卡' : '今日待打卡'}</div>
                     </div>
                     <div style={{ color: '#c39a32', fontSize: 14, fontWeight: 900 }}>{progress.percent}%</div>
                   </div>
@@ -475,6 +583,7 @@ export default function HomePage() {
           <div style={styles.empty}>暂无进行中的诺言。让首页从第一份契约开始。</div>
         )}
       </section>
+
 
       <section style={styles.smallGrid}>
         <button onClick={() => nav('/charity')} style={styles.smallCard}>
