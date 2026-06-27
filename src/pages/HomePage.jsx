@@ -5,12 +5,15 @@ import { useAuth } from '../App'
 import { getMyPledges, hasCheckedInToday, getMeritTitle } from '../lib/supabase'
 import { differenceInDays } from 'date-fns'
 
+
 const today = new Date()
+
 
 function daysLeft(pledge) {
   if (!pledge?.end_date) return null
   return Math.max(0, differenceInDays(new Date(pledge.end_date), today))
 }
+
 
 function progressOf(pledge) {
   const done = pledge?.checkin_count || pledge?.current_days || pledge?.completed_days || 0
@@ -22,9 +25,11 @@ function progressOf(pledge) {
   }
 }
 
+
 function pledgeTitle(pledge) {
   return pledge?.title || pledge?.content || pledge?.description || '未命名诺言'
 }
+
 
 function Seal({ profile }) {
   const name = profile?.nickname || profile?.username || '我'
@@ -37,6 +42,7 @@ function Seal({ profile }) {
   )
 }
 
+
 export default function HomePage() {
   const { profile, session } = useAuth()
   const nav = useNavigate()
@@ -44,9 +50,11 @@ export default function HomePage() {
   const [checkedMap, setCheckedMap] = useState({})
   const [loading, setLoading] = useState(true)
 
+
   useEffect(() => {
     if (session) load()
   }, [session])
+
 
   async function load() {
     setLoading(true)
@@ -54,6 +62,7 @@ export default function HomePage() {
       const data = await getMyPledges()
       const list = data || []
       setPledges(list)
+
 
       const checks = {}
       await Promise.all(
@@ -67,6 +76,7 @@ export default function HomePage() {
     }
   }
 
+
   const activePledges = pledges.filter(p => p.status === 'active' || p.status === 'ongoing')
   const unfinishedToday = activePledges.filter(p => !checkedMap[p.id])
   const todayPledge = [...(unfinishedToday.length ? unfinishedToday : activePledges)].sort((a, b) => {
@@ -75,15 +85,19 @@ export default function HomePage() {
     return aLeft - bLeft
   })[0]
 
+
   const completedToday = activePledges.filter(p => checkedMap[p.id]).length
   const totalCheckins = pledges.reduce((sum, p) => sum + (p.checkin_count || p.current_days || p.completed_days || 0), 0)
   const totalTarget = pledges.reduce((sum, p) => sum + (p.duration_days || p.target_days || p.days || 0), 0)
   const keepRate = totalTarget ? Math.round((totalCheckins / totalTarget) * 100) : 0
   const lockedCoins = activePledges.reduce((sum, p) => sum + Number(p.stake_amount || p.stake || 0), 0)
-  const title = getMeritTitle(profile?.merit_score || 0)
+  const merit = getMeritTitle(profile?.merit_score || 0)
+  const meritLabel = typeof merit === 'string' ? merit : (merit?.title || '初心者')
+  const meritEmoji = typeof merit === 'object' ? (merit?.emoji || '') : ''
   const mainProgress = progressOf(todayPledge)
   const mainChecked = todayPledge ? checkedMap[todayPledge.id] : false
   const mainDaysLeft = daysLeft(todayPledge)
+
 
   if (!session) {
     return (
@@ -97,6 +111,7 @@ export default function HomePage() {
     )
   }
 
+
   return (
     <div className="min-h-screen bg-[#f8f5ef] px-5 pb-24 pt-8 text-[#1d1309]">
       <header className="mb-6 flex items-start justify-between">
@@ -105,9 +120,10 @@ export default function HomePage() {
           <p className="mt-1 text-sm text-[#8a7b67]">守住今天，就是守住自己</p>
         </div>
         <button onClick={() => nav('/profile')} className="rounded-full border border-[#dccfb9] px-3 py-1.5 text-sm font-semibold text-[#8a6a2d]">
-          {title}
+          {meritEmoji} {meritLabel}
         </button>
       </header>
+
 
       <section className="mb-4 grid grid-cols-3 overflow-hidden rounded-lg border border-[#e0d4bf] bg-white/70 text-center shadow-sm">
         <div className="border-r border-[#e8ddcb] px-2 py-3">
@@ -124,6 +140,7 @@ export default function HomePage() {
         </div>
       </section>
 
+
       <main className="relative mb-5 overflow-hidden rounded-lg border border-[#d7c29a] bg-[#fff7df] p-5 shadow-[0_8px_24px_rgba(79,55,20,0.10)]">
         <div className="pointer-events-none absolute inset-x-4 top-3 h-px bg-[#d5ae5c]/60" />
         <div className="pointer-events-none absolute inset-x-4 bottom-3 h-px bg-[#d5ae5c]/60" />
@@ -136,6 +153,7 @@ export default function HomePage() {
           </div>
           {todayPledge && <Seal profile={profile} />}
         </div>
+
 
         {todayPledge ? (
           <>
@@ -175,6 +193,7 @@ export default function HomePage() {
         )}
       </main>
 
+
       <section className="mb-5 rounded-lg border border-[#e0d4bf] bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-serif text-xl font-bold">我的誓言</h3>
@@ -203,6 +222,7 @@ export default function HomePage() {
           </div>
         )}
       </section>
+
 
       <section className="grid grid-cols-2 gap-3">
         <button onClick={() => nav('/charity')} className="rounded-lg border border-[#e0d4bf] bg-white p-4 text-left shadow-sm">
