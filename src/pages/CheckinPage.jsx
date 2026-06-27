@@ -4,12 +4,21 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth, useToast } from '../App'
 import { submitCheckin, getPledgeDetail, hasCheckedInToday } from '../lib/supabase'
 
+
 const MOODS = [
   { key:'great',  emoji:'💪', label:'超级顺利' },
   { key:'grind',  emoji:'😤', label:'咬牙坚持' },
   { key:'steady', emoji:'😌', label:'平稳推进' },
   { key:'danger', emoji:'🆘', label:'差点放弃' },
 ]
+
+
+const QUICK_NOTES = [
+  '今天按计划完成。',
+  '过程有点难，但我没有中断。',
+  '完成得不完美，但我守住了承诺。'
+]
+
 
 const QUOTES = [
   [1,  7,  '万事开头难，但你已经迈出了最难的一步。'],
@@ -18,6 +27,7 @@ const QUOTES = [
   [22, 28, '最后的冲刺，你已经证明了自己。'],
   [29, 999,'走到这里的旅人，已经超过了95%的人。'],
 ]
+
 
 // ── 图片压缩：压到最大 1200px、质量 0.75，减小上传体积
 async function compressImage(file, maxPx = 1200, quality = 0.75) {
@@ -40,11 +50,28 @@ async function compressImage(file, maxPx = 1200, quality = 0.75) {
   })
 }
 
+function getCheckinPrompt(dayNum, progressPct, needsImage) {
+  if (dayNum <= 1) return '第一天，把誓言从纸面带进生活。'
+  if (progressPct >= 80) return '已经接近终点，今天这一次很有分量。'
+  if (progressPct >= 50) return '过半之后，稳定比热血更重要。'
+  return needsImage ? '留下证据，让今天的努力有据可查。' : '写下今天做到了什么，让承诺留下痕迹。'
+}
+
+
+function getProofHint(needsImage, image, note) {
+  if (image && note.trim()) return '截图和文字都已准备好，证明很完整。'
+  if (image) return '截图已附上，可以补一句今天的情况。'
+  if (note.trim()) return needsImage ? '已写下文字记录；补截图会更有说服力。' : '文字记录已准备好，可以提交。'
+  return needsImage ? '建议上传截图，也可以先用文字说明完成情况。' : '写一句或上传一张图，都可以完成今天的守诺。'
+}
+
+
 export default function CheckinPage() {
   const { id } = useParams()
   const { session, refreshProfile } = useAuth()
   const { showToast } = useToast()
   const nav = useNavigate()
+
 
   const [pledge, setPledge]       = useState(null)
   const [image, setImage]         = useState(null)
@@ -56,7 +83,9 @@ export default function CheckinPage() {
   const [compressing, setCompressing] = useState(false)
   const fileRef = useRef()
 
+
   useEffect(() => { load() }, [id])
+
 
   async function load() {
     try {
@@ -72,9 +101,11 @@ export default function CheckinPage() {
     }
   }
 
+
   async function handleFile(e) {
     const file = e.target.files[0]
     if (!file) return
+
 
     // 超过 500KB 才压缩，小图直接用
     if (file.size > 500 * 1024) {
@@ -99,17 +130,27 @@ export default function CheckinPage() {
     }
   }
 
+
   const dayNum = pledge
     ? Math.floor((new Date() - new Date(pledge.start_date)) / 86400000) + 1
     : 1
 
+
+  const progressDone = pledge?.checkin_count || 0
+  const progressTotal = pledge?.total_days || 1
+  const progressPct = Math.min(100, Math.round((progressDone / Math.max(progressTotal, 1)) * 100))
+  const needsImage = pledge.verify_type === 'screenshot'
   const quote = QUOTES.find(([s, e]) => dayNum >= s && dayNum <= e)?.[2] ?? ''
+  const prompt = getCheckinPrompt(dayNum, progressPct, needsImage)
+  const proofHint = getProofHint(needsImage, image, note)
+
 
   const streak = (pledge?.current_streak ?? 0) + 1
   const base = 10
   const streakBonus = streak >= 14 ? 30 : streak >= 7 ? 20 : 0
   const milestoneBonus = [7,14,21,28].includes(dayNum) ? 100 : 0
   const total = base + streakBonus + milestoneBonus
+
 
   async function handleSubmit() {
     // 图片：screenshot 模式建议上传，但不强制
@@ -134,42 +175,46 @@ export default function CheckinPage() {
     }
   }
 
+
   if (!pledge) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
       <div style={{ color:'#9A8A70' }}>加载中…</div>
     </div>
   )
 
-  const needsImage = pledge.verify_type === 'screenshot'
 
   return (
-    <div style={{ background:'#FAF7F2', minHeight:'100vh', paddingBottom: 'calc(32px + env(safe-area-inset-bottom))' }}>
+    <div style={{ background:'#FAF7F2', minHeight:'100vh', paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
       <div style={S.topbar}>
         <button style={S.back} onClick={() => nav(-1)}>←</button>
         <div style={S.title}>第 {dayNum} 天打卡</div>
         <div style={{ width:32 }} />
       </div>
 
+
       <div style={{ padding:'16px 16px 0' }}>
 
-        {/* 每日金句 */}
-        <div style={S.quoteBox}>
-          <span style={{ marginRight:8, flexShrink:0 }}>✨</span>
-          <span style={{ fontSize:13, lineHeight:1.6, color:'#5A4A30' }}>{quote}</span>
-        </div>
 
-        {/* 誓言标题 */}
-        <div style={{ background:'#fff', borderRadius:12, padding:'12px 14px',
-          marginBottom:16, border:'0.5px solid #E0D5C0', boxShadow:'0 1px 4px rgba(26,18,8,.04)' }}>
-          <div style={{ fontSize:11, color:'#9A8A70', marginBottom:4 }}>今日承诺</div>
-          <div style={{ fontSize:15, fontWeight:700, fontFamily:'Noto Serif SC,serif' }}>
-            {pledge.title}
+        <section style={S.heroCard}>
+          <div style={S.heroTop}>
+            <div>
+              <div style={S.kicker}>今日守诺</div>
+              <div style={S.heroTitle}>{pledge.title}</div>
+            </div>
+            <div style={S.dayBadge}>第{dayNum}天</div>
           </div>
-          <div style={{ fontSize:11, color:'#B8A88A', marginTop:4 }}>
-            第{pledge.checkin_count + 1}天 / 共{pledge.total_days}天
-            {streakBonus > 0 && <span style={{ color:'#C8922A', marginLeft:8 }}>🔥 连续{streak}天</span>}
+          <div style={S.promptLine}>{prompt}</div>
+          <div style={S.progressMeta}>
+            <span>已完成 {progressDone} / {progressTotal}</span>
+            <span>{progressPct}%</span>
           </div>
-        </div>
+          <div style={S.progressTrack}><div style={{ ...S.progressFill, width: progressPct + '%' }} /></div>
+          <div style={S.quoteBox}>
+            <span style={{ marginRight:8, flexShrink:0 }}>✨</span>
+            <span style={{ fontSize:13, lineHeight:1.6, color:'#5A4A30' }}>{quote}</span>
+          </div>
+        </section>
+
 
         {/* 打卡图片 */}
         <div style={S.group}>
@@ -180,6 +225,7 @@ export default function CheckinPage() {
               : <span style={{ color:'#B8A88A', marginLeft:4 }}>（选填）</span>
             }
           </label>
+          <div style={S.proofHint}>{proofHint}</div>
           <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }}
             onChange={handleFile} />
           {compressing && (
@@ -214,6 +260,7 @@ export default function CheckinPage() {
           ))}
         </div>
 
+
         {/* 心情状态 */}
         <div style={S.group}>
           <label style={S.label}>今天的状态 <span style={{ color:'#B8A88A' }}>（选填）</span></label>
@@ -228,6 +275,7 @@ export default function CheckinPage() {
           </div>
         </div>
 
+
         {/* 感悟 */}
         <div style={S.group}>
           <label style={S.label}>今天的感悟 <span style={{ color:'#B8A88A' }}>（选填）</span></label>
@@ -239,7 +287,15 @@ export default function CheckinPage() {
             <span>记录让坚持更有意义</span>
             <span>{note.length} 字</span>
           </div>
+          <div style={S.quickRow}>
+            {QUICK_NOTES.map(text => (
+              <button key={text} style={S.quickBtn} onClick={() => setNote(note ? note + ' ' + text : text)}>
+                {text}
+              </button>
+            ))}
+          </div>
         </div>
+
 
         {/* 奖励预览 */}
         <div style={S.rewardBox}>
@@ -270,27 +326,23 @@ export default function CheckinPage() {
           </div>
         </div>
 
-        {/* 提交按钮 */}
-        <button style={{ ...S.btnGold, width:'100%', padding:15, fontSize:15,
-          opacity: loading ? .75 : 1, position:'relative' }}
-          onClick={handleSubmit} disabled={loading}>
-          {loading ? (
-            <span>{loadStep || '提交中…'}</span>
-          ) : (
-            <span>✓ 提交打卡</span>
-          )}
-        </button>
 
-        {/* 提示 */}
-        {!image && needsImage && !loading && (
-          <div style={{ textAlign:'center', fontSize:11, color:'#9A8A70', marginTop:10, lineHeight:1.6 }}>
-            没有截图也可以提交，但上传截图让见证者更有信服力
-          </div>
-        )}
+        <div style={S.submitDock}>
+          <div style={S.submitHint}>{proofHint}</div>
+          <button style={{ ...S.btnGold, width:'100%', padding:15, fontSize:15, opacity: loading ? .75 : 1 }}
+            onClick={handleSubmit} disabled={loading}>
+            {loading ? (
+              <span>{loadStep || '提交中…'}</span>
+            ) : (
+              <span>✓ 今日已守，提交证明</span>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   )
 }
+
 
 const S = {
   topbar:  { display:'flex', alignItems:'center', justifyContent:'space-between',
@@ -298,10 +350,23 @@ const S = {
              background:'#FAF7F2', position:'sticky', top:0, zIndex:10 },
   back:    { background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#1A1208', padding:4 },
   title:   { fontSize:16, fontWeight:600 },
+  heroCard:{ background:'linear-gradient(180deg,#fff8e8,#fff)', border:'1px solid #E0D5C0', borderRadius:14,
+             padding:'15px 15px 14px', marginBottom:16, boxShadow:'0 8px 22px rgba(79,55,20,.08)' },
+  heroTop:{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:10 },
+  kicker:{ fontSize:11, color:'#9A7130', fontWeight:800, letterSpacing:2, marginBottom:5 },
+  heroTitle:{ fontFamily:'Noto Serif SC,serif', fontSize:18, lineHeight:1.35, fontWeight:900, color:'#1A1208' },
+  dayBadge:{ flexShrink:0, border:'1px solid rgba(200,146,42,.34)', background:'#FDF3E0', color:'#7A5A18',
+            borderRadius:999, padding:'5px 10px', fontSize:12, fontWeight:800 },
+  promptLine:{ color:'#5A4A30', fontSize:13, lineHeight:1.65, marginBottom:10 },
+  progressMeta:{ display:'flex', justifyContent:'space-between', color:'#9A8A70', fontSize:11, marginBottom:6 },
+  progressTrack:{ height:7, borderRadius:999, background:'#EDE6D8', overflow:'hidden', marginBottom:12 },
+  progressFill:{ height:'100%', borderRadius:999, background:'#C8922A' },
   quoteBox:{ background:'#FDF3E0', borderLeft:'3px solid #C8922A', borderRadius:'0 10px 10px 0',
-             padding:'10px 14px', marginBottom:16, display:'flex', alignItems:'flex-start' },
+             padding:'10px 14px', marginBottom:0, display:'flex', alignItems:'flex-start' },
   group:   { marginBottom:18 },
   label:   { display:'block', fontSize:12, fontWeight:600, color:'#5A4A30', marginBottom:8 },
+  proofHint:{ background:'#fff', border:'1px solid #EDE6D8', borderRadius:10, padding:'9px 11px',
+              color:'#7A6A50', fontSize:12, lineHeight:1.55, marginBottom:10 },
   uploadBox:{ border:'2px dashed #E0D5C0', borderRadius:12, padding:28, textAlign:'center',
               cursor:'pointer', background:'#fff', transition:'all .2s' },
   removeBtn:{ position:'absolute', top:8, right:8, background:'rgba(0,0,0,.5)', color:'#fff',
@@ -313,11 +378,17 @@ const S = {
   textarea:{ width:'100%', padding:'10px 12px', border:'0.5px solid #E0D5C0', borderRadius:10,
              background:'#fff', fontSize:13, lineHeight:1.7, fontFamily:'Noto Sans SC,sans-serif',
              resize:'none', outline:'none', boxSizing:'border-box' },
+  quickRow:{ display:'flex', gap:7, flexWrap:'wrap', marginTop:10 },
+  quickBtn:{ border:'1px solid #E0D5C0', background:'#fff', color:'#7A6A50', borderRadius:999,
+             padding:'6px 10px', fontSize:11, fontFamily:'Noto Sans SC,sans-serif', cursor:'pointer' },
   rewardBox:{ background:'#FDF3E0', borderRadius:12, padding:'12px 14px', marginBottom:16 },
   rewardItem:{ background:'#fff', borderRadius:8, padding:'7px 12px', textAlign:'center',
                border:'0.5px solid #E0D5C0' },
   rewardVal:{ fontSize:16, fontWeight:700, color:'#3B7A4A' },
   rewardLbl:{ fontSize:10, color:'#9A8A70', marginTop:2 },
+  submitDock:{ position:'sticky', bottom:0, background:'linear-gradient(180deg,rgba(250,247,242,0),#FAF7F2 18%)',
+              padding:'16px 0 4px', marginTop:4 },
+  submitHint:{ textAlign:'center', fontSize:11, color:'#9A8A70', lineHeight:1.5, marginBottom:8 },
   btnGold: { background:'linear-gradient(135deg,#C8922A,#E8B84A)', color:'#fff', border:'none',
              borderRadius:12, fontWeight:700, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif',
              boxShadow:'0 4px 16px rgba(200,146,42,.35)', letterSpacing:.3 },
