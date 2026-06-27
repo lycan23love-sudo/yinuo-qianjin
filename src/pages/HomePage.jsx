@@ -6,10 +6,14 @@ import { getMyPledges, hasCheckedInToday, getMeritTitle } from '../lib/supabase'
 import { differenceInDays } from 'date-fns'
 
 
+
+
 function daysLeft(pledge) {
   if (!pledge?.end_date) return null
   return Math.max(0, differenceInDays(new Date(pledge.end_date), new Date()))
 }
+
+
 
 
 function progressOf(pledge) {
@@ -23,9 +27,13 @@ function progressOf(pledge) {
 }
 
 
+
+
 function pledgeTitle(pledge) {
   return pledge?.title || pledge?.content || pledge?.description || '未命名诺言'
 }
+
+
 
 
 function getMeritDisplay(score) {
@@ -33,6 +41,8 @@ function getMeritDisplay(score) {
   if (typeof merit === 'string') return { emoji: '', title: merit }
   return { emoji: merit?.emoji || '', title: merit?.title || '初心者' }
 }
+
+
 
 
 function getHomeFeedback({ pledge, progress, checkedToday, daysLeft }) {
@@ -44,6 +54,7 @@ function getHomeFeedback({ pledge, progress, checkedToday, daysLeft }) {
       next: '立下誓言后，首页会每天陪你守住它。'
     }
   }
+
 
   const left = Math.max(0, progress.total - progress.done)
   const nextMilestone = [7, 14, 21, 30, 60, 90, 365].find(day => day > progress.done && day <= progress.total)
@@ -80,199 +91,194 @@ function getHomeFeedback({ pledge, progress, checkedToday, daysLeft }) {
 }
 
 
+
+
 const styles = {
   page: {
     minHeight: '100vh',
-    background: '#f8f5ef',
-    color: '#1d1309',
-    padding: '28px 20px 96px',
+    background: '#FAF7F2',
+    color: '#1A1208',
+    padding: '0 16px calc(96px + env(safe-area-inset-bottom))',
     boxSizing: 'border-box'
   },
   header: {
     display: 'flex',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    marginBottom: 20
+    margin: '0 -16px 14px',
+    padding: 'calc(14px + env(safe-area-inset-top)) 16px 12px',
+    borderBottom: '1px solid #E0D5C0',
+    background: '#FAF7F2'
   },
   title: {
     margin: 0,
-    fontFamily: 'serif',
-    fontSize: 34,
-    lineHeight: 1.05,
+    fontFamily: 'Noto Serif SC, serif',
+    fontSize: 22,
+    lineHeight: 1.1,
     fontWeight: 900,
-    letterSpacing: 0
+    letterSpacing: .5
   },
   subtitle: {
-    margin: '6px 0 0',
-    fontSize: 14,
-    color: '#8a7b67'
+    margin: '4px 0 0',
+    fontSize: 12,
+    color: '#7A6A50'
   },
   meritButton: {
-    border: '1px solid #dccfb9',
-    background: 'rgba(255,255,255,0.7)',
-    color: '#8a6a2d',
+    border: '1px solid #E0D5C0',
+    background: '#FFFFFF',
+    color: '#7A5A18',
     borderRadius: 999,
-    padding: '7px 11px',
-    fontSize: 13,
+    padding: '6px 10px',
+    fontSize: 12,
     fontWeight: 700,
     whiteSpace: 'nowrap'
   },
   stats: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
-    border: '1px solid #e0d4bf',
-    borderRadius: 8,
-    background: 'rgba(255,255,255,0.78)',
+    border: '1px solid #E0D5C0',
+    borderRadius: 12,
+    background: '#FFFFFF',
     overflow: 'hidden',
-    boxShadow: '0 6px 18px rgba(79,55,20,0.06)',
-    marginBottom: 14
+    boxShadow: '0 2px 10px rgba(26,18,8,.05)',
+    marginBottom: 12
   },
   statItem: {
-    padding: '12px 6px',
+    padding: '11px 6px',
     textAlign: 'center',
-    borderRight: '1px solid #e8ddcb'
+    borderRight: '1px solid #EDE6D8'
   },
   statItemLast: {
-    padding: '12px 6px',
+    padding: '11px 6px',
     textAlign: 'center'
   },
   statValue: {
-    fontSize: 22,
+    fontSize: 20,
     lineHeight: 1,
     fontWeight: 900,
-    color: '#1d1309'
+    color: '#1A1208'
   },
   statLabel: {
-    marginTop: 7,
-    fontSize: 12,
-    color: '#8a7b67'
+    marginTop: 6,
+    fontSize: 11,
+    color: '#7A6A50'
   },
   scrollCard: {
     position: 'relative',
     overflow: 'hidden',
-    border: '1px solid #d7c29a',
-    borderRadius: 8,
-    background: 'linear-gradient(180deg, #fff8e3 0%, #fff1c7 100%)',
-    padding: 20,
-    boxShadow: '0 10px 24px rgba(79,55,20,0.11)',
-    marginBottom: 16
+    border: '1px solid #E0D5C0',
+    borderRadius: 14,
+    background: '#FFFFFF',
+    padding: 16,
+    boxShadow: '0 2px 10px rgba(26,18,8,.06)',
+    marginBottom: 14
   },
   scrollLineTop: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    top: 11,
-    height: 1,
-    background: 'rgba(213,174,92,0.7)'
+    display: 'none'
   },
   scrollLineBottom: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 11,
-    height: 1,
-    background: 'rgba(213,174,92,0.7)'
+    display: 'none'
   },
   eyebrow: {
     margin: 0,
-    color: '#9a7130',
-    fontSize: 12,
+    color: '#C8922A',
+    fontSize: 11,
     fontWeight: 800,
-    letterSpacing: 3
+    letterSpacing: 1.5
   },
   pledgeName: {
-    margin: '8px 0 0',
-    maxWidth: '82%',
-    fontFamily: 'serif',
-    fontSize: 25,
-    lineHeight: 1.25,
+    margin: '7px 0 0',
+    maxWidth: '80%',
+    fontFamily: 'Noto Serif SC, serif',
+    fontSize: 20,
+    lineHeight: 1.35,
     fontWeight: 900
   },
   bodyText: {
-    maxWidth: '78%',
-    margin: '14px 0 0',
-    color: '#6f604e',
-    fontSize: 14,
-    lineHeight: 1.75
+    maxWidth: '100%',
+    margin: '12px 0 0',
+    color: '#7A6A50',
+    fontSize: 13,
+    lineHeight: 1.7
   },
   seal: {
     position: 'absolute',
-    right: 10,
-    bottom: 74,
-    width: 70,
-    height: 70,
-    borderRadius: '50%',
-    border: '2px solid rgba(176, 36, 24, 0.82)',
-    background: 'rgba(255, 239, 230, 0.72)',
-    color: '#9b1f16',
-    transform: 'rotate(-12deg)',
+    right: 14,
+    top: 18,
+    width: 54,
+    height: 54,
+    borderRadius: 4,
+    border: '2px solid rgba(176,36,24,.72)',
+    background: 'rgba(176,36,24,.08)',
+    color: '#9B1F16',
+    transform: 'rotate(-8deg)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    fontFamily: 'serif',
+    fontFamily: 'Noto Serif SC, serif',
     boxSizing: 'border-box'
   },
   sealChar: {
-    fontSize: 21,
+    fontSize: 18,
     lineHeight: 1,
     fontWeight: 900
   },
   sealText: {
-    marginTop: 4,
-    fontSize: 11,
+    marginTop: 3,
+    fontSize: 10,
     fontWeight: 900,
-    letterSpacing: 2
+    letterSpacing: 1
   },
   progressMeta: {
     display: 'flex',
     justifyContent: 'space-between',
-    marginTop: 18,
-    marginBottom: 8,
-    fontSize: 13,
-    color: '#7c6b57'
+    marginTop: 14,
+    marginBottom: 7,
+    fontSize: 12,
+    color: '#7A6A50'
   },
   progressTrack: {
-    height: 8,
+    height: 7,
     borderRadius: 999,
-    background: '#eadfc9',
+    background: '#EDE6D8',
     overflow: 'hidden'
   },
   progressFill: {
     height: '100%',
     borderRadius: 999,
-    background: '#c99a2e'
+    background: '#C8922A'
   },
   feedbackCard: {
-    marginTop: 14,
-    border: '1px solid rgba(201,154,46,0.24)',
-    borderRadius: 8,
-    background: 'rgba(255,255,255,0.54)',
-    padding: '12px 13px'
+    marginTop: 12,
+    border: '1px solid #E8D4A0',
+    borderRadius: 12,
+    background: '#FDF3E0',
+    padding: '11px 12px'
   },
   feedbackLabel: {
-    color: '#a97922',
-    fontSize: 11,
+    color: '#7A5A18',
+    fontSize: 10,
     fontWeight: 900,
-    letterSpacing: 1.5,
-    marginBottom: 6
+    letterSpacing: 1.2,
+    marginBottom: 5
   },
   feedbackTitle: {
-    color: '#1d1309',
-    fontSize: 15,
-    fontWeight: 900,
-    lineHeight: 1.35,
+    color: '#1A1208',
+    fontSize: 14,
+    fontWeight: 800,
+    lineHeight: 1.4,
     marginBottom: 5
   },
   feedbackBody: {
-    color: '#6f604e',
-    fontSize: 13,
+    color: '#5A4A30',
+    fontSize: 12,
     lineHeight: 1.65
   },
   feedbackNext: {
-    marginTop: 8,
-    color: '#9a7130',
+    marginTop: 7,
+    color: '#7A5A18',
     fontSize: 12,
     fontWeight: 800
   },
@@ -281,40 +287,40 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    marginTop: 18
+    marginTop: 14
   },
   muted: {
-    color: '#7c6b57',
-    fontSize: 14
+    color: '#7A6A50',
+    fontSize: 13
   },
   primaryButton: {
     border: 0,
-    borderRadius: 8,
-    background: '#171008',
-    color: '#f6d486',
-    padding: '12px 22px',
-    fontSize: 14,
+    borderRadius: 999,
+    background: '#1A1208',
+    color: '#F6D486',
+    padding: '10px 18px',
+    fontSize: 13,
     fontWeight: 900,
-    boxShadow: '0 4px 10px rgba(23,16,8,0.16)'
+    boxShadow: '0 4px 12px rgba(26,18,8,.14)'
   },
   fullButton: {
     width: '100%',
     border: 0,
-    borderRadius: 8,
-    background: '#171008',
-    color: '#f6d486',
+    borderRadius: 12,
+    background: '#1A1208',
+    color: '#F6D486',
     padding: '13px 16px',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 900,
-    marginTop: 18
+    marginTop: 14
   },
   panel: {
-    border: '1px solid #e0d4bf',
-    borderRadius: 8,
-    background: '#fff',
-    padding: 16,
-    boxShadow: '0 6px 18px rgba(79,55,20,0.06)',
-    marginBottom: 16
+    border: '1px solid #E0D5C0',
+    borderRadius: 14,
+    background: '#FFFFFF',
+    padding: 14,
+    boxShadow: '0 2px 10px rgba(26,18,8,.05)',
+    marginBottom: 14
   },
   panelHeader: {
     display: 'flex',
@@ -324,23 +330,23 @@ const styles = {
   },
   panelTitle: {
     margin: 0,
-    fontFamily: 'serif',
-    fontSize: 22,
+    fontFamily: 'Noto Serif SC, serif',
+    fontSize: 18,
     fontWeight: 900
   },
   linkButton: {
     border: 0,
     background: 'transparent',
-    color: '#b88923',
-    fontSize: 14,
+    color: '#C8922A',
+    fontSize: 13,
     fontWeight: 900,
     padding: 4
   },
   pledgeItem: {
     width: '100%',
-    border: '1px solid #eee4d2',
-    borderRadius: 8,
-    background: '#fffdf8',
+    border: '1px solid #EDE6D8',
+    borderRadius: 12,
+    background: '#FFFCF6',
     padding: 12,
     textAlign: 'left',
     marginBottom: 10
@@ -352,45 +358,45 @@ const styles = {
     gap: 12
   },
   pledgeItemTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 900,
-    color: '#1d1309'
+    color: '#1A1208'
   },
   pledgeMeta: {
     marginTop: 5,
-    fontSize: 12,
-    color: '#8a7b67',
+    fontSize: 11,
+    color: '#7A6A50',
     lineHeight: 1.45
   },
   empty: {
-    borderRadius: 8,
-    background: '#f8f5ef',
-    color: '#8a7b67',
+    borderRadius: 12,
+    background: '#F5F0E8',
+    color: '#7A6A50',
     padding: '18px 14px',
     textAlign: 'center',
-    fontSize: 14,
+    fontSize: 13,
     lineHeight: 1.65
   },
   smallGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: 12
+    gap: 10
   },
   smallCard: {
-    border: '1px solid #e0d4bf',
-    borderRadius: 8,
-    background: '#fff',
+    border: '1px solid #E0D5C0',
+    borderRadius: 14,
+    background: '#FFFFFF',
     padding: 14,
     textAlign: 'left',
-    boxShadow: '0 6px 18px rgba(79,55,20,0.05)'
+    boxShadow: '0 2px 10px rgba(26,18,8,.04)'
   },
   smallLabel: {
-    color: '#8a7b67',
+    color: '#7A6A50',
     fontSize: 12
   },
   smallValue: {
     marginTop: 5,
-    color: '#1d1309',
+    color: '#1A1208',
     fontSize: 22,
     fontWeight: 900
   }
@@ -409,6 +415,8 @@ function Seal({ profile }) {
 }
 
 
+
+
 export default function HomePage() {
   const { profile, session } = useAuth()
   const nav = useNavigate()
@@ -417,9 +425,13 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
 
 
+
+
   useEffect(() => {
     if (session) load()
   }, [session])
+
+
 
 
   async function load() {
@@ -428,6 +440,8 @@ export default function HomePage() {
       const data = await getMyPledges()
       const list = data || []
       setPledges(list)
+
+
 
 
       const checks = {}
@@ -443,6 +457,8 @@ export default function HomePage() {
   }
 
 
+
+
   const activePledges = pledges.filter(p => p.status === 'active' || p.status === 'ongoing')
   const unfinishedToday = activePledges.filter(p => !checkedMap[p.id])
   const todayPledge = [...(unfinishedToday.length ? unfinishedToday : activePledges)].sort((a, b) => {
@@ -452,9 +468,11 @@ export default function HomePage() {
   })[0]
 
 
+
+
   const completedToday = activePledges.filter(p => checkedMap[p.id]).length
   const totalCheckins = pledges.reduce((sum, p) => sum + (p.checkin_count || p.current_days || p.completed_days || 0), 0)
-  const totalTarget = pledges.reduce((sum, p) => sum + (p.duration_days || p.target_days || p.days || 0), 0)
+  const totalTarget = pledges.reduce((sum, p) => sum + (p.total_days || p.duration_days || p.target_days || p.days || 0), 0)
   const keepRate = totalTarget ? Math.round((totalCheckins / totalTarget) * 100) : 0
   const lockedCoins = activePledges.reduce((sum, p) => sum + Number(p.stake_coins || p.stake_amount || p.stake || 0), 0)
   const merit = getMeritDisplay(profile?.merit_score)
@@ -462,6 +480,8 @@ export default function HomePage() {
   const mainChecked = todayPledge ? checkedMap[todayPledge.id] : false
   const mainDaysLeft = daysLeft(todayPledge)
   const homeFeedback = getHomeFeedback({ pledge: todayPledge, progress: mainProgress, checkedToday: mainChecked, daysLeft: mainDaysLeft })
+
+
 
 
   if (!session) {
@@ -475,6 +495,8 @@ export default function HomePage() {
   }
 
 
+
+
   return (
     <div style={styles.page}>
       <header style={styles.header}>
@@ -486,6 +508,8 @@ export default function HomePage() {
           {merit.emoji} {merit.title}
         </button>
       </header>
+
+
 
 
       <section style={styles.stats}>
@@ -504,6 +528,8 @@ export default function HomePage() {
       </section>
 
 
+
+
       <main style={styles.scrollCard}>
         <div style={styles.scrollLineTop} />
         <div style={styles.scrollLineBottom} />
@@ -512,6 +538,8 @@ export default function HomePage() {
           {loading ? '正在展开契约...' : todayPledge ? pledgeTitle(todayPledge) : '写下你的第一份军令状'}
         </h2>
         {todayPledge && <Seal profile={profile} />}
+
+
 
 
         {todayPledge ? (
@@ -557,6 +585,8 @@ export default function HomePage() {
       </main>
 
 
+
+
       <section style={styles.panel}>
         <div style={styles.panelHeader}>
           <h3 style={styles.panelTitle}>我的誓言</h3>
@@ -583,6 +613,8 @@ export default function HomePage() {
           <div style={styles.empty}>暂无进行中的诺言。让首页从第一份契约开始。</div>
         )}
       </section>
+
+
 
 
       <section style={styles.smallGrid}>
