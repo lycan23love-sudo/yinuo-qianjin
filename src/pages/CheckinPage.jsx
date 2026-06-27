@@ -227,7 +227,7 @@ export default function CheckinPage() {
   const progressDone = pledge?.checkin_count || 0
   const progressTotal = pledge?.total_days || 1
   const progressPct = Math.min(100, Math.round((progressDone / Math.max(progressTotal, 1)) * 100))
-  const needsImage = pledge.verify_type === 'screenshot'
+  const needsImage = pledge?.verify_type === 'screenshot'
   const quote = QUOTES.find(([s, e]) => dayNum >= s && dayNum <= e)?.[2] ?? ''
   const prompt = getCheckinPrompt(dayNum, progressPct, needsImage)
   const proofHint = getProofHint(needsImage, image, note, audioFile)
