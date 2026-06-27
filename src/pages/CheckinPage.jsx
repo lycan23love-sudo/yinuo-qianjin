@@ -58,13 +58,21 @@ function getCheckinPrompt(dayNum, progressPct, needsImage) {
 }
 
 
-function getProofHint(needsImage, image, note) {
-  if (image && note.trim()) return '截图和文字都已准备好，证明很完整。'
+function getProofHint(needsImage, image, note, audioFile) {
+  const hasNote = note.trim()
+  const parts = [image && '截图', audioFile && '语音', hasNote && '文字'].filter(Boolean)
+  if (parts.length >= 2) return parts.join(' + ') + '已准备好，今天的证明很完整。'
+  if (audioFile) return '语音已录好，可以补一句文字让记录更清楚。'
   if (image) return '截图已附上，可以补一句今天的情况。'
-  if (note.trim()) return needsImage ? '已写下文字记录；补截图会更有说服力。' : '文字记录已准备好，可以提交。'
-  return needsImage ? '建议上传截图，也可以先用文字说明完成情况。' : '写一句或上传一张图，都可以完成今天的守诺。'
+  if (hasNote) return needsImage ? '已写下文字记录；补截图或语音会更有说服力。' : '文字记录已准备好，可以提交。'
+  return needsImage ? '建议上传截图；也可以用语音说明今天完成了什么。' : '写一句、上传图，或录一段语音，都可以完成今天的守诺。'
 }
 
+function formatRecordTime(seconds) {
+  const min = String(Math.floor(seconds / 60)).padStart(2, '0')
+  const sec = String(seconds % 60).padStart(2, '0')
+  return min + ':' + sec
+}
 
 export default function CheckinPage() {
   const { id } = useParams()
@@ -76,16 +84,31 @@ export default function CheckinPage() {
   const [pledge, setPledge]       = useState(null)
   const [image, setImage]         = useState(null)
   const [preview, setPreview]     = useState(null)
+  const [audioFile, setAudioFile] = useState(null)
+  const [audioUrl, setAudioUrl]   = useState(null)
+  const [recording, setRecording] = useState(false)
+  const [recordSeconds, setRecordSeconds] = useState(0)
   const [note, setNote]           = useState('')
   const [mood, setMood]           = useState('')
   const [loading, setLoading]     = useState(false)
   const [loadStep, setLoadStep]   = useState('')   // 上传进度提示
   const [compressing, setCompressing] = useState(false)
   const fileRef = useRef()
-
+  const recorderRef = useRef(null)
+  const audioChunksRef = useRef([])
+  const audioTimerRef = useRef(null)
 
   useEffect(() => { load() }, [id])
 
+  useEffect(() => {
+    return () => {
+      if (audioTimerRef.current) clearInterval(audioTimerRef.current)
+      if (audioUrl) URL.revokeObjectURL(audioUrl)
+      if (recorderRef.current?.stream) {
+        recorderRef.current.stream.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [audioUrl])
 
   async function load() {
     try {
@@ -131,6 +154,71 @@ export default function CheckinPage() {
   }
 
 
+  async function startRecording() {
+    if (loading || recording) return
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      showToast('当前浏览器不支持录音', 'error')
+      return
+    }
+    try {
+      if (audioUrl) URL.revokeObjectURL(audioUrl)
+      setAudioFile(null)
+      setAudioUrl(null)
+      setRecordSeconds(0)
+      audioChunksRef.current = []
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      recorderRef.current = recorder
+      recorder.ondataavailable = e => {
+        if (e.data?.size) audioChunksRef.current.push(e.data)
+      }
+      recorder.onstop = () => {
+        const type = recorder.mimeType || 'audio/webm'
+        const blob = new Blob(audioChunksRef.current, { type })
+        const ext = type.includes('mp4') ? 'm4a' : 'webm'
+        const file = new File([blob], 'checkin-voice-' + Date.now() + '.' + ext, { type })
+        setAudioFile(file)
+        setAudioUrl(URL.createObjectURL(blob))
+        stream.getTracks().forEach(track => track.stop())
+      }
+
+      recorder.start()
+      setRecording(true)
+      audioTimerRef.current = setInterval(() => {
+        setRecordSeconds(sec => {
+          if (sec >= 59) {
+            setTimeout(stopRecording, 0)
+            return 60
+          }
+          return sec + 1
+        })
+      }, 1000)
+    } catch {
+      showToast('无法启动录音，请检查麦克风权限', 'error')
+    }
+  }
+
+  function stopRecording() {
+    if (audioTimerRef.current) {
+      clearInterval(audioTimerRef.current)
+      audioTimerRef.current = null
+    }
+    if (recorderRef.current?.state === 'recording') {
+      recorderRef.current.stop()
+    }
+    setRecording(false)
+  }
+
+  function removeAudio() {
+    stopRecording()
+    if (audioUrl) URL.revokeObjectURL(audioUrl)
+    setAudioFile(null)
+    setAudioUrl(null)
+    setRecordSeconds(0)
+    audioChunksRef.current = []
+  }
+
   const dayNum = pledge
     ? Math.floor((new Date() - new Date(pledge.start_date)) / 86400000) + 1
     : 1
@@ -142,7 +230,7 @@ export default function CheckinPage() {
   const needsImage = pledge.verify_type === 'screenshot'
   const quote = QUOTES.find(([s, e]) => dayNum >= s && dayNum <= e)?.[2] ?? ''
   const prompt = getCheckinPrompt(dayNum, progressPct, needsImage)
-  const proofHint = getProofHint(needsImage, image, note)
+  const proofHint = getProofHint(needsImage, image, note, audioFile)
 
 
   const streak = (pledge?.current_streak ?? 0) + 1
@@ -157,10 +245,10 @@ export default function CheckinPage() {
     // 感悟：选填，不再强制
     setLoading(true)
     try {
-      setLoadStep(image ? '压缩图片中…' : '提交中…')
-      if (image) setLoadStep('上传图片中…')
+      setLoadStep(image ? '上传图片中…' : audioFile ? '上传语音中…' : '提交中…')
       const result = await submitCheckin(session.user.id, id, {
         imageFile: image || null,
+        audioFile: audioFile || null,
         note: note.trim(),
         mood: mood || null,
       })
@@ -260,6 +348,37 @@ export default function CheckinPage() {
           ))}
         </div>
 
+
+        {/* 语音说明 */}
+        <div style={S.group}>
+          <label style={S.label}>语音说明 <span style={{ color:'#B8A88A' }}>（选填）</span></label>
+          <div style={S.audioBox}>
+            <div style={S.audioTop}>
+              <div style={{ minWidth:0 }}>
+                <div style={S.audioTitle}>{recording ? '正在录音' : audioFile ? '语音已录好' : '录一段今日说明'}</div>
+                <div style={S.audioHint}>30-60秒，说清今天完成了什么。</div>
+              </div>
+              <button
+                style={{ ...S.audioBtn, ...(recording ? S.audioBtnStop : {}) }}
+                onClick={recording ? stopRecording : startRecording}
+                disabled={loading}>
+                {recording ? '停止' : audioFile ? '重录' : '录音'}
+              </button>
+            </div>
+            {(recording || recordSeconds > 0) && (
+              <div style={S.audioMeter}>
+                <span style={{ ...S.recordDot, opacity: recording ? 1 : .35 }} />
+                <span>{formatRecordTime(recordSeconds)}</span>
+              </div>
+            )}
+            {audioUrl && (
+              <div style={S.audioPreview}>
+                <audio controls src={audioUrl} style={{ width:'100%' }} />
+                <button style={S.audioRemove} onClick={removeAudio}>删除语音</button>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* 心情状态 */}
         <div style={S.group}>
@@ -372,6 +491,20 @@ const S = {
   removeBtn:{ position:'absolute', top:8, right:8, background:'rgba(0,0,0,.5)', color:'#fff',
               border:'none', borderRadius:'50%', width:30, height:30, cursor:'pointer', fontSize:15,
               display:'flex', alignItems:'center', justifyContent:'center' },
+  audioBox:{ background:'#fff', border:'1px solid #E0D5C0', borderRadius:12, padding:12,
+             boxShadow:'0 6px 18px rgba(79,55,20,.04)' },
+  audioTop:{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 },
+  audioTitle:{ fontSize:13, fontWeight:800, color:'#1A1208', marginBottom:4 },
+  audioHint:{ fontSize:11, color:'#9A8A70', lineHeight:1.5 },
+  audioBtn:{ flexShrink:0, border:'none', borderRadius:999, padding:'8px 16px', background:'#1A1208',
+             color:'#E8B84A', fontSize:12, fontWeight:800, fontFamily:'Noto Sans SC,sans-serif', cursor:'pointer' },
+  audioBtnStop:{ background:'#C84040', color:'#fff' },
+  audioMeter:{ display:'flex', alignItems:'center', gap:7, marginTop:10, color:'#7A5A18', fontSize:12,
+               fontWeight:800, letterSpacing:.3 },
+  recordDot:{ width:8, height:8, borderRadius:'50%', background:'#C84040', display:'inline-block' },
+  audioPreview:{ marginTop:10, display:'grid', gap:8 },
+  audioRemove:{ justifySelf:'start', border:'1px solid #E0D5C0', background:'#FAF7F2', color:'#7A6A50',
+                borderRadius:999, padding:'5px 10px', fontSize:11, fontFamily:'Noto Sans SC,sans-serif', cursor:'pointer' },
   moodBtn: { padding:'8px 14px', borderRadius:20, border:'1px solid #E0D5C0', background:'#fff',
              fontSize:12, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
   moodOn:  { borderColor:'#C8922A', background:'#FDF3E0', color:'#7A5A18', fontWeight:600 },
