@@ -2286,14 +2286,15 @@ export async function getMyWitness(userId, pledgeId) {
 
 
 
-// 获取四大指数
+// 获取五类誓言指数
 export async function getIndexFunds() {
+  const order = ['HEALTH', 'STUDY', 'HABIT', 'FINANCE', 'CREATIVE']
   const { data, error } = await supabase
     .from('index_funds')
     .select('*')
-    .order('code')
+    .in('code', order)
   if (error) throw new Error(error.message || '获取指数失败')
-  return data || []
+  return (data || []).sort((a, b) => order.indexOf(a.code) - order.indexOf(b.code))
 }
 
 
