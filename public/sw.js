@@ -1,6 +1,6 @@
 // public/sw.js — 一诺千金 Service Worker
-// v3 — 强制清除旧缓存
-const CACHE_VERSION = 'yinuo-v3'
+// v4 — 提醒设置与页面缓存刷新
+const CACHE_VERSION = 'yinuo-v4'
 
 self.addEventListener('install', () => self.skipWaiting())
 
