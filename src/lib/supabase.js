@@ -1668,6 +1668,134 @@ export async function getDonations(userId) {
 }
 
 
+// ============================================================
+// CHARITY ACTION JURY
+// ============================================================
+
+export async function createCharityAction(userId, { type, text, proof, reward }) {
+  if (!userId) throw new Error('请先登录')
+  if (!text?.trim()) throw new Error('请写下你做了什么公益行动')
+  const coins = Math.max(0, Math.min(100, Number(reward) || 0))
+  const { data, error } = await supabase
+    .from('charity_actions')
+    .insert({
+      user_id: userId,
+      action_type: type,
+      description: text.trim(),
+      proof_text: proof || '未上传文件名',
+      reward_coins: coins,
+      status: 'pending',
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return mapCharityAction(data)
+}
+
+export async function getMyCharityActions(userId) {
+  if (!userId) return []
+  const { data, error } = await supabase
+    .from('charity_actions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data || []).map(mapCharityAction)
+}
+
+export async function getPendingCharityActions(limit = 30) {
+  const { data, error } = await supabase
+    .from('charity_actions')
+    .select('*')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+    .limit(limit)
+  if (error) throw error
+  return (data || []).map(mapCharityAction)
+}
+
+export async function castCharityJuryVote(userId, actionId, vote) {
+  if (!userId) throw new Error('请先登录')
+  if (!['approve', 'reject', 'revise'].includes(vote)) throw new Error('确认选项无效')
+
+  const { data: action, error: actionError } = await supabase
+    .from('charity_actions')
+    .select('*')
+    .eq('id', actionId)
+    .single()
+  if (actionError) throw actionError
+  if (!action) throw new Error('善行案件不存在')
+  if (action.user_id === userId) throw new Error('不能确认自己的善行')
+  if (action.status !== 'pending') throw new Error('这个案件已经形成结论')
+
+  const { error: voteError } = await supabase
+    .from('charity_jury_votes')
+    .insert({ action_id: actionId, juror_id: userId, vote })
+  if (voteError) {
+    if ((voteError.message || '').includes('duplicate') || voteError.code === '23505') throw new Error('你已经确认过这个案件')
+    throw voteError
+  }
+
+  const { data: votes, error: votesError } = await supabase
+    .from('charity_jury_votes')
+    .select('vote')
+    .eq('action_id', actionId)
+  if (votesError) throw votesError
+
+  const counts = { approve: 0, reject: 0, revise: 0 }
+  ;(votes || []).forEach(item => { counts[item.vote] = (counts[item.vote] || 0) + 1 })
+  let nextStatus = 'pending'
+  if (counts.approve >= 2) nextStatus = 'approved'
+  if (counts.reject >= 2) nextStatus = 'rejected'
+  if (counts.revise >= 2) nextStatus = 'needs_revision'
+
+  const patch = {
+    approve_count: counts.approve,
+    reject_count: counts.reject,
+    revise_count: counts.revise,
+    status: nextStatus,
+    decided_at: nextStatus === 'pending' ? null : new Date().toISOString(),
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from('charity_actions')
+    .update(patch)
+    .eq('id', actionId)
+    .select()
+    .single()
+  if (updateError) throw updateError
+
+  if (nextStatus === 'approved') {
+    await addCoins(action.user_id, Number(action.reward_coins || 0), 'charity_action', actionId, '善行通过陪审团确认')
+      .catch(() => null)
+  }
+
+  return mapCharityAction(updated)
+}
+
+function mapCharityAction(row) {
+  if (!row) return row
+  const statusMap = { pending: '待确认', approved: '已通过', rejected: '未通过', needs_revision: '需补充' }
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    applicant_id: row.user_id,
+    type: row.action_type || row.type,
+    text: row.description || row.text,
+    proof: row.proof_text || row.proof,
+    reward: Number(row.reward_coins ?? row.reward ?? 0),
+    status: statusMap[row.status] || row.status || '待确认',
+    raw_status: row.status || 'pending',
+    votes: {
+      approve: Number(row.approve_count || 0),
+      reject: Number(row.reject_count || 0),
+      revise: Number(row.revise_count || 0),
+    },
+    created_at: row.created_at,
+  }
+}
+
+
 
 
 
