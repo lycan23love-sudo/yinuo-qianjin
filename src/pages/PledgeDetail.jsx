@@ -6,6 +6,44 @@ import { getPledgeDetail, getCheckins, hasCheckedInToday, getWitnesses, getMyWit
 import { format, eachDayOfInterval, parseISO, getDay } from 'date-fns'
 
 
+const DEFAULT_REMINDER = { enabled: true, time: '20:30', style: 'gentle' }
+function reminderStoreKey(userId) { return 'ynq_reminders_' + (userId || 'guest') }
+function readReminderStore(userId) {
+  if (typeof window === 'undefined') return { global: DEFAULT_REMINDER, pledges: {} }
+  try {
+    const raw = window.localStorage.getItem(reminderStoreKey(userId))
+    const parsed = raw ? JSON.parse(raw) : {}
+    return { global: { ...DEFAULT_REMINDER, ...(parsed.global || {}) }, pledges: parsed.pledges || {} }
+  } catch {
+    return { global: DEFAULT_REMINDER, pledges: {} }
+  }
+}
+function writeReminderStore(userId, store) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(reminderStoreKey(userId), JSON.stringify(store))
+}
+function getReminderForPledge(userId, pledgeId) {
+  const store = readReminderStore(userId)
+  return { ...store.global, ...(store.pledges?.[pledgeId] || {}) }
+}
+function saveReminderForPledge(userId, pledgeId, reminder) {
+  const store = readReminderStore(userId)
+  const next = { ...store, pledges: { ...(store.pledges || {}), [pledgeId]: { ...reminder } } }
+  writeReminderStore(userId, next)
+  return next.pledges[pledgeId]
+}
+function saveGlobalReminder(userId, reminder) {
+  const store = readReminderStore(userId)
+  const next = { ...store, global: { ...store.global, ...reminder } }
+  writeReminderStore(userId, next)
+  return next.global
+}
+function reminderLabel(reminder) {
+  if (!reminder?.enabled) return '提醒已关闭'
+  return '提醒 ' + (reminder.time || DEFAULT_REMINDER.time)
+}
+
+
 
 
 
@@ -192,6 +230,8 @@ function CalendarView({ checkins, pledge }) {
                                                           const [disputeTarget, setDisputeTarget] = useState(null)
                                                           const [disputeReason, setDisputeReason] = useState('')
                                                           const [toast, setToast] = useState(null)
+                                                          const userId = session?.user?.id
+                                                          const [reminder, setReminder] = useState(DEFAULT_REMINDER)
 
 
 
@@ -206,7 +246,18 @@ function CalendarView({ checkins, pledge }) {
                                                           }
                                                             
                                                               useEffect(() => { load() }, [id])
+
+                                                          useEffect(() => {
+                                                            if (userId && id) setReminder(getReminderForPledge(userId, id))
+                                                          }, [userId, id])
                                                                 
+                                                                  function updateReminder(patch) {
+                                                            if (!userId) { showToast('请先登录', 'error'); return }
+                                                            const next = saveReminderForPledge(userId, id, { ...reminder, ...patch })
+                                                            setReminder(next)
+                                                            showToast('提醒已保存 ✓', 'success')
+                                                          }
+                                                            
                                                                   async function load() {
                                                                         const [p, cks, checked] = await Promise.all([
                                                                                 getPledgeDetail(id), getCheckins(id), hasCheckedInToday(id),
@@ -296,9 +347,9 @@ function CalendarView({ checkins, pledge }) {
                                                                               <div style={{ width:32 }} />
                                                                       </div>
                                                                       <div style={S.tabRow}>
-                                                                        {['log','calendar','witness'].map((t,i) => (
+                                                                        {['log','calendar','witness','settings'].map((t,i) => (
                                                                             <button key={t} style={{ ...S.tab, ...(tab===t?S.tabOn:{}) }} onClick={() => setTab(t)}>
-                                                                              {['打卡日记','日历','见证者'][i]}
+                                                                              {['打卡日记','日历','见证者','提醒'][i]
                                                                             </button>
                                                                           ))}
                                                                       </div>
@@ -429,6 +480,27 @@ function CalendarView({ checkins, pledge }) {
                                                                             </div>
                                                                               )}
                                                                         {tab === 'calendar' && <CalendarView checkins={checkins} pledge={pledge} />}
+                                                                        {tab === 'settings' && (
+                                                                          <div style={S.settingsCard}>
+                                                                            <div style={S.settingsTitle}>誓言提醒</div>
+                                                                            <div style={S.settingsDesc}>只管理这一个誓言。首页会显示这里的提醒时间。</div>
+                                                                            <label style={S.switchRow}>
+                                                                              <span>每日打卡提醒</span>
+                                                                              <input type="checkbox" checked={!!reminder.enabled} onChange={e => updateReminder({ enabled: e.target.checked })} />
+                                                                            </label>
+                                                                            <label style={S.formRow}>
+                                                                              <span>提醒时间</span>
+                                                                              <input type="time" value={reminder.time || '20:30'} onChange={e => updateReminder({ time: e.target.value })} style={S.timeInput} />
+                                                                            </label>
+                                                                            <div style={S.styleGrid}>
+                                                                              {[['gentle','温和'],['strict','严厉'],['ritual','仪式感']].map(([key, label]) => (
+                                                                                <button key={key} onClick={() => updateReminder({ style: key })} style={{ ...S.styleBtn, ...(reminder.style === key ? S.styleBtnOn : {}) }}>
+                                                                                  {label}
+                                                                                </button>
+                                                                              ))}
+                                                                            </div>
+                                                                          </div>
+                                                                        )}
                                                                         {tab === 'witness' && (() => {
                                                                             const trustCount = witnesses.filter(w => w.type === 'trust').length
                                                                             const doubtCount = witnesses.filter(w => w.type === 'doubt').length
