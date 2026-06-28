@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
-import { getMyPledges, getPublicPledges, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins } from '../lib/supabase'
+import { getMyPledges, getPublicPledges, getPledgeDetail, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins } from '../lib/supabase'
 
 const TEAM_LIMIT = 5
 
@@ -119,7 +119,7 @@ function SupportGroupCard({ group, active, stats, onClick }) {
   )
 }
 
-function MyPledgeCard({ pledge, publishing, onRecruit, onDetail, onCheckin }) {
+function MyPledgeCard({ pledge, publishing, onRecruit, onRoom, onCheckin }) {
   const progress = pct(pledge)
   const slots = teamSlots(pledge)
   const isRecruiting = !!pledge.is_public
@@ -142,9 +142,9 @@ function MyPledgeCard({ pledge, publishing, onRecruit, onDetail, onCheckin }) {
       <div style={S.track}><div style={{ ...S.fill, width: progress + '%' }} /></div>
 
       <div style={S.cardFoot}>
-        <span>{progress}% · 同一誓言单独成团</span>
+        <span>{progress}% · {isRecruiting ? '可进入团室管理' : '发布后可被同类誓言者加入'}</span>
         <div style={S.actions}>
-          <button style={S.btnGhost} onClick={onDetail}>查看</button>
+          <button style={S.btnGhost} onClick={onRoom}>团室</button>
           <button style={S.btnGhost} onClick={onCheckin}>打卡</button>
           {!isRecruiting && <button style={S.btnGold} onClick={onRecruit} disabled={publishing}>{publishing ? '发布中' : '招募'}</button>}
         </div>
@@ -180,8 +180,125 @@ function PublicPledgeCard({ pledge, match, joined, joining, onOpen, onJoin }) {
       <div style={S.cardFoot}>
         <span>{progress}% · {joined ? '你已在这个互助小队' : '加入后进入我的团'}</span>
         <div style={S.actions}>
-          <button style={S.btnGhost} onClick={onOpen}>查看</button>
+          <button style={S.btnGhost} onClick={onOpen}>{joined ? '团室' : '查看'}</button>
           {joined ? <button style={S.btnDone} disabled>已加入</button> : full ? <button style={S.btnDone} disabled>满员</button> : <button style={S.btnGold} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入'}</button>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function checkedToday(pledge) {
+  const today = todayKey()
+  return (pledge.checkins || []).some(item => item.checkin_date === today)
+}
+
+function buildRoomMembers(pledge) {
+  const active = (pledge.witnesses || []).filter(item => !item.status || item.status === 'active').slice(0, TEAM_LIMIT - 1)
+  const ownerDone = checkedToday(pledge)
+  const owner = {
+    id: pledge.user_id || 'owner',
+    name: getHostName(pledge),
+    role: '团长',
+    progress: pct(pledge),
+    doneToday: ownerDone,
+    note: ownerDone ? '今日已守' : '今日待守',
+  }
+  const friends = active.map((item, index) => ({
+    id: item.user_id || item.id || 'friend-' + index,
+    name: item.profiles?.nickname || '同行者' + (index + 1),
+    role: '团友',
+    progress: pct(pledge),
+    doneToday: false,
+    note: '等待报到',
+  }))
+  const empty = Array.from({ length: Math.max(TEAM_LIMIT - 1 - friends.length, 0) }, (_, index) => ({
+    id: 'empty-' + index,
+    empty: true,
+    name: '空位',
+    role: '待加入',
+    progress: 0,
+    note: '可邀请同类誓言者',
+  }))
+  return [owner, ...friends, ...empty].slice(0, TEAM_LIMIT)
+}
+
+function TeamMemberRow({ member, rank }) {
+  if (member.empty) {
+    return (
+      <div style={{ ...S.memberRow, opacity: .72 }}>
+        <div style={{ ...S.memberAvatar, background: C.soft, color: C.hint }}>+</div>
+        <div style={{ flex: 1 }}>
+          <div style={S.memberName}>{member.name}<span>{member.role}</span></div>
+          <div style={S.memberHint}>{member.note}</div>
+        </div>
+        <Tag tone="gold">席位</Tag>
+      </div>
+    )
+  }
+  return (
+    <div style={S.memberRow}>
+      <div style={S.memberAvatar}>{rank}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={S.memberName}>{member.name}<span>{member.role}</span></div>
+        <div style={S.memberHint}>{member.note} · 当前誓言进度 {member.progress}%</div>
+        <div style={S.miniTrack}><div style={{ ...S.miniFill, width: member.progress + '%' }} /></div>
+      </div>
+      <Tag tone={member.doneToday ? 'green' : 'red'}>{member.doneToday ? '已守' : '待守'}</Tag>
+    </div>
+  )
+}
+
+function TeamRoom({ pledge, loading, error, toast, onBack, onCheckin, onNudge, onEncourage, onHelp }) {
+  const group = groupForPledge(pledge)
+  const members = buildRoomMembers(pledge)
+  const activeMembers = members.filter(item => !item.empty)
+  const doneCount = activeMembers.filter(item => item.doneToday).length
+  const progress = pct(pledge)
+  return (
+    <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column' }}>
+      {toast && <div style={S.toast}>{toast}</div>}
+      <div style={S.roomTopbar}>
+        <button style={S.backBtn} onClick={onBack}>‹</button>
+        <div style={S.logo}>团<em style={{ color: C.gold, fontStyle: 'normal' }}>室</em></div>
+        <button style={S.btnGhost} onClick={onCheckin}>打卡</button>
+      </div>
+
+      <div style={S.scrollArea}>
+        {loading && <div style={S.stateText}>正在进入团室...</div>}
+        {error && <div style={S.stateText}>{error}</div>}
+
+        <div style={S.roomHero}>
+          <div style={S.kicker}>{group.name}</div>
+          <div style={S.roomTitle}>{pledge.title}</div>
+          <div style={S.roomMeta}>{getHostName(pledge)}发起 · 5人小队 {teamSize(pledge)}/{TEAM_LIMIT} · 还差{daysLeft(pledge)}天</div>
+          <div style={S.roomStats}>
+            <div><b>{doneCount}/{activeMembers.length || 1}</b><span>今日报到</span></div>
+            <div><b>{progress}%</b><span>契约进度</span></div>
+            <div><b>{teamSlots(pledge)}</b><span>剩余席位</span></div>
+          </div>
+        </div>
+
+        <div style={S.sectionLabel}>团内成员</div>
+        <div style={S.panelCard}>{members.map((member, index) => <TeamMemberRow key={member.id} member={member} rank={index + 1} />)}</div>
+
+        <div style={S.sectionLabel}>纵向比较</div>
+        <div style={S.panelCard}>
+          <div style={S.compareRow}><span>当前誓言总进度</span><b>{progress}%</b></div>
+          <div style={S.compareRow}><span>今日已完成</span><b>{doneCount}人</b></div>
+          <div style={S.compareRow}><span>团队目标</span><b>满5人后开启PK</b></div>
+          <div style={S.compareHint}>下一步接入团员各自誓言后，这里会显示个人连续天数排行、掉队提醒和小队PK积分。</div>
+        </div>
+
+        <div style={S.sectionLabel}>互助动作</div>
+        <div style={S.actionGrid}>
+          <button style={S.actionBtn} onClick={onHelp}><b>我卡住了</b><span>向团友发起求助</span></button>
+          <button style={S.actionBtn} onClick={onNudge}><b>提醒待守</b><span>给未完成者一次轻提醒</span></button>
+          <button style={S.actionBtn} onClick={onEncourage}><b>送出鼓励</b><span>给完成者正向反馈</span></button>
         </div>
       </div>
     </div>
@@ -201,6 +318,9 @@ export default function CompanionsPage() {
   const [joiningId, setJoiningId] = useState(null)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
+  const [roomPledge, setRoomPledge] = useState(null)
+  const [roomLoading, setRoomLoading] = useState(false)
+  const [roomError, setRoomError] = useState('')
 
   function showToast(msg) {
     setToast(msg)
@@ -262,6 +382,20 @@ export default function CompanionsPage() {
     }
   }
 
+  async function openRoom(pledge) {
+    setRoomPledge(pledge)
+    setRoomLoading(true)
+    setRoomError('')
+    try {
+      const detail = await getPledgeDetail(pledge.id)
+      setRoomPledge(detail || pledge)
+    } catch (err) {
+      setRoomError(err.message || '团室加载失败')
+    } finally {
+      setRoomLoading(false)
+    }
+  }
+
   const displayName = profile?.nickname || '行者'
   const recommended = useMemo(() => {
     return [...publicPledges].sort((a, b) => {
@@ -276,6 +410,17 @@ export default function CompanionsPage() {
   const activeGroupPledges = recommended.filter(p => groupForPledge(p).key === activeGroup)
   const suggestedForMy = recommended.filter(p => !joinedIds.has(p.id) && matchLevel(p, myPledges) <= 1 && teamSlots(p) > 0).slice(0, 3)
   const ownedMemberCount = myPledges.reduce((sum, p) => sum + teamSize(p), 0)
+
+  if (roomPledge) {
+    return (
+      <TeamRoom pledge={roomPledge} loading={roomLoading} error={roomError} toast={toast}
+        onBack={() => setRoomPledge(null)}
+        onCheckin={() => nav('/pledge/' + roomPledge.id + '/checkin')}
+        onHelp={() => showToast('求助入口已打开：下一步会接入团内留言')}
+        onNudge={() => showToast('已生成提醒：下一步会推送给待守团友')}
+        onEncourage={() => showToast('鼓励已送出：下一步会记录为团内正反馈')} />
+    )
+  }
 
   return (
     <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column' }}>
@@ -310,7 +455,7 @@ export default function CompanionsPage() {
               <div style={S.sectionLabel}>我的誓言小队</div>
               {myPledges.map(pledge => (
                 <MyPledgeCard key={pledge.id} pledge={pledge} publishing={publishingId === pledge.id}
-                  onRecruit={() => handleRecruit(pledge)} onDetail={() => nav('/pledge/' + pledge.id)} onCheckin={() => nav('/pledge/' + pledge.id + '/checkin')} />
+                  onRecruit={() => handleRecruit(pledge)} onRoom={() => openRoom(pledge)} onCheckin={() => nav('/pledge/' + pledge.id + '/checkin')} />
               ))}
             </>
           )}
@@ -320,7 +465,7 @@ export default function CompanionsPage() {
               <div style={S.sectionLabel}>我加入的互助小队</div>
               {joinedTeams.map(pledge => (
                 <PublicPledgeCard key={pledge.id} pledge={pledge} joined match={matchLevel(pledge, myPledges)}
-                  onOpen={() => nav('/pledge/' + pledge.id)} onJoin={() => handleJoin(pledge)} />
+                  onOpen={() => openRoom(pledge)} onJoin={() => handleJoin(pledge)} />
               ))}
             </>
           )}
@@ -330,7 +475,7 @@ export default function CompanionsPage() {
               <div style={S.sectionLabel}>推荐加入</div>
               {suggestedForMy.map(pledge => (
                 <PublicPledgeCard key={pledge.id} pledge={pledge} joined={false} joining={joiningId === pledge.id}
-                  match={matchLevel(pledge, myPledges)} onOpen={() => nav('/pledge/' + pledge.id)} onJoin={() => handleJoin(pledge)} />
+                  match={matchLevel(pledge, myPledges)} onOpen={() => openRoom(pledge)} onJoin={() => handleJoin(pledge)} />
               ))}
             </>
           )}
@@ -357,7 +502,7 @@ export default function CompanionsPage() {
           ) : (
             activeGroupPledges.map(pledge => (
               <PublicPledgeCard key={pledge.id} pledge={pledge} joined={joinedIds.has(pledge.id)} joining={joiningId === pledge.id}
-                match={matchLevel(pledge, myPledges)} onOpen={() => nav('/pledge/' + pledge.id)} onJoin={() => handleJoin(pledge)} />
+                match={matchLevel(pledge, myPledges)} onOpen={() => openRoom(pledge)} onJoin={() => handleJoin(pledge)} />
             ))
           )}
         </div>
@@ -404,4 +549,21 @@ const S = {
   btnDone: { border: '1px solid ' + C.border, background: C.soft, color: C.hint, borderRadius: 999, padding: '5px 10px', fontSize: 12, fontWeight: 700, fontFamily: 'Noto Sans SC,sans-serif', flexShrink: 0 },
   emptyCard: { background: C.surf, border: '1px dashed ' + C.border, borderRadius: 14, padding: '24px 18px', textAlign: 'center', color: C.muted },
   primaryWide: { width: '100%', background: C.gold, border: 'none', color: '#fff', borderRadius: 12, padding: '11px 12px', fontSize: 13, fontWeight: 800, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
+  roomTopbar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'calc(12px + env(safe-area-inset-top)) 16px 12px', background: C.bg, borderBottom: '1px solid ' + C.border, flexShrink: 0 },
+  backBtn: { width: 34, height: 34, borderRadius: '50%', border: '1px solid ' + C.border, background: C.surf, color: C.ink, fontSize: 24, lineHeight: '28px', fontWeight: 800, cursor: 'pointer' },
+  roomHero: { background: 'linear-gradient(135deg, #FFF9EA 0%, #FFFFFF 58%, #F5F0E8 100%)', border: '1px solid #E8D4A0', borderRadius: 16, padding: 16, marginBottom: 12, boxShadow: '0 4px 16px rgba(122,90,24,.08)' },
+  roomTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 18, lineHeight: 1.35, fontWeight: 900, color: C.ink, marginBottom: 6 },
+  roomMeta: { fontSize: 12, color: C.muted, lineHeight: 1.6 },
+  roomStats: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14 },
+  panelCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: 10, marginBottom: 12, boxShadow: '0 2px 10px rgba(26,18,8,.05)' },
+  memberRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 4px', borderBottom: '1px solid ' + C.soft },
+  memberAvatar: { width: 30, height: 30, borderRadius: '50%', background: C.gold, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, flexShrink: 0 },
+  memberName: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 900, color: C.ink },
+  memberHint: { fontSize: 11, color: C.muted, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  miniTrack: { height: 5, borderRadius: 999, background: C.soft, overflow: 'hidden', marginTop: 6 },
+  miniFill: { height: '100%', borderRadius: 999, background: C.gold },
+  compareRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 4px', fontSize: 13, color: C.muted, borderBottom: '1px solid ' + C.soft },
+  compareHint: { fontSize: 11, color: C.hint, lineHeight: 1.7, padding: '10px 4px 2px' },
+  actionGrid: { display: 'grid', gridTemplateColumns: '1fr', gap: 9, marginBottom: 12 },
+  actionBtn: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, textAlign: 'left', fontFamily: 'Noto Sans SC,sans-serif', color: C.ink, cursor: 'pointer', boxShadow: '0 2px 10px rgba(26,18,8,.04)' },
 }
