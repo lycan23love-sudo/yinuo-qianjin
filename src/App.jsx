@@ -1,6 +1,6 @@
 // src/App.jsx
 import { useState, useEffect, createContext, useContext } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { supabase, getProfile } from './lib/supabase'
 
 import AuthPage    from './pages/AuthPage'
@@ -25,6 +25,14 @@ export const useAuth = () => useContext(AuthCtx)
 
 // Global toast context
 export const ToastCtx = createContext(null)
+
+const MAIN_NAV_ROUTES = ['/', '/square', '/square/index', '/square/pool', '/companions', '/charity', '/profile', '/new']
+
+function MainBottomNav({ session }) {
+  const location = useLocation()
+  if (!session || !MAIN_NAV_ROUTES.includes(location.pathname)) return null
+  return <BottomNav />
+}
 export const useToast = () => useContext(ToastCtx)
 
 function App() {
@@ -78,8 +86,6 @@ function App() {
     )
   }
 
-  const PAGED_ROUTES = ['/', '/square', '/square/index', '/square/pool', '/companions', '/charity', '/profile', '/new']
-  const showNav = session && PAGED_ROUTES.includes(location.pathname)
 
   return (
     <AuthCtx.Provider value={{ session, userId: session?.user?.id, profile, refreshProfile }}>
@@ -113,7 +119,7 @@ function App() {
         </Routes>
 
         {/* Bottom nav for main pages */}
-        {session && <BottomNav />}
+        <MainBottomNav session={session} />
 
         {/* Toast notifications */}
         <div style={{ position:'fixed', bottom:80, left:'50%', transform:'translateX(-50%)',
