@@ -388,7 +388,9 @@ export default function CompanionsPage() {
     setRoomError('')
     try {
       const detail = await getPledgeDetail(pledge.id)
-      setRoomPledge(detail || pledge)
+      const fallbackWitnesses = detail?.witnesses?.length ? detail.witnesses : pledge.witnesses
+      const fallbackCheckins = detail?.checkins?.length ? detail.checkins : pledge.checkins
+      setRoomPledge({ ...pledge, ...(detail || {}), witnesses: fallbackWitnesses, checkins: fallbackCheckins })
     } catch (err) {
       setRoomError(err.message || '团室加载失败')
     } finally {
