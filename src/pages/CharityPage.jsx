@@ -148,6 +148,7 @@ export default function CharityPage() {
     const reward = Math.max(0, Math.min(100, Number(actionReward) || type.reward))
     const row = {
       id: Date.now(),
+      user_id: userId,
       type: type.label,
       text: actionText.trim(),
       proof: actionProof || '未上传文件名',
@@ -158,10 +159,32 @@ export default function CharityPage() {
     const nextList = [row, ...actionRecords]
     setActionRecords(nextList)
     window.localStorage.setItem('charity_actions_' + userId, JSON.stringify(nextList))
+
+    const caseItem = {
+      id: 'charity-' + row.id,
+      kind: 'charity_action',
+      applicant_id: userId,
+      type: row.type,
+      text: row.text,
+      proof: row.proof,
+      reward: row.reward,
+      status: 'pending',
+      votes: { approve: 0, reject: 0, revise: 0 },
+      voters: {},
+      created_at: row.created_at,
+    }
+    try {
+      const rawCases = window.localStorage.getItem('charity_jury_cases')
+      const cases = rawCases ? JSON.parse(rawCases) : []
+      window.localStorage.setItem('charity_jury_cases', JSON.stringify([caseItem, ...cases]))
+    } catch (err) {
+      window.localStorage.setItem('charity_jury_cases', JSON.stringify([caseItem]))
+    }
+
     setActionText('')
     setActionProof('')
     setActionReward(type.reward)
-    showToast('善行已提交，等待确认后发放奖励')
+    showToast('善行已提交，已送入陪审团待确认')
   }
   return (
     <div style={S.page}>
