@@ -459,7 +459,7 @@ export default function HomePage() {
 
 
 
-  const activePledges = pledges.filter(p => p.status === 'active' || p.status === 'ongoing')
+  const activePledges = pledges.filter(p => !p.status || p.status === 'active' || p.status === 'ongoing')
   const unfinishedToday = activePledges.filter(p => !checkedMap[p.id])
   const todayPledge = [...(unfinishedToday.length ? unfinishedToday : activePledges)].sort((a, b) => {
     const aLeft = daysLeft(a) ?? 9999
