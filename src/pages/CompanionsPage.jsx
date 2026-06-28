@@ -141,10 +141,10 @@ function MyPledgeCard({ pledge, publishing, onRecruit, onRoom, onCheckin }) {
       <div style={S.track}><div style={{ ...S.fill, width: progress + '%' }} /></div>
 
       <div style={S.cardFoot}>
-        <span>{progress}% · {isRecruiting ? '可进入团室管理' : '发布后可被同类誓言者加入'}</span>
+        <span>{progress}% · {isRecruiting ? '可进入小队管理' : '发布后可被同类誓言者加入小队'}</span>
         <div style={S.actions}>
-          <button style={S.btnGhost} onClick={onRoom}>团室</button>
-          <button style={S.btnGhost} onClick={onCheckin}>打卡</button>
+          <button style={S.btnGhost} onClick={onRoom}>小队</button>
+          <div style={{ width: 52 }} />
           {!isRecruiting && <button style={S.btnGold} onClick={onRecruit} disabled={publishing}>{publishing ? '发布中' : '招募'}</button>}
         </div>
       </div>
@@ -179,8 +179,8 @@ function PublicPledgeCard({ pledge, match, joined, joining, onOpen, onJoin }) {
       <div style={S.cardFoot}>
         <span>{progress}% · {joined ? '你已在这个互助小队' : '加入后进入我的团'}</span>
         <div style={S.actions}>
-          <button style={S.btnGhost} onClick={onOpen}>{joined ? '团室' : '查看'}</button>
-          {joined ? <button style={S.btnDone} disabled>已加入</button> : full ? <button style={S.btnDone} disabled>满员</button> : <button style={S.btnGold} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入'}</button>}
+          <button style={S.btnGhost} onClick={onOpen}>{joined ? '小队' : '查看'}</button>
+          {joined ? <button style={S.btnDone} disabled>已加入</button> : full ? <button style={S.btnDone} disabled>满员</button> : <button style={S.btnGold} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入小队'}</button>}
         </div>
       </div>
     </div>
@@ -258,8 +258,8 @@ function HelpTeamCard({ pledge, joined, joining, match, onOpen, onJoin }) {
       <div style={S.helpTeamFoot}>
         <span>{full ? '小队已满' : group.name.replace('互助会', '') + ' · 还可加入' + slots + '人'}</span>
         <div style={S.actions}>
-          <button style={S.btnGhost} onClick={onOpen}>{joined ? '团室' : '查看'}</button>
-          {!joined && (full ? <button style={S.btnDone} disabled>满员</button> : <button style={S.btnGold} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入'}</button>)}
+          <button style={S.btnGhost} onClick={onOpen}>{joined ? '小队' : '查看'}</button>
+          {!joined && (full ? <button style={S.btnDone} disabled>满员</button> : <button style={S.btnGold} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入小队'}</button>)}
         </div>
       </div>
     </div>
@@ -276,33 +276,43 @@ function recommendationReason(pledge, myPledges) {
   return '还有空位，可先观察'
 }
 
-function TodayTeamStatus({ featuredTeam, totalTeams, pendingCount, joinedCount, suggestedCount, onPrimary, onDiscover }) {
+function TodayTeamStatus({ featuredTeam, totalTeams, pendingCount, joinedCount, suggestedCount, onPrimary }) {
   const hasTeam = !!featuredTeam
-  const done = hasTeam ? checkedToday(featuredTeam.pledge) : false
-  const statusTitle = !hasTeam ? '还没有同行小队' : done ? '今日已守，进团室看看队友' : '今日待守，别让小队等你'
+  const pledge = featuredTeam?.pledge
+  const members = hasTeam ? buildRoomMembers(pledge).filter(member => !member.empty) : []
+  const teamCount = Math.max(members.length, hasTeam ? 1 : 0)
+  const doneCount = hasTeam ? members.filter(member => member.doneToday).length : 0
+  const userDone = hasTeam ? checkedToday(pledge) : false
   const statusText = !hasTeam
-    ? '先立下誓言或加入一个同类小队，让守约从独行变成同行。'
-    : done
-      ? '你的节奏已经跟上，适合给待守队友一次轻提醒。'
-      : '先完成今天的打卡，再回来看队友状态。'
+    ? '还没有小队。去互助会找到同类誓言者，让守诺不再只是一个人的事。'
+    : userDone
+      ? `你已完成今日守诺。小队当前 ${doneCount}/${teamCount} 已守，可以进去给队友一个回应。`
+      : `小队当前 ${doneCount}/${teamCount} 已守。先看看队友节奏，再决定今天如何跟上。`
+  const feedback = !hasTeam
+    ? '找到同类目标后，这里会出现队友报到、掉队提醒和鼓励反馈。'
+    : doneCount >= teamCount
+      ? '今日全员已守，队伍节奏很好。'
+      : doneCount > 0
+        ? '已有队友先动起来，你也不会是独行。'
+        : '今天还没人报到，等一个人先把节奏带起来。'
   return (
     <div style={S.todayStatusCard}>
       <div style={S.todayStatusHead}>
-        <div style={S.todayIcon}>{done ? '✓' : hasTeam ? '!' : '+'}</div>
+        <div style={S.todayIcon}>{userDone ? '✓' : hasTeam ? '!' : '+'}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={S.todayTitle}>{statusTitle}</div>
+          <div style={S.todayTitle}>今日同行反馈</div>
           <div style={S.todayText}>{statusText}</div>
+          <div style={S.todayFeedback}>{feedback}</div>
         </div>
       </div>
       <div style={S.todayStats}>
         <div style={S.todayStatBox}><b style={S.todayStatNum}>{totalTeams}</b><span style={S.todayStatLabel}>我的小队</span></div>
-        <div style={S.todayStatBox}><b style={S.todayStatNum}>{pendingCount}</b><span style={S.todayStatLabel}>今日待守</span></div>
+        <div style={S.todayStatBox}><b style={S.todayStatNum}>{pendingCount}</b><span style={S.todayStatLabel}>待回应</span></div>
         <div style={S.todayStatBox}><b style={S.todayStatNum}>{joinedCount}</b><span style={S.todayStatLabel}>已加入</span></div>
         <div style={S.todayStatBox}><b style={S.todayStatNum}>{suggestedCount}</b><span style={S.todayStatLabel}>可加入</span></div>
       </div>
       <div style={S.todayActions}>
-        <button style={S.primaryTeamBtn} onClick={onPrimary}>{hasTeam ? (done ? '进入团室' : '去打卡') : '立下新誓'}</button>
-        <button style={S.secondaryTeamBtn} onClick={onDiscover}>发现小队</button>
+        <button style={S.primaryTeamBtn} onClick={onPrimary}>{hasTeam ? '进入小队' : '发现小队'}</button>
       </div>
     </div>
   )
@@ -314,29 +324,34 @@ function CheckinPrompt({ done, lateDays, onClick }) {
       <div style={S.promptIcon}>☀️</div>
       <div style={{ flex: 1, textAlign: 'left' }}>
         <div style={S.promptTitle}>{done ? '今天已守住诺言' : '早安！今天还没打卡'}</div>
-        <div style={S.promptText}>{done ? '保持节奏，进团室看看同行者状态' : '同行者都在路上，你落后了 ' + lateDays + ' 天'}</div>
+        <div style={S.promptText}>{done ? '保持节奏，进小队看看同行者状态' : '同行者都在路上，你落后了 ' + lateDays + ' 天'}</div>
       </div>
       <div style={S.promptArrow}>›</div>
     </button>
   )
 }
 
-function TeamProgressCard({ item, publishing, onRecruit, onRoom, onCheckin }) {
+function TeamProgressCard({ item, publishing, onRecruit, onRoom }) {
   const pledge = item.pledge
   const group = groupForPledge(pledge)
-  const progress = pct(pledge)
   const members = buildRoomMembers(pledge).filter(member => !member.empty).slice(0, 3)
   const isOwned = item.role === 'owned'
-  const doneCount = checkedToday(pledge) ? Math.max(1, members.filter(member => member.doneToday).length) : members.filter(member => member.doneToday).length
+  const doneCount = members.filter(member => member.doneToday).length
+  const teamCount = Math.max(members.length, 1)
+  const feedback = doneCount >= teamCount
+    ? '今日全员已守，节奏很好'
+    : doneCount > 0
+      ? `${doneCount}位队友已守，队伍正在向前`
+      : '今天还没人报到，等一个人先动起来'
   return (
     <div style={S.teamCardLarge}>
       <div style={S.teamCardHead}>
         <div style={S.teamEmoji}>{group.emoji}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={S.teamTitle}>{pledge.title}</div>
-          <div style={S.teamSub}>{teamSize(pledge)}人同行 · 第{pledge.checkin_count || countFromRelation(pledge.checkins) || 0}天 · 今日{doneCount}/{Math.max(members.length, 1)}已打卡</div>
+          <div style={S.teamSub}>{teamSize(pledge)}人同行 · 今日{doneCount}/{teamCount}已守 · {feedback}</div>
         </div>
-        <Tag tone={doneCount >= Math.max(members.length, 1) ? 'green' : isOwned && !pledge.is_public ? 'gold' : 'blue'}>{doneCount >= Math.max(members.length, 1) ? '全员完成' : isOwned && !pledge.is_public ? '招募中' : '同行中'}</Tag>
+        <Tag tone={doneCount >= teamCount ? 'green' : isOwned && !pledge.is_public ? 'gold' : 'blue'}>{doneCount >= teamCount ? '全员完成' : isOwned && !pledge.is_public ? '招募中' : '同行中'}</Tag>
       </div>
 
       <div style={S.memberProgressList}>
@@ -350,9 +365,9 @@ function TeamProgressCard({ item, publishing, onRecruit, onRoom, onCheckin }) {
         ))}
       </div>
 
+      <div style={S.teamFeedbackLine}>{checkedToday(pledge) ? '你今天已守，可以给还没完成的队友一点提醒。' : '你今天还未报到，小队会记录你的节奏变化。'}</div>
       <div style={S.teamActionsRow}>
-        <button style={S.primaryTeamBtn} onClick={onRoom}>进入团室</button>
-        {isOwned ? <button style={S.secondaryTeamBtn} onClick={onCheckin}>打卡</button> : <button style={S.secondaryTeamBtn} onClick={onRoom}>聊天</button>}
+        <button style={S.primaryTeamBtn} onClick={onRoom}>进入小队</button>
       </div>
       {isOwned && !pledge.is_public && <button style={S.recruitWideBtn} onClick={onRecruit} disabled={publishing}>{publishing ? '发布中' : '发布同行招募'}</button>}
     </div>
@@ -373,7 +388,7 @@ function SoloRecruitCard({ item, publishing, onRecruit, onRoom }) {
         <Tag tone="gold">招募中</Tag>
       </div>
       <div style={S.soloHint}>👥 还没有同行者，发出招募让人陪你走完最后{daysLeft(pledge)}天</div>
-      <button style={S.recruitWideBtn} onClick={pledge.is_public ? onRoom : onRecruit} disabled={publishing}>{pledge.is_public ? '进入团室' : publishing ? '发布中' : '发布同行招募'}</button>
+      <button style={S.recruitWideBtn} onClick={pledge.is_public ? onRoom : onRecruit} disabled={publishing}>{pledge.is_public ? '进入小队' : publishing ? '发布中' : '发布同行招募'}</button>
     </div>
   )
 }
@@ -388,12 +403,12 @@ function JoinRecommendationCard({ pledge, joining, reason, onJoin }) {
         <div style={S.joinTitle}>{pledge.title}</div>
         <div style={S.joinMeta}>{reason || group.name + ' · ' + tag} · {teamSize(pledge)}/{TEAM_LIMIT}人 · 空位{teamSlots(pledge)}个</div>
       </div>
-      <button style={S.joinBtn} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入'}</button>
+      <button style={S.joinBtn} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入小队'}</button>
     </div>
   )
 }
 
-function TeamListItem({ item, publishing, joining, onRecruit, onRoom, onCheckin, onJoin }) {
+function TeamListItem({ item, publishing, joining, onRecruit, onRoom, onJoin }) {
   const pledge = item.pledge
   const group = groupForPledge(pledge)
   const progress = pct(pledge)
@@ -401,20 +416,20 @@ function TeamListItem({ item, publishing, joining, onRecruit, onRoom, onCheckin,
   const isOwned = item.role === 'owned'
   const isJoined = item.role === 'joined'
   const isSuggested = item.role === 'suggested'
+  const todayLabel = checkedToday(pledge) ? '今日已守' : '今日待回应'
   const status = isOwned ? (pledge.is_public ? '我发起·招募中' : '我发起·未招募') : isJoined ? '我加入' : '推荐'
   return (
     <div style={S.listItem}>
       <div style={S.listIcon}>{group.emoji}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={S.listTitle}>{pledge.title}</div>
-        <div style={S.listMeta}>{status} · {group.name} · {teamSize(pledge)}/{TEAM_LIMIT}人 · {progress}%</div>
+        <div style={S.listMeta}>{status} · {group.name} · {teamSize(pledge)}/{TEAM_LIMIT}人 · {todayLabel}</div>
         <div style={S.listTrack}><div style={{ ...S.listFill, width: progress + '%' }} /></div>
       </div>
       <div style={S.listActions}>
-        <button style={S.btnGhost} onClick={onRoom}>{isSuggested ? '查看' : '团室'}</button>
-        {isOwned && <button style={S.btnGhost} onClick={onCheckin}>打卡</button>}
+        <button style={S.btnGhost} onClick={onRoom}>进入小队</button>
         {isOwned && !pledge.is_public && <button style={S.btnGold} onClick={onRecruit} disabled={publishing}>{publishing ? '发布中' : '招募'}</button>}
-        {isSuggested && (slots <= 0 ? <button style={S.btnDone} disabled>满员</button> : <button style={S.btnGold} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入'}</button>)}
+        {isSuggested && (slots <= 0 ? <button style={S.btnDone} disabled>满员</button> : <button style={S.btnGold} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入小队'}</button>)}
       </div>
     </div>
   )
@@ -446,7 +461,7 @@ function TeamMemberRow({ member, rank }) {
   )
 }
 
-function TeamRoom({ pledge, loading, error, toast, onBack, onCheckin, onNudge, onEncourage, onHelp }) {
+function TeamRoom({ pledge, loading, error, toast, onBack, onNudge, onEncourage, onHelp }) {
   const group = groupForPledge(pledge)
   const members = buildRoomMembers(pledge)
   const activeMembers = members.filter(item => !item.empty)
@@ -457,12 +472,12 @@ function TeamRoom({ pledge, loading, error, toast, onBack, onCheckin, onNudge, o
       {toast && <div style={S.toast}>{toast}</div>}
       <div style={S.roomTopbar}>
         <button style={S.backBtn} onClick={onBack}>‹</button>
-        <div style={S.logo}>团<em style={{ color: C.gold, fontStyle: 'normal' }}>室</em></div>
-        <button style={S.btnGhost} onClick={onCheckin}>打卡</button>
+        <div style={S.logo}>小<em style={{ color: C.gold, fontStyle: 'normal' }}>队</em></div>
+        <div style={{ width: 52 }} />
       </div>
 
       <div style={S.scrollArea}>
-        {loading && <div style={S.stateText}>正在进入团室...</div>}
+        {loading && <div style={S.stateText}>正在进入小队...</div>}
         {error && <div style={S.stateText}>{error}</div>}
 
         <div style={S.roomHero}>
@@ -586,7 +601,7 @@ export default function CompanionsPage() {
       const fallbackCheckins = detail?.checkins?.length ? detail.checkins : pledge.checkins
       setRoomPledge({ ...pledge, ...(detail || {}), witnesses: fallbackWitnesses, checkins: fallbackCheckins })
     } catch (err) {
-      setRoomError(err.message || '团室加载失败')
+      setRoomError(err.message || '小队加载失败')
     } finally {
       setRoomLoading(false)
     }
@@ -623,7 +638,6 @@ export default function CompanionsPage() {
     return (
       <TeamRoom pledge={roomPledge} loading={roomLoading} error={roomError} toast={toast}
         onBack={() => setRoomPledge(null)}
-        onCheckin={() => nav('/pledge/' + roomPledge.id + '/checkin')}
         onHelp={() => showToast('求助入口已打开：下一步会接入团内留言')}
         onNudge={() => showToast('已生成提醒：下一步会推送给待守团友')}
         onEncourage={() => showToast('鼓励已送出：下一步会记录为团内正反馈')} />
@@ -647,8 +661,7 @@ export default function CompanionsPage() {
       {!loading && !error && tab === 'my' && (
         <div style={S.scrollArea}>
           <TodayTeamStatus featuredTeam={featuredTeam} totalTeams={allTeamCount} pendingCount={pendingTodayCount} joinedCount={joinedTeams.length} suggestedCount={suggestedOpenCount}
-            onPrimary={() => featuredTeam ? (checkedToday(featuredTeam.pledge) ? openRoom(featuredTeam.pledge) : nav('/pledge/' + featuredTeam.pledge.id + '/checkin')) : nav('/new')}
-            onDiscover={() => setTab('help')} />
+            onPrimary={() => featuredTeam ? openRoom(featuredTeam.pledge) : setTab('help')} />
 
           <div style={S.sectionHeadProto}>
             <div style={S.sectionTitle}>我的团</div>
@@ -671,12 +684,12 @@ export default function CompanionsPage() {
             <>
               {featuredTeam && (
                 <TeamProgressCard item={featuredTeam} publishing={publishingId === featuredTeam.pledge.id}
-                  onRecruit={() => handleRecruit(featuredTeam.pledge)} onRoom={() => openRoom(featuredTeam.pledge)} onCheckin={() => nav('/pledge/' + featuredTeam.pledge.id + '/checkin')} />
+                  onRecruit={() => handleRecruit(featuredTeam.pledge)} onRoom={() => openRoom(featuredTeam.pledge)} />
               )}
 
               {secondaryTeams.map(item => (
                 <TeamListItem key={item.key} item={item} publishing={publishingId === item.pledge.id}
-                  onRecruit={() => handleRecruit(item.pledge)} onRoom={() => openRoom(item.pledge)} onCheckin={() => nav('/pledge/' + item.pledge.id + '/checkin')} />
+                  onRecruit={() => handleRecruit(item.pledge)} onRoom={() => openRoom(item.pledge)} />
               ))}
 
               {soloTeamItems.slice(0, 2).map(item => (
@@ -784,11 +797,12 @@ const S = {
   todayIcon: { width: 42, height: 42, borderRadius: '50%', background: C.ink, color: '#F6D486', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 900, flexShrink: 0 },
   todayTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 17, fontWeight: 900, color: C.ink, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   todayText: { fontSize: 12, color: C.muted, lineHeight: 1.55 },
+  todayFeedback: { marginTop: 8, fontSize: 12, color: C.goldD, lineHeight: 1.5, fontWeight: 800 },
   todayStats: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 7, marginBottom: 12 },
   todayStatBox: { background: 'rgba(255,255,255,.68)', border: '1px solid rgba(224,213,192,.72)', borderRadius: 12, padding: '8px 4px', textAlign: 'center' },
   todayStatNum: { display: 'block', fontSize: 17, lineHeight: 1, fontWeight: 900, color: C.ink, marginBottom: 5 },
   todayStatLabel: { display: 'block', fontSize: 10, color: C.muted, whiteSpace: 'nowrap' },
-  todayActions: { display: 'grid', gridTemplateColumns: '1.35fr 1fr', gap: 8 },
+  todayActions: { display: 'grid', gridTemplateColumns: '1fr', gap: 8 },
   promptCard: { width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: '#FFF7E6', border: '1px solid #E6D3A4', borderRadius: 18, padding: '15px 14px', marginBottom: 18, boxShadow: '0 3px 12px rgba(122,90,24,.06)', fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   promptIcon: { width: 42, height: 42, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 },
   promptTitle: { fontSize: 16, fontWeight: 900, color: C.ink, marginBottom: 4 },
@@ -810,7 +824,8 @@ const S = {
   memberBarFill: { height: '100%', borderRadius: 999 },
   memberDay: { textAlign: 'right', fontSize: 12, color: C.muted, fontWeight: 800 },
   checkMark: { width: 24, height: 24, borderRadius: 6, background: C.greenL, color: C.green, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 900 },
-  teamActionsRow: { display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 12 },
+  teamFeedbackLine: { marginTop: 10, fontSize: 12, color: C.muted, lineHeight: 1.55, background: C.goldL, borderRadius: 10, padding: '8px 10px' },
+  teamActionsRow: { display: 'grid', gridTemplateColumns: '1fr', gap: 12 },
   primaryTeamBtn: { border: 'none', background: C.gold, color: '#fff', borderRadius: 999, padding: '12px 14px', fontSize: 15, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   secondaryTeamBtn: { border: '1px solid ' + C.border, background: C.surf, color: C.muted, borderRadius: 999, padding: '11px 14px', fontSize: 15, fontWeight: 800, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   soloCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 18, padding: 16, marginBottom: 14, boxShadow: '0 3px 14px rgba(26,18,8,.05)' },
