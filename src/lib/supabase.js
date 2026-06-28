@@ -421,120 +421,46 @@ export async function createPledge(userId, pledge) {
   const days = { week: 7, month: 30, season: 90, year: 365 }
   endDate.setDate(endDate.getDate() + days[pledge.period] - 1)
 
+  const basePayload = {
+    user_id: userId,
+    title: pledge.title,
+    period: pledge.period,
+    start_date: startDate.toISOString().split('T')[0],
+    end_date: endDate.toISOString().split('T')[0],
+    total_days: days[pledge.period],
+    stake_coins: pledge.stakeCoins,
+    charity_target: pledge.charityTarget,
+    verify_type: pledge.verifyType,
+    is_public: pledge.isPublic,
+    status: 'active',
+  }
 
+  const categoryPayload = pledge.categoryKey ? {
+    category_key: pledge.categoryKey,
+    category: pledge.categoryLabel,
+    category_tag: pledge.categoryTag,
+  } : {}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('pledges')
-    .insert({
-      user_id: userId,
-      title: pledge.title,
-      period: pledge.period,
-      start_date: startDate.toISOString().split('T')[0],
-      end_date: endDate.toISOString().split('T')[0],
-      total_days: days[pledge.period],
-      stake_coins: pledge.stakeCoins,
-      charity_target: pledge.charityTarget,
-      verify_type: pledge.verifyType,
-      is_public: pledge.isPublic,
-      status: 'active',
-    })
+    .insert({ ...basePayload, ...categoryPayload })
     .select()
     .single()
+
+  if (error && (String(error.message || '').includes('category') || String(error.code || '').includes('PGRST'))) {
+    const retry = await supabase
+      .from('pledges')
+      .insert(basePayload)
+      .select()
+      .single()
+    data = retry.data
+    error = retry.error
+  }
+
   if (error) throw error
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   // 扣除押注金币
   await addCoins(userId, -pledge.stakeCoins, 'stake', data.id, `立誓「${pledge.title}」押注`)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   return data
 }
