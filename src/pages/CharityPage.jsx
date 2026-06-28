@@ -19,6 +19,12 @@ const ORGS = [
 ]
 
 const AMOUNTS = [50, 100, 200, 500]
+const ACTION_TYPES = [
+  { id: 'clean', label: '清洁环境', reward: 30 },
+  { id: 'animal', label: '动物照护', reward: 40 },
+  { id: 'donate_goods', label: '捐物助人', reward: 50 },
+  { id: 'volunteer', label: '志愿服务', reward: 80 },
+]
 
 function orgEmoji(name = '') {
   const org = ORGS.find(item => name.includes(item.name) || item.name.includes(name))
@@ -60,11 +66,27 @@ export default function CharityPage() {
   const [loading, setLoading] = useState(true)
   const [donating, setDonating] = useState(false)
   const [toast, setToast] = useState('')
+  const [actionType, setActionType] = useState('clean')
+  const [actionText, setActionText] = useState('')
+  const [actionProof, setActionProof] = useState('')
+  const [actionReward, setActionReward] = useState(30)
+  const [actionRecords, setActionRecords] = useState([])
   const [localBalance, setLocalBalance] = useState(profile?.merit_coins || 0)
+
+  const userId = session?.user?.id
 
   useEffect(() => setLocalBalance(profile?.merit_coins || 0), [profile?.merit_coins])
 
-  const userId = session?.user?.id
+  useEffect(() => {
+    if (!userId) return
+    try {
+      const raw = window.localStorage.getItem('charity_actions_' + userId)
+      setActionRecords(raw ? JSON.parse(raw) : [])
+    } catch {
+      setActionRecords([])
+    }
+  }, [userId])
+
   const selected = ORGS.find(item => item.id === selectedOrg) || ORGS[0]
   const donated = records.reduce((sum, item) => sum + Number(item.coins || 0), 0)
   const projectTotals = useMemo(() => {
@@ -118,6 +140,29 @@ export default function CharityPage() {
     }
   }
 
+
+  function handleSubmitAction() {
+    if (!userId) return showToast('请先登录')
+    if (!actionText.trim()) return showToast('请写下你做了什么公益行动')
+    const type = ACTION_TYPES.find(item => item.id === actionType) || ACTION_TYPES[0]
+    const reward = Math.max(0, Math.min(100, Number(actionReward) || type.reward))
+    const row = {
+      id: Date.now(),
+      type: type.label,
+      text: actionText.trim(),
+      proof: actionProof || '未上传文件名',
+      reward,
+      status: '待确认',
+      created_at: new Date().toISOString(),
+    }
+    const nextList = [row, ...actionRecords]
+    setActionRecords(nextList)
+    window.localStorage.setItem('charity_actions_' + userId, JSON.stringify(nextList))
+    setActionText('')
+    setActionProof('')
+    setActionReward(type.reward)
+    showToast('善行已提交，等待确认后发放奖励')
+  }
   return (
     <div style={S.page}>
       {toast && <div style={S.toast}>{toast}</div>}
@@ -160,6 +205,32 @@ export default function CharityPage() {
             <div style={S.track}><div style={{ ...S.fill, width: progress + '%' }} /></div>
             <div style={S.meritHint}>距下一阶段 {Math.max(0, nextNeed - donated).toLocaleString()} 公益金币</div>
           </div>
+
+          <SectionTitle title="行动善行" />
+          <div style={S.actionPanel}>
+            <div style={S.actionIntro}>做一件真实公益小事，上传证明，确认后可获得少量公益金币用于后续立誓。</div>
+            <div style={S.actionTypes}>{ACTION_TYPES.map(item => <button key={item.id} style={{ ...S.actionType, ...(actionType === item.id ? S.actionTypeOn : {}) }} onClick={() => { setActionType(item.id); setActionReward(item.reward) }}>{item.label}</button>)}</div>
+            <textarea style={S.textarea} value={actionText} onChange={e => setActionText(e.target.value)} placeholder="例如：在小区清理垃圾20分钟，并分类投放" />
+            <div style={S.proofRow}>
+              <label style={S.proofBtn}>上传证明<input type="file" accept="image/*,video/*,audio/*" style={{ display: 'none' }} onChange={e => setActionProof(e.target.files?.[0]?.name || '')} /></label>
+              <span style={S.proofName}>{actionProof || '图片/视频/语音均可'}</span>
+            </div>
+            <div style={S.rewardRow}><span>申请奖励</span><input style={S.rewardInput} type="number" min="0" max="100" value={actionReward} onChange={e => setActionReward(e.target.value)} /><span>金币</span></div>
+            <button style={S.primaryBtn} onClick={handleSubmitAction}>提交待确认善行</button>
+          </div>
+
+          {actionRecords.length > 0 && <>
+            <SectionTitle title="待确认善行" />
+            {actionRecords.map(item => <div key={item.id} style={S.actionRecord}>
+              <div style={S.recordEmoji}>🌿</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={S.recordTitle}>{item.type}</div>
+                <div style={S.recordMeta}>{formatDate(item.created_at)} · {item.status} · 申请 {item.reward} 金币</div>
+                <div style={S.recordMsg}>{item.text}</div>
+                <div style={S.proofText}>证明：{item.proof}</div>
+              </div>
+            </div>)}
+          </>}
 
           <SectionTitle title="捐赠记录" action={loading && <span style={S.loading}>加载中</span>} />
           {records.length === 0 && !loading ? <div style={S.empty}>还没有公益记录。第一次捐赠会从这里开始留下痕迹。</div> : records.map(item => <div key={item.id || item.created_at} style={S.recordCard}>
@@ -215,6 +286,19 @@ const S = {
   meritHint: { fontSize: 11, color: C.muted },
   loading: { fontSize: 11, color: C.hint },
   empty: { background: C.surf, border: '1px dashed ' + C.border, borderRadius: 14, padding: 22, textAlign: 'center', color: C.muted, fontSize: 13, lineHeight: 1.7 },
+
+  actionPanel: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 16, padding: 14, marginBottom: 14, boxShadow: '0 2px 10px rgba(26,18,8,.05)' },
+  actionIntro: { fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: 10 },
+  actionTypes: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 10 },
+  actionType: { border: '1px solid ' + C.border, background: C.surf, color: C.muted, borderRadius: 999, padding: '8px 6px', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' },
+  actionTypeOn: { background: C.ink, borderColor: C.ink, color: '#fff' },
+  proofRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 },
+  proofBtn: { border: '1px solid ' + C.border, background: C.goldL, color: C.goldD, borderRadius: 999, padding: '8px 12px', fontSize: 12, fontWeight: 900, flexShrink: 0 },
+  proofName: { fontSize: 11, color: C.hint, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  rewardRow: { display: 'flex', alignItems: 'center', gap: 8, color: C.muted, fontSize: 12, marginBottom: 12 },
+  rewardInput: { width: 74, border: '1px solid ' + C.border, borderRadius: 10, padding: '8px 9px', fontSize: 13, background: C.bg },
+  actionRecord: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: 12, marginBottom: 10, display: 'flex', alignItems: 'flex-start', gap: 10 },
+  proofText: { fontSize: 10, color: C.hint, marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   recordCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: 12, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 },
   recordEmoji: { width: 36, height: 36, borderRadius: 10, background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 },
   recordTitle: { fontSize: 14, fontWeight: 900, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
