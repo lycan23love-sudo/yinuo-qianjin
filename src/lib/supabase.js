@@ -662,7 +662,7 @@ export async function getPublicPledges({ category, sort = 'created_at' } = {}) {
     .from('pledges')
     .select(`*, profiles:user_id(nickname, avatar_url), witnesses(count), checkins(count)`)
     .eq('is_public', true)
-    .eq('status', 'active')
+    .or('status.eq.active,status.is.null')
 
 
 
