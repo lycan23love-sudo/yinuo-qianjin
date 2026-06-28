@@ -2,18 +2,11 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { useAuth } from '../App'
-import { getPendingDisputes, castJuryVote } from '../lib/supabase'
+import { castCharityJuryVote, castJuryVote, getPendingCharityActions, getPendingDisputes } from '../lib/supabase'
 
 const C = {
-  bg: '#f8f4ed',
-  panel: '#fffdf8',
-  card: '#fff',
-  ink: '#1f160d',
-  sub: '#7b715f',
-  soft: '#eee6d8',
-  gold: '#c79a36',
-  red: '#b94a48',
-  green: '#4d8b61',
+  bg: '#f8f4ed', panel: '#fffdf8', card: '#fff', ink: '#1f160d', sub: '#7b715f',
+  soft: '#eee6d8', gold: '#c79a36', red: '#b94a48', green: '#4d8b61',
 }
 
 function fmtDate(value) {
@@ -21,7 +14,7 @@ function fmtDate(value) {
   try { return format(parseISO(value), 'MM-dd HH:mm') } catch { return '' }
 }
 
-function readCharityCases() {
+function readLocalCharityCases() {
   try {
     const raw = window.localStorage.getItem('charity_jury_cases')
     return raw ? JSON.parse(raw) : []
@@ -30,7 +23,7 @@ function readCharityCases() {
   }
 }
 
-function writeCharityCases(cases) {
+function writeLocalCharityCases(cases) {
   window.localStorage.setItem('charity_jury_cases', JSON.stringify(cases))
 }
 
@@ -40,6 +33,7 @@ export default function JuryPage() {
   const [tab, setTab] = useState('charity')
   const [disputes, setDisputes] = useState([])
   const [charityCases, setCharityCases] = useState([])
+  const [charityCloud, setCharityCloud] = useState(true)
   const [loading, setLoading] = useState(true)
   const [voting, setVoting] = useState(null)
   const [toast, setToast] = useState('')
@@ -54,10 +48,18 @@ export default function JuryPage() {
     try {
       const disputeRows = await getPendingDisputes()
       setDisputes(disputeRows || [])
-    } catch (err) {
+    } catch {
       setDisputes([])
     }
-    setCharityCases(readCharityCases().filter(item => item.status === 'pending'))
+
+    try {
+      const cloudRows = await getPendingCharityActions()
+      setCharityCases(cloudRows || [])
+      setCharityCloud(true)
+    } catch {
+      setCharityCases(readLocalCharityCases().filter(item => item.status === 'pending'))
+      setCharityCloud(false)
+    }
     setLoading(false)
   }
 
@@ -67,7 +69,7 @@ export default function JuryPage() {
     if (!userId) return showToast('请先登录')
     setVoting(disputeId + vote)
     try {
-      await castJuryVote(disputeId, userId, vote)
+      await castJuryVote(userId, disputeId, vote)
       showToast('投票已记录')
       await loadCases()
     } catch (err) {
@@ -77,9 +79,29 @@ export default function JuryPage() {
     }
   }
 
-  function voteCharity(caseId, vote) {
+  async function voteCharity(caseId, vote) {
     if (!userId) return showToast('请先登录')
-    const cases = readCharityCases()
+    setVoting(caseId + vote)
+    try {
+      if (charityCloud) {
+        const row = await castCharityJuryVote(userId, caseId, vote)
+        if (row?.raw_status === 'approved') showToast('善行已通过确认，奖励将入账')
+        else if (row?.raw_status === 'rejected') showToast('善行未通过确认')
+        else if (row?.raw_status === 'needs_revision') showToast('已退回补充证明')
+        else showToast('确认已记录')
+        await loadCases()
+        return
+      }
+      voteLocalCharity(caseId, vote)
+    } catch (err) {
+      showToast(err.message || '确认失败')
+    } finally {
+      setVoting(null)
+    }
+  }
+
+  function voteLocalCharity(caseId, vote) {
+    const cases = readLocalCharityCases()
     const nextCases = cases.map(item => {
       if (item.id !== caseId) return item
       if (item.applicant_id === userId) {
@@ -99,7 +121,7 @@ export default function JuryPage() {
       if (votes.revise >= 2) next.status = 'needs_revision'
       return next
     })
-    writeCharityCases(nextCases)
+    writeLocalCharityCases(nextCases)
     setCharityCases(nextCases.filter(item => item.status === 'pending'))
     const current = nextCases.find(item => item.id === caseId)
     if (current?.status === 'approved') showToast('善行已通过确认')
@@ -128,12 +150,13 @@ export default function JuryPage() {
         <section style={S.notice}>
           <strong>陪审团确认规则</strong>
           <p>善行与争议都交由同行确认。申请人不能确认自己的案件，2 票同向即可形成初步结论。</p>
+          {!charityCloud && tab === 'charity' && <p style={S.warn}>当前使用本地记录；启用 Supabase 表后将自动切换为跨账号确认。</p>}
         </section>
 
         {loading ? <div style={S.empty}>加载中...</div> : (
           <>
             {tab === 'charity' && (
-              charityCases.length ? charityCases.map(item => <CharityCase key={item.id} item={item} onVote={voteCharity} />) : <div style={S.empty}>{emptyText}</div>
+              charityCases.length ? charityCases.map(item => <CharityCase key={item.id} item={item} voting={voting} onVote={voteCharity} />) : <div style={S.empty}>{emptyText}</div>
             )}
 
             {tab === 'disputes' && (
@@ -142,13 +165,13 @@ export default function JuryPage() {
                   <div style={S.cardHead}>
                     <div>
                       <div style={S.kicker}>打卡争议</div>
-                      <h2 style={S.cardTitle}>{dispute.contracts?.title || '未命名誓言'}</h2>
+                      <h2 style={S.cardTitle}>{dispute.contracts?.title || dispute.checkins?.pledges?.title || '未命名誓言'}</h2>
                     </div>
                     <span style={S.badge}>{fmtDate(dispute.created_at)}</span>
                   </div>
                   <p style={S.desc}>{dispute.reason || '用户提交了申诉，请根据证明材料判断。'}</p>
                   {dispute.proof_url && <img src={dispute.proof_url} alt="proof" style={S.proofImg} />}
-                  <div style={S.actions}>
+                  <div style={{ ...S.actions, gridTemplateColumns: '1fr 1fr' }}>
                     <button style={S.primaryBtn} disabled={voting === dispute.id + 'upheld'} onClick={() => handleVote(dispute.id, 'upheld')}>支持申诉</button>
                     <button style={S.ghostBtn} disabled={voting === dispute.id + 'overturned'} onClick={() => handleVote(dispute.id, 'overturned')}>维持原判</button>
                   </div>
@@ -162,7 +185,7 @@ export default function JuryPage() {
   )
 }
 
-function CharityCase({ item, onVote }) {
+function CharityCase({ item, voting, onVote }) {
   const votes = { approve: 0, reject: 0, revise: 0, ...(item.votes || {}) }
   return (
     <article style={S.card}>
@@ -182,9 +205,9 @@ function CharityCase({ item, onVote }) {
         <span>驳回 {votes.reject}</span>
       </div>
       <div style={S.actions}>
-        <button style={S.primaryBtn} onClick={() => onVote(item.id, 'approve')}>认可</button>
-        <button style={S.ghostBtn} onClick={() => onVote(item.id, 'revise')}>需补充</button>
-        <button style={S.dangerBtn} onClick={() => onVote(item.id, 'reject')}>驳回</button>
+        <button style={S.primaryBtn} disabled={voting === item.id + 'approve'} onClick={() => onVote(item.id, 'approve')}>认可</button>
+        <button style={S.ghostBtn} disabled={voting === item.id + 'revise'} onClick={() => onVote(item.id, 'revise')}>需补充</button>
+        <button style={S.dangerBtn} disabled={voting === item.id + 'reject'} onClick={() => onVote(item.id, 'reject')}>驳回</button>
       </div>
     </article>
   )
@@ -202,6 +225,7 @@ const S = {
   tabOn: { color: C.gold, borderBottomColor: C.gold },
   content: { padding: '18px 16px 24px', display: 'grid', gap: 16 },
   notice: { background: '#fff8e8', border: '1px solid #ead6a8', borderRadius: 18, padding: 18, lineHeight: 1.7, color: C.sub },
+  warn: { margin: '8px 0 0', color: C.gold, fontWeight: 700 },
   card: { background: C.card, border: '1px solid #e3d8c8', borderRadius: 20, padding: 18, boxShadow: '0 10px 24px rgba(50,34,12,.06)' },
   cardHead: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' },
   kicker: { color: C.gold, fontSize: 14, fontWeight: 800, marginBottom: 6 },
