@@ -272,7 +272,7 @@ export default function CheckinPage() {
 
 
   return (
-    <div style={{ background:'#FAF7F2', minHeight:'100vh', paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
+    <div style={{ background:'#FAF7F2', minHeight:'100vh', paddingBottom: 'calc(132px + env(safe-area-inset-bottom))' }}>
       <div style={S.topbar}>
         <button style={S.back} onClick={() => nav(-1)}>←</button>
         <div style={S.title}>第 {dayNum} 天打卡</div>
@@ -280,7 +280,7 @@ export default function CheckinPage() {
       </div>
 
 
-      <div style={{ padding:'16px 16px 0' }}>
+      <div style={{ padding:'16px 16px calc(96px + env(safe-area-inset-bottom))' }}>
 
 
         <section style={S.heroCard}>
@@ -519,8 +519,9 @@ const S = {
                border:'0.5px solid #E0D5C0' },
   rewardVal:{ fontSize:16, fontWeight:700, color:'#3B7A4A' },
   rewardLbl:{ fontSize:10, color:'#9A8A70', marginTop:2 },
-  submitDock:{ position:'sticky', bottom:0, background:'linear-gradient(180deg,rgba(250,247,242,0),#FAF7F2 18%)',
-              padding:'16px 0 4px', marginTop:4 },
+  submitDock:{ position:'sticky', bottom:'calc(82px + env(safe-area-inset-bottom))', zIndex:30,
+              background:'linear-gradient(180deg,rgba(250,247,242,0),#FAF7F2 18%)',
+              padding:'16px 0 10px', marginTop:4 },
   submitHint:{ textAlign:'center', fontSize:11, color:'#9A8A70', lineHeight:1.5, marginBottom:8 },
   btnGold: { background:'linear-gradient(135deg,#C8922A,#E8B84A)', color:'#fff', border:'none',
              borderRadius:12, fontWeight:700, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif',
