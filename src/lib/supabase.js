@@ -571,10 +571,13 @@ export async function createPledge(userId, pledge) {
 
 
 export async function getMyPledges(userId) {
+  const resolvedUserId = userId || (await supabase.auth.getUser()).data?.user?.id
+  if (!resolvedUserId) return []
+
   const { data, error } = await supabase
     .from('pledges')
     .select('*, checkins(count), witnesses(count)')
-    .eq('user_id', userId)
+    .eq('user_id', resolvedUserId)
     .order('created_at', { ascending: false })
   if (error) throw error
   return data
