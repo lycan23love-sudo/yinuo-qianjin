@@ -227,6 +227,33 @@ function buildRoomMembers(pledge) {
   return [owner, ...friends, ...empty].slice(0, TEAM_LIMIT)
 }
 
+function TeamListItem({ item, publishing, joining, onRecruit, onRoom, onCheckin, onJoin }) {
+  const pledge = item.pledge
+  const group = groupForPledge(pledge)
+  const progress = pct(pledge)
+  const slots = teamSlots(pledge)
+  const isOwned = item.role === 'owned'
+  const isJoined = item.role === 'joined'
+  const isSuggested = item.role === 'suggested'
+  const status = isOwned ? (pledge.is_public ? '我发起·招募中' : '我发起·未招募') : isJoined ? '我加入' : '推荐'
+  return (
+    <div style={S.listItem}>
+      <div style={S.listIcon}>{group.emoji}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={S.listTitle}>{pledge.title}</div>
+        <div style={S.listMeta}>{status} · {group.name} · {teamSize(pledge)}/{TEAM_LIMIT}人 · {progress}%</div>
+        <div style={S.listTrack}><div style={{ ...S.listFill, width: progress + '%' }} /></div>
+      </div>
+      <div style={S.listActions}>
+        <button style={S.btnGhost} onClick={onRoom}>{isSuggested ? '查看' : '团室'}</button>
+        {isOwned && <button style={S.btnGhost} onClick={onCheckin}>打卡</button>}
+        {isOwned && !pledge.is_public && <button style={S.btnGold} onClick={onRecruit} disabled={publishing}>{publishing ? '发布中' : '招募'}</button>}
+        {isSuggested && (slots <= 0 ? <button style={S.btnDone} disabled>满员</button> : <button style={S.btnGold} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入'}</button>)}
+      </div>
+    </div>
+  )
+}
+
 function TeamMemberRow({ member, rank }) {
   if (member.empty) {
     return (
@@ -479,12 +506,9 @@ export default function CompanionsPage() {
           ) : myTeamItems.length === 0 ? (
             <EmptyState title="当前筛选下没有小队" text="切换到全部，或去互助会发现更多同类誓言者。" />
           ) : (
-            myTeamItems.map(item => item.role === 'owned' ? (
-              <MyPledgeCard key={item.key} pledge={item.pledge} publishing={publishingId === item.pledge.id}
+            myTeamItems.map(item => (
+              <TeamListItem key={item.key} item={item} publishing={publishingId === item.pledge.id}
                 onRecruit={() => handleRecruit(item.pledge)} onRoom={() => openRoom(item.pledge)} onCheckin={() => nav('/pledge/' + item.pledge.id + '/checkin')} />
-            ) : (
-              <PublicPledgeCard key={item.key} pledge={item.pledge} joined match={matchLevel(item.pledge, myPledges)}
-                onOpen={() => openRoom(item.pledge)} onJoin={() => handleJoin(item.pledge)} />
             ))
           )}
 
@@ -498,8 +522,8 @@ export default function CompanionsPage() {
                 <button style={S.btnGhost} onClick={() => setTab('help')}>更多</button>
               </div>
               {suggestedForMy.slice(0, 2).map(pledge => (
-                <PublicPledgeCard key={pledge.id} pledge={pledge} joined={false} joining={joiningId === pledge.id}
-                  match={matchLevel(pledge, myPledges)} onOpen={() => openRoom(pledge)} onJoin={() => handleJoin(pledge)} />
+                <TeamListItem key={pledge.id} item={{ role: 'suggested', pledge }} joining={joiningId === pledge.id}
+                  onRoom={() => openRoom(pledge)} onJoin={() => handleJoin(pledge)} />
               ))}
             </div>
           )}
@@ -566,6 +590,13 @@ const S = {
   groupHint: { fontSize: 11, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   groupMeta: { marginTop: 8, fontSize: 11, color: C.goldD, fontWeight: 800 },
   card: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: 14, marginBottom: 10, boxShadow: '0 2px 10px rgba(26,18,8,.06)' },
+  listItem: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 12, padding: 10, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 1px 6px rgba(26,18,8,.04)' },
+  listIcon: { width: 32, height: 32, borderRadius: '50%', background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 },
+  listTitle: { fontSize: 13, fontWeight: 900, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  listMeta: { fontSize: 10, color: C.muted, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  listTrack: { height: 4, borderRadius: 999, background: C.soft, overflow: 'hidden', marginTop: 6 },
+  listFill: { height: '100%', borderRadius: 999, background: C.gold },
+  listActions: { display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 },
   cardHead: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 },
   emoji: { width: 34, height: 34, borderRadius: '50%', background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 },
   cardTitle: { fontSize: 14, fontWeight: 800, fontFamily: 'Noto Serif SC,serif', color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
