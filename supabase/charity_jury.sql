@@ -109,7 +109,8 @@ begin
   end if;
 
   insert into public.charity_jury_votes(action_id, juror_id, vote)
-  values (p_action_id, v_juror, p_vote);
+  values (p_action_id, v_juror, p_vote)
+  on conflict (action_id, juror_id) do nothing;
 
   select
     count(*) filter (where vote = 'approve'),
@@ -147,11 +148,7 @@ begin
   end if;
 
   return v_action;
-exception
-  when unique_violation then
-    raise exception '你已经确认过这个案件';
 end;
 $$;
 
-grant execute on function public.cast_charity_jury_vote(uuid, text) to authenticated;
-
+grant execute on function public.cast_charity_jury_vote(uuid, text) to authenticated;;
