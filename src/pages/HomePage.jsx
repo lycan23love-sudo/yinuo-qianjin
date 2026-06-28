@@ -155,8 +155,10 @@ const styles = {
     fontSize: 22,
     lineHeight: 1.1,
     fontWeight: 900,
-    letterSpacing: .5
+    letterSpacing: .5,
+    color: '#1A1208'
   },
+  titleGold: { color: '#C8922A' },
   subtitle: {
     margin: '4px 0 0',
     fontSize: 12,
@@ -534,7 +536,7 @@ export default function HomePage() {
   if (!session) {
     return (
       <div style={styles.page}>
-        <h1 style={styles.title}>一诺千金</h1>
+        <h1 style={styles.title}><span>一诺</span><span style={styles.titleGold}>千金</span></h1>
         <p style={styles.subtitle}>先登录，再立下属于你的第一份诺言。</p>
         <button onClick={() => nav('/auth')} style={styles.fullButton}>去登录</button>
       </div>
@@ -548,7 +550,7 @@ export default function HomePage() {
     <div style={styles.page}>
       <header style={styles.header}>
         <div>
-          <h1 style={styles.title}>一诺千金</h1>
+          <h1 style={styles.title}><span>一诺</span><span style={styles.titleGold}>千金</span></h1>
           <p style={styles.subtitle}>守住今天，就是守住自己</p>
         </div>
         <button onClick={() => nav('/profile')} style={styles.meritButton}>
