@@ -1,175 +1,221 @@
-// src/pages/JuryPage.jsx
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { format, parseISO } from 'date-fns'
 import { useAuth } from '../App'
 import { getPendingDisputes, castJuryVote } from '../lib/supabase'
-import { format, parseISO } from 'date-fns'
+
+const C = {
+  bg: '#f8f4ed',
+  panel: '#fffdf8',
+  card: '#fff',
+  ink: '#1f160d',
+  sub: '#7b715f',
+  soft: '#eee6d8',
+  gold: '#c79a36',
+  red: '#b94a48',
+  green: '#4d8b61',
+}
+
+function fmtDate(value) {
+  if (!value) return ''
+  try { return format(parseISO(value), 'MM-dd HH:mm') } catch { return '' }
+}
+
+function readCharityCases() {
+  try {
+    const raw = window.localStorage.getItem('charity_jury_cases')
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function writeCharityCases(cases) {
+  window.localStorage.setItem('charity_jury_cases', JSON.stringify(cases))
+}
 
 export default function JuryPage() {
-  const { session } = useAuth()
-  const nav = useNavigate()
-
+  const navigate = useNavigate()
+  const { userId } = useAuth()
+  const [tab, setTab] = useState('charity')
   const [disputes, setDisputes] = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [voting, setVoting]     = useState(null)  // disputeId being voted on
-  const [toast, setToast]       = useState(null)
+  const [charityCases, setCharityCases] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [voting, setVoting] = useState(null)
+  const [toast, setToast] = useState('')
 
-  function showToast(msg, type='info') {
-    setToast({ msg, type })
-    setTimeout(() => setToast(null), 2500)
+  function showToast(text) {
+    setToast(text)
+    window.setTimeout(() => setToast(''), 2200)
   }
 
-  useEffect(() => { loadDisputes() }, [])
-
-  async function loadDisputes() {
+  async function loadCases() {
     setLoading(true)
     try {
-      const data = await getPendingDisputes()
-      setDisputes(data)
-    } catch {} finally { setLoading(false) }
+      const disputeRows = await getPendingDisputes()
+      setDisputes(disputeRows || [])
+    } catch (err) {
+      setDisputes([])
+    }
+    setCharityCases(readCharityCases().filter(item => item.status === 'pending'))
+    setLoading(false)
   }
+
+  useEffect(() => { loadCases() }, [])
 
   async function handleVote(disputeId, vote) {
-    if (!session?.user?.id) { showToast('请先登录', 'error'); return }
-    setVoting(disputeId)
+    if (!userId) return showToast('请先登录')
+    setVoting(disputeId + vote)
     try {
-      await castJuryVote(session.user.id, disputeId, vote)
-      showToast(vote === 'upheld' ? '已投票：打卡有效 ✓' : '已投票：打卡无效 ✗', 'success')
-      loadDisputes()
+      await castJuryVote(disputeId, userId, vote)
+      showToast('投票已记录')
+      await loadCases()
     } catch (err) {
-      showToast(err.message || '投票失败', 'error')
-    } finally { setVoting(null) }
+      showToast(err.message || '投票失败')
+    } finally {
+      setVoting(null)
+    }
   }
 
+  function voteCharity(caseId, vote) {
+    if (!userId) return showToast('请先登录')
+    const cases = readCharityCases()
+    const nextCases = cases.map(item => {
+      if (item.id !== caseId) return item
+      if (item.applicant_id === userId) {
+        showToast('不能确认自己的善行')
+        return item
+      }
+      const voters = item.voters || {}
+      if (voters[userId]) {
+        showToast('你已经确认过这个案件')
+        return item
+      }
+      const votes = { approve: 0, reject: 0, revise: 0, ...(item.votes || {}) }
+      votes[vote] = (votes[vote] || 0) + 1
+      const next = { ...item, votes, voters: { ...voters, [userId]: vote } }
+      if (votes.approve >= 2) next.status = 'approved'
+      if (votes.reject >= 2) next.status = 'rejected'
+      if (votes.revise >= 2) next.status = 'needs_revision'
+      return next
+    })
+    writeCharityCases(nextCases)
+    setCharityCases(nextCases.filter(item => item.status === 'pending'))
+    const current = nextCases.find(item => item.id === caseId)
+    if (current?.status === 'approved') showToast('善行已通过确认')
+    else if (current?.status === 'rejected') showToast('善行未通过确认')
+    else if (current?.status === 'needs_revision') showToast('已退回补充证明')
+    else showToast('确认已记录')
+  }
+
+  const emptyText = tab === 'charity' ? '暂无待确认的善行' : '暂无待裁定的争议'
+
   return (
-    <div style={{ background:'#FAF7F2', minHeight:'100vh',
-      paddingBottom:'calc(90px + env(safe-area-inset-bottom))' }}>
+    <div style={S.page}>
+      {toast && <div style={S.toast}>{toast}</div>}
+      <header style={S.topbar}>
+        <button style={S.back} onClick={() => navigate(-1)}>‹</button>
+        <h1 style={S.title}>陪审团</h1>
+        <span style={S.topHint}>公议</span>
+      </header>
 
-      {toast && (
-        <div style={{ position:'fixed', top:60, left:'50%', transform:'translateX(-50%)',
-          background: toast.type === 'error' ? '#C84040' : toast.type === 'success' ? '#3B7A4A' : 'rgba(26,18,8,.88)',
-          color:'#fff', padding:'9px 20px', borderRadius:20, fontSize:13, zIndex:200 }}>
-          {toast.msg}
-        </div>
-      )}
-
-      {/* 顶栏 */}
-      <div style={S.topbar}>
-        <button style={S.back} onClick={() => nav(-1)}>←</button>
-        <div style={{ fontSize:16, fontWeight:700 }}>⚖️ 赛博陪审团</div>
-        <div style={{ width:32 }} />
+      <div style={S.tabs}>
+        <button style={{ ...S.tab, ...(tab === 'charity' ? S.tabOn : {}) }} onClick={() => setTab('charity')}>善行确认</button>
+        <button style={{ ...S.tab, ...(tab === 'disputes' ? S.tabOn : {}) }} onClick={() => setTab('disputes')}>打卡争议</button>
       </div>
 
-      {/* 说明 */}
-      <div style={{ margin:'0 16px 12px', background:'#FDF3E0', borderRadius:12,
-        padding:'10px 14px', border:'1px solid rgba(200,146,42,.2)' }}>
-        <div style={{ fontSize:12, color:'#7A5A18', lineHeight:1.7 }}>
-          ⚖️ 当有人质疑某次打卡的真实性时，系统将邀请陪审团裁定。
-          你的投票将决定该打卡是否有效。请仔细查看证据后投票。
-        </div>
-      </div>
+      <main style={S.content}>
+        <section style={S.notice}>
+          <strong>陪审团确认规则</strong>
+          <p>善行与争议都交由同行确认。申请人不能确认自己的案件，2 票同向即可形成初步结论。</p>
+        </section>
 
-      <div style={{ padding:'0 16px' }}>
-        {loading && <div style={{ textAlign:'center', color:'#9A8A70', padding:40 }}>加载中…</div>}
+        {loading ? <div style={S.empty}>加载中...</div> : (
+          <>
+            {tab === 'charity' && (
+              charityCases.length ? charityCases.map(item => <CharityCase key={item.id} item={item} onVote={voteCharity} />) : <div style={S.empty}>{emptyText}</div>
+            )}
 
-        {!loading && disputes.length === 0 && (
-          <div style={{ textAlign:'center', padding:'40px 20px' }}>
-            <div style={{ fontSize:40, marginBottom:12 }}>⚖️</div>
-            <div style={{ fontSize:14, fontWeight:600, color:'#1A1208', marginBottom:6 }}>
-              当前没有待裁定的案件
-            </div>
-            <div style={{ fontSize:12, color:'#9A8A70', lineHeight:1.6 }}>
-              当有人质疑他人的打卡真实性时，<br />案件会出现在这里等待你的裁定
-            </div>
-          </div>
-        )}
-
-        {disputes.map(d => {
-          const checkin = d.checkins
-          const pledgeTitle = checkin?.pledges?.title || '未知誓言'
-          const isVoting = voting === d.id
-
-          return (
-            <div key={d.id} style={S.caseCard}>
-              {/* 案件头部 */}
-              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
-                <div style={{ width:36, height:36, borderRadius:'50%', background:'#FCEBEB',
-                  display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>
-                  ⚠️
-                </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:14, fontWeight:600 }}>质疑「{pledgeTitle}」的打卡</div>
-                  <div style={{ fontSize:11, color:'#9A8A70', marginTop:2 }}>
-                    质疑者：{d.profiles?.nickname || '匿名'} · {format(parseISO(d.created_at), 'M月d日 HH:mm')}
-                  </div>
-                </div>
-                <div style={{ background:'#FDF3E0', color:'#7A5A18', fontSize:10,
-                  fontWeight:600, padding:'3px 8px', borderRadius:16, flexShrink:0 }}>
-                  待裁定
-                </div>
-              </div>
-
-              {/* 质疑理由 */}
-              {d.reason && (
-                <div style={{ background:'#FAF7F2', borderRadius:10, padding:'10px 12px',
-                  marginBottom:12, borderLeft:'3px solid #C84040' }}>
-                  <div style={{ fontSize:11, color:'#9A8A70', marginBottom:4 }}>质疑理由</div>
-                  <div style={{ fontSize:13, color:'#3A2A18', lineHeight:1.6 }}>「{d.reason}」</div>
-                </div>
-              )}
-
-              {/* 打卡证据 */}
-              {checkin && (
-                <div style={{ background:'#FAF7F2', borderRadius:10, padding:'10px 12px',
-                  marginBottom:12 }}>
-                  <div style={{ fontSize:11, color:'#9A8A70', marginBottom:4 }}>
-                    被质疑的打卡 · 第{checkin.day_num}天
-                  </div>
-                  {checkin.image_url && (
-                    <img src={checkin.image_url} alt="打卡截图"
-                      style={{ width:'100%', borderRadius:8, maxHeight:150, objectFit:'cover', marginBottom:6 }} />
-                  )}
-                  {checkin.note && (
-                    <div style={{ fontSize:12, color:'#5A4A30', fontStyle:'italic' }}>
-                      「{checkin.note}」
+            {tab === 'disputes' && (
+              disputes.length ? disputes.map(dispute => (
+                <article key={dispute.id} style={S.card}>
+                  <div style={S.cardHead}>
+                    <div>
+                      <div style={S.kicker}>打卡争议</div>
+                      <h2 style={S.cardTitle}>{dispute.contracts?.title || '未命名誓言'}</h2>
                     </div>
-                  )}
-                </div>
-              )}
-
-              {/* 投票按钮 */}
-              <div style={{ display:'flex', gap:10 }}>
-                <button onClick={() => handleVote(d.id, 'upheld')} disabled={isVoting}
-                  style={{ flex:1, padding:'11px 0', borderRadius:10, border:'none',
-                    background:'#3B7A4A', color:'#fff', fontSize:14, fontWeight:600,
-                    cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif',
-                    opacity: isVoting ? .6 : 1 }}>
-                  ✓ 打卡有效
-                </button>
-                <button onClick={() => handleVote(d.id, 'overturned')} disabled={isVoting}
-                  style={{ flex:1, padding:'11px 0', borderRadius:10, border:'none',
-                    background:'#C84040', color:'#fff', fontSize:14, fontWeight:600,
-                    cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif',
-                    opacity: isVoting ? .6 : 1 }}>
-                  ✗ 打卡无效
-                </button>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+                    <span style={S.badge}>{fmtDate(dispute.created_at)}</span>
+                  </div>
+                  <p style={S.desc}>{dispute.reason || '用户提交了申诉，请根据证明材料判断。'}</p>
+                  {dispute.proof_url && <img src={dispute.proof_url} alt="proof" style={S.proofImg} />}
+                  <div style={S.actions}>
+                    <button style={S.primaryBtn} disabled={voting === dispute.id + 'upheld'} onClick={() => handleVote(dispute.id, 'upheld')}>支持申诉</button>
+                    <button style={S.ghostBtn} disabled={voting === dispute.id + 'overturned'} onClick={() => handleVote(dispute.id, 'overturned')}>维持原判</button>
+                  </div>
+                </article>
+              )) : <div style={S.empty}>{emptyText}</div>
+            )}
+          </>
+        )}
+      </main>
     </div>
   )
 }
 
+function CharityCase({ item, onVote }) {
+  const votes = { approve: 0, reject: 0, revise: 0, ...(item.votes || {}) }
+  return (
+    <article style={S.card}>
+      <div style={S.cardHead}>
+        <div>
+          <div style={S.kicker}>善行确认</div>
+          <h2 style={S.cardTitle}>{item.type}</h2>
+        </div>
+        <span style={S.reward}>+{item.reward || 0} 金币</span>
+      </div>
+      <p style={S.desc}>{item.text}</p>
+      <div style={S.proofLine}>证明：{item.proof || '未上传文件名'}</div>
+      <div style={S.metaLine}>提交时间 {fmtDate(item.created_at)}</div>
+      <div style={S.voteLine}>
+        <span>认可 {votes.approve}</span>
+        <span>补充 {votes.revise}</span>
+        <span>驳回 {votes.reject}</span>
+      </div>
+      <div style={S.actions}>
+        <button style={S.primaryBtn} onClick={() => onVote(item.id, 'approve')}>认可</button>
+        <button style={S.ghostBtn} onClick={() => onVote(item.id, 'revise')}>需补充</button>
+        <button style={S.dangerBtn} onClick={() => onVote(item.id, 'reject')}>驳回</button>
+      </div>
+    </article>
+  )
+}
+
 const S = {
-  topbar: {
-    display:'flex', alignItems:'center', justifyContent:'space-between',
-    padding:'12px 16px', paddingTop:'calc(12px + env(safe-area-inset-top))',
-    background:'#FAF7F2', position:'sticky', top:0, zIndex:10,
-    borderBottom:'0.5px solid #E0D5C0',
-  },
-  back:     { background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#1A1208', padding:4, width:32 },
-  caseCard: { background:'#fff', borderRadius:14, padding:16, marginBottom:12,
-              border:'0.5px solid #E0D5C0', boxShadow:'0 2px 8px rgba(26,18,8,.06)' },
+  page: { minHeight: '100vh', background: C.bg, color: C.ink, paddingBottom: 96, fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
+  toast: { position: 'fixed', left: '50%', top: 18, transform: 'translateX(-50%)', zIndex: 20, background: C.ink, color: '#fff', padding: '10px 16px', borderRadius: 18, fontSize: 14, boxShadow: '0 10px 25px rgba(0,0,0,.18)' },
+  topbar: { height: 82, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px 0', borderBottom: '1px solid #e3d8c8', background: '#fffdf9' },
+  back: { border: 0, background: 'transparent', fontSize: 34, lineHeight: 1, color: C.gold, padding: 0 },
+  title: { margin: 0, fontSize: 30, letterSpacing: 0, fontWeight: 900 },
+  topHint: { color: C.sub, fontSize: 14 },
+  tabs: { display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #e3d8c8', background: '#fffdf9' },
+  tab: { height: 58, border: 0, background: 'transparent', color: C.sub, fontSize: 18, fontWeight: 800, borderBottom: '3px solid transparent' },
+  tabOn: { color: C.gold, borderBottomColor: C.gold },
+  content: { padding: '18px 16px 24px', display: 'grid', gap: 16 },
+  notice: { background: '#fff8e8', border: '1px solid #ead6a8', borderRadius: 18, padding: 18, lineHeight: 1.7, color: C.sub },
+  card: { background: C.card, border: '1px solid #e3d8c8', borderRadius: 20, padding: 18, boxShadow: '0 10px 24px rgba(50,34,12,.06)' },
+  cardHead: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' },
+  kicker: { color: C.gold, fontSize: 14, fontWeight: 800, marginBottom: 6 },
+  cardTitle: { margin: 0, fontSize: 22, lineHeight: 1.3 },
+  badge: { border: '1px solid #e2d5c3', borderRadius: 999, padding: '6px 10px', color: C.sub, fontSize: 12, whiteSpace: 'nowrap' },
+  reward: { background: '#edf8ef', color: C.green, borderRadius: 999, padding: '7px 11px', fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap' },
+  desc: { color: C.ink, fontSize: 16, lineHeight: 1.65, margin: '14px 0 10px' },
+  proofLine: { background: '#f5efe4', borderRadius: 12, padding: '10px 12px', color: C.sub, fontSize: 14, overflowWrap: 'anywhere' },
+  metaLine: { marginTop: 10, color: C.sub, fontSize: 13 },
+  voteLine: { display: 'flex', gap: 14, color: C.sub, fontSize: 13, marginTop: 12 },
+  proofImg: { width: '100%', maxHeight: 280, objectFit: 'cover', borderRadius: 14, marginTop: 12, border: '1px solid #eadfce' },
+  actions: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 16 },
+  primaryBtn: { border: 0, borderRadius: 999, background: C.gold, color: '#fff', padding: '12px 10px', fontWeight: 900, fontSize: 15 },
+  ghostBtn: { border: '1px solid #d8ccb8', borderRadius: 999, background: '#fffdf8', color: C.sub, padding: '12px 10px', fontWeight: 900, fontSize: 15 },
+  dangerBtn: { border: '1px solid #e0c4c2', borderRadius: 999, background: '#fff7f6', color: C.red, padding: '12px 10px', fontWeight: 900, fontSize: 15 },
+  empty: { textAlign: 'center', padding: 36, color: C.sub, background: C.panel, border: '1px dashed #d8ccb8', borderRadius: 18 },
 }
