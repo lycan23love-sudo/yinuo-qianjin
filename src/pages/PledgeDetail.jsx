@@ -367,7 +367,7 @@ function CalendarView({ checkins, pledge }) {
                                                                       <div style={S.tabRow}>
                                                                         {['log','calendar','witness','settings'].map((t,i) => (
                                                                             <button key={t} style={{ ...S.tab, ...(tab===t?S.tabOn:{}) }} onClick={() => setTab(t)}>
-                                                                              {['打卡日记','日历','见证者','提醒'][i]
+                                                                              {['打卡日记','日历','见证者','提醒'][i]}
                                                                             </button>
                                                                           ))}
                                                                       </div>
