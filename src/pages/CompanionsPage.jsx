@@ -309,6 +309,7 @@ export default function CompanionsPage() {
   const { session, profile } = useAuth()
   const nav = useNavigate()
   const [tab, setTab] = useState('my')
+  const [teamFilter, setTeamFilter] = useState('all')
   const [activeGroup, setActiveGroup] = useState('study')
   const [myPledges, setMyPledges] = useState([])
   const [publicPledges, setPublicPledges] = useState([])
@@ -412,6 +413,11 @@ export default function CompanionsPage() {
   const activeGroupPledges = recommended.filter(p => groupForPledge(p).key === activeGroup)
   const suggestedForMy = recommended.filter(p => !joinedIds.has(p.id) && matchLevel(p, myPledges) <= 1 && teamSlots(p) > 0).slice(0, 3)
   const ownedMemberCount = myPledges.reduce((sum, p) => sum + teamSize(p), 0)
+  const myTeamItems = [
+    ...myPledges.map(pledge => ({ key: 'owned-' + pledge.id, role: 'owned', pledge })),
+    ...joinedTeams.map(pledge => ({ key: 'joined-' + pledge.id, role: 'joined', pledge })),
+  ].filter(item => teamFilter === 'all' || item.role === teamFilter)
+  const allTeamCount = myPledges.length + joinedTeams.length
 
   if (roomPledge) {
     return (
@@ -442,7 +448,7 @@ export default function CompanionsPage() {
         <div style={S.scrollArea}>
           <div style={S.summaryCard}>
             <div style={S.kicker}>誓言互助会</div>
-            <div style={S.summaryTitle}>{displayName}，找到相同处境的人，比找到相同文字更重要。</div>
+            <div style={S.summaryTitle}>{displayName}，你当前有 {allTeamCount} 个同行小队需要关注。</div>
             <div style={S.summaryGrid}>
               <div><b>{myPledges.length}</b><span>我发起</span></div>
               <div><b>{joinedTeams.length}</b><span>我加入</span></div>
@@ -450,36 +456,52 @@ export default function CompanionsPage() {
             </div>
           </div>
 
-          {myPledges.length === 0 ? (
-            <EmptyState title="还没有进行中的誓言" text="先立下一份诺言，同行板块会自动把它归入对应互助会。" action="立下新誓" onAction={() => nav('/new')} />
-          ) : (
-            <>
-              <div style={S.sectionLabel}>我的誓言小队</div>
-              {myPledges.map(pledge => (
-                <MyPledgeCard key={pledge.id} pledge={pledge} publishing={publishingId === pledge.id}
-                  onRecruit={() => handleRecruit(pledge)} onRoom={() => openRoom(pledge)} onCheckin={() => nav('/pledge/' + pledge.id + '/checkin')} />
-              ))}
-            </>
-          )}
+          <div style={S.sectionHead}>
+            <div>
+              <div style={S.sectionTitle}>我的同行小队</div>
+              <div style={S.sectionHint}>把发起和加入合并到同一处，按身份筛选。</div>
+            </div>
+            <button style={S.btnGhost} onClick={() => setTab('help')}>发现</button>
+          </div>
 
-          {joinedTeams.length > 0 && (
-            <>
-              <div style={S.sectionLabel}>我加入的互助小队</div>
-              {joinedTeams.map(pledge => (
-                <PublicPledgeCard key={pledge.id} pledge={pledge} joined match={matchLevel(pledge, myPledges)}
-                  onOpen={() => openRoom(pledge)} onJoin={() => handleJoin(pledge)} />
-              ))}
-            </>
+          <div style={S.filterRow}>
+            {[
+              ['all', '全部', allTeamCount],
+              ['owned', '我发起', myPledges.length],
+              ['joined', '我加入', joinedTeams.length],
+            ].map(([key, label, count]) => (
+              <button key={key} style={{ ...S.filterChip, ...(teamFilter === key ? S.filterChipOn : {}) }} onClick={() => setTeamFilter(key)}>{label}<span>{count}</span></button>
+            ))}
+          </div>
+
+          {allTeamCount === 0 ? (
+            <EmptyState title="还没有同行小队" text="先立下一份诺言，或去互助会加入同类誓言小队。" action="立下新誓" onAction={() => nav('/new')} />
+          ) : myTeamItems.length === 0 ? (
+            <EmptyState title="当前筛选下没有小队" text="切换到全部，或去互助会发现更多同类誓言者。" />
+          ) : (
+            myTeamItems.map(item => item.role === 'owned' ? (
+              <MyPledgeCard key={item.key} pledge={item.pledge} publishing={publishingId === item.pledge.id}
+                onRecruit={() => handleRecruit(item.pledge)} onRoom={() => openRoom(item.pledge)} onCheckin={() => nav('/pledge/' + item.pledge.id + '/checkin')} />
+            ) : (
+              <PublicPledgeCard key={item.key} pledge={item.pledge} joined match={matchLevel(item.pledge, myPledges)}
+                onOpen={() => openRoom(item.pledge)} onJoin={() => handleJoin(item.pledge)} />
+            ))
           )}
 
           {suggestedForMy.length > 0 && (
-            <>
-              <div style={S.sectionLabel}>推荐加入</div>
-              {suggestedForMy.map(pledge => (
+            <div style={S.recommendPanel}>
+              <div style={S.sectionHeadCompact}>
+                <div>
+                  <div style={S.sectionTitle}>推荐加入</div>
+                  <div style={S.sectionHint}>只保留最匹配的少量小队，更多放到互助会。</div>
+                </div>
+                <button style={S.btnGhost} onClick={() => setTab('help')}>更多</button>
+              </div>
+              {suggestedForMy.slice(0, 2).map(pledge => (
                 <PublicPledgeCard key={pledge.id} pledge={pledge} joined={false} joining={joiningId === pledge.id}
                   match={matchLevel(pledge, myPledges)} onOpen={() => openRoom(pledge)} onJoin={() => handleJoin(pledge)} />
               ))}
-            </>
+            </div>
           )}
         </div>
       )}
@@ -528,6 +550,14 @@ const S = {
   summaryTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 16, lineHeight: 1.45, fontWeight: 900, color: C.ink },
   summaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 12 },
   sectionLabel: { fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: .5, margin: '12px 0 10px' },
+  sectionHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '14px 0 10px' },
+  sectionHeadCompact: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 },
+  sectionTitle: { fontSize: 15, fontWeight: 900, color: C.ink, fontFamily: 'Noto Serif SC,serif' },
+  sectionHint: { fontSize: 11, color: C.hint, marginTop: 3, lineHeight: 1.45 },
+  filterRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 },
+  filterChip: { border: '1px solid ' + C.border, background: C.surf, color: C.muted, borderRadius: 999, padding: '8px 8px', fontSize: 12, fontWeight: 800, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
+  filterChipOn: { background: C.ink, borderColor: C.ink, color: '#fff' },
+  recommendPanel: { marginTop: 14, paddingTop: 2 },
   groupGrid: { display: 'grid', gap: 9, marginBottom: 14 },
   groupCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 12, padding: 12, textAlign: 'left', fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer', boxShadow: '0 2px 8px rgba(26,18,8,.04)' },
   groupCardOn: { borderColor: C.gold, background: '#FFFCF5' },
