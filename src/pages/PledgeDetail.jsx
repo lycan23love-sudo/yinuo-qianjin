@@ -43,6 +43,23 @@ function reminderLabel(reminder) {
   return '提醒 ' + (reminder.time || DEFAULT_REMINDER.time)
 }
 
+async function syncBrowserReminder(reminder, pledgeTitle) {
+  if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) return
+  if (reminder?.enabled) {
+    const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
+    if (permission !== 'granted') return
+    const [hour, minute] = (reminder.time || DEFAULT_REMINDER.time).split(':').map(Number)
+    const reg = await navigator.serviceWorker.ready.catch(() => null)
+    ;(reg?.active || navigator.serviceWorker.controller)?.postMessage({
+      type: 'SCHEDULE_REMINDER',
+      payload: { hour, minute, pledgeTitle }
+    })
+  } else {
+    const reg = await navigator.serviceWorker.ready.catch(() => null)
+    ;(reg?.active || navigator.serviceWorker.controller)?.postMessage({ type: 'CANCEL_REMINDER' })
+  }
+}
+
 
 
 
@@ -255,6 +272,7 @@ function CalendarView({ checkins, pledge }) {
                                                             if (!userId) { showToast('请先登录', 'error'); return }
                                                             const next = saveReminderForPledge(userId, id, { ...reminder, ...patch })
                                                             setReminder(next)
+                                                            syncBrowserReminder(next, pledge?.title)
                                                             showToast('提醒已保存 ✓', 'success')
                                                           }
                                                             
