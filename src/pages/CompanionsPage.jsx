@@ -653,12 +653,6 @@ export default function CompanionsPage() {
 
       {!loading && !error && tab === 'help' && (
         <div style={S.scrollArea}>
-          <div style={S.helpHero}>
-            <div style={S.kicker}>互助会</div>
-            <div style={S.helpHeroTitle}>按处境找到同行者</div>
-            <div style={S.helpHeroText}>誓言文字不必完全相同，先进入同一类处境，再选择合适的小队。</div>
-          </div>
-
           <div style={S.helpPillRow}>
             {SUPPORT_GROUPS.map(group => (
               <HelpGroupPill key={group.key} group={group} active={activeGroup === group.key}
@@ -724,13 +718,13 @@ const S = {
   helpHero: { background: '#FFF9EA', border: '1px solid #E8D4A0', borderRadius: 16, padding: 14, marginBottom: 12, boxShadow: '0 3px 12px rgba(122,90,24,.05)' },
   helpHeroTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 18, fontWeight: 900, color: C.ink, marginBottom: 5 },
   helpHeroText: { fontSize: 12, color: C.muted, lineHeight: 1.65 },
-  helpPillRow: { display: 'flex', gap: 8, overflowX: 'auto', padding: '2px 0 12px', margin: '0 -16px 2px', paddingLeft: 16, paddingRight: 16 },
-  helpPill: { minWidth: 132, display: 'flex', alignItems: 'center', gap: 8, border: '1px solid ' + C.border, background: C.surf, borderRadius: 14, padding: '10px 11px', textAlign: 'left', fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer', boxShadow: '0 1px 7px rgba(26,18,8,.04)' },
+  helpPillRow: { display: 'flex', gap: 8, overflowX: 'auto', padding: '0 0 8px', margin: '0 -16px 4px', paddingLeft: 16, paddingRight: 16 },
+  helpPill: { minWidth: 104, display: 'flex', alignItems: 'center', gap: 7, border: '1px solid ' + C.border, background: C.surf, borderRadius: 999, padding: '7px 10px', textAlign: 'left', fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   helpPillOn: { borderColor: C.gold, background: '#FFFCF5' },
-  helpPillEmoji: { width: 30, height: 30, borderRadius: '50%', background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 },
-  helpPillName: { fontSize: 12, fontWeight: 900, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  helpPillMeta: { fontSize: 10, color: C.goldD, marginTop: 2, fontWeight: 800 },
-  helpSectionHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '8px 0 10px' },
+  helpPillEmoji: { width: 24, height: 24, borderRadius: '50%', background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 },
+  helpPillName: { fontSize: 11, fontWeight: 900, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  helpPillMeta: { fontSize: 9, color: C.goldD, marginTop: 1, fontWeight: 800 },
+  helpSectionHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '4px 0 10px' },
   helpTeamCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 15, padding: 12, marginBottom: 10, boxShadow: '0 2px 10px rgba(26,18,8,.04)' },
   helpTeamMain: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 },
   helpTeamEmoji: { width: 36, height: 36, borderRadius: 10, background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 },
