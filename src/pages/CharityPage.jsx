@@ -1,7 +1,7 @@
 // src/pages/CharityPage.jsx
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../App'
-import { donate, getCharityTotal, getDonations } from '../lib/supabase'
+import { createCharityAction, donate, getCharityTotal, getDonations, getMyCharityActions } from '../lib/supabase'
 
 const C = {
   gold: '#C8922A', goldL: '#FDF3E0', goldD: '#7A5A18', ink: '#1A1208',
@@ -79,12 +79,22 @@ export default function CharityPage() {
 
   useEffect(() => {
     if (!userId) return
-    try {
-      const raw = window.localStorage.getItem('charity_actions_' + userId)
-      setActionRecords(raw ? JSON.parse(raw) : [])
-    } catch {
-      setActionRecords([])
+    let alive = true
+    async function loadActions() {
+      try {
+        const rows = await getMyCharityActions(userId)
+        if (alive) setActionRecords(rows || [])
+      } catch {
+        try {
+          const raw = window.localStorage.getItem('charity_actions_' + userId)
+          if (alive) setActionRecords(raw ? JSON.parse(raw) : [])
+        } catch {
+          if (alive) setActionRecords([])
+        }
+      }
     }
+    loadActions()
+    return () => { alive = false }
   }, [userId])
 
   const selected = ORGS.find(item => item.id === selectedOrg) || ORGS[0]
@@ -141,12 +151,12 @@ export default function CharityPage() {
   }
 
 
-  function handleSubmitAction() {
+  async function handleSubmitAction() {
     if (!userId) return showToast('请先登录')
     if (!actionText.trim()) return showToast('请写下你做了什么公益行动')
     const type = ACTION_TYPES.find(item => item.id === actionType) || ACTION_TYPES[0]
     const reward = Math.max(0, Math.min(100, Number(actionReward) || type.reward))
-    const row = {
+    const draft = {
       id: Date.now(),
       user_id: userId,
       type: type.label,
@@ -156,35 +166,42 @@ export default function CharityPage() {
       status: '待确认',
       created_at: new Date().toISOString(),
     }
-    const nextList = [row, ...actionRecords]
-    setActionRecords(nextList)
-    window.localStorage.setItem('charity_actions_' + userId, JSON.stringify(nextList))
 
-    const caseItem = {
-      id: 'charity-' + row.id,
-      kind: 'charity_action',
-      applicant_id: userId,
-      type: row.type,
-      text: row.text,
-      proof: row.proof,
-      reward: row.reward,
-      status: 'pending',
-      votes: { approve: 0, reject: 0, revise: 0 },
-      voters: {},
-      created_at: row.created_at,
-    }
     try {
-      const rawCases = window.localStorage.getItem('charity_jury_cases')
-      const cases = rawCases ? JSON.parse(rawCases) : []
-      window.localStorage.setItem('charity_jury_cases', JSON.stringify([caseItem, ...cases]))
-    } catch (err) {
-      window.localStorage.setItem('charity_jury_cases', JSON.stringify([caseItem]))
+      const row = await createCharityAction(userId, draft)
+      setActionRecords(list => [row, ...list])
+      showToast('善行已提交，已送入陪审团待确认')
+    } catch {
+      const nextList = [draft, ...actionRecords]
+      setActionRecords(nextList)
+      window.localStorage.setItem('charity_actions_' + userId, JSON.stringify(nextList))
+
+      const caseItem = {
+        id: 'charity-' + draft.id,
+        kind: 'charity_action',
+        applicant_id: userId,
+        type: draft.type,
+        text: draft.text,
+        proof: draft.proof,
+        reward: draft.reward,
+        status: 'pending',
+        votes: { approve: 0, reject: 0, revise: 0 },
+        voters: {},
+        created_at: draft.created_at,
+      }
+      try {
+        const rawCases = window.localStorage.getItem('charity_jury_cases')
+        const cases = rawCases ? JSON.parse(rawCases) : []
+        window.localStorage.setItem('charity_jury_cases', JSON.stringify([caseItem, ...cases]))
+      } catch {
+        window.localStorage.setItem('charity_jury_cases', JSON.stringify([caseItem]))
+      }
+      showToast('善行已提交到本机记录，等待云端表启用')
     }
 
     setActionText('')
     setActionProof('')
     setActionReward(type.reward)
-    showToast('善行已提交，已送入陪审团待确认')
   }
   return (
     <div style={S.page}>
