@@ -82,7 +82,7 @@ function App() {
   const showNav = session && PAGED_ROUTES.includes(location.pathname)
 
   return (
-    <AuthCtx.Provider value={{ session, profile, refreshProfile }}>
+    <AuthCtx.Provider value={{ session, userId: session?.user?.id, profile, refreshProfile }}>
     <ToastCtx.Provider value={{ showToast }}>
     <BrowserRouter>
       <div style={{ maxWidth: 390, margin: '0 auto', minHeight: '100vh',
