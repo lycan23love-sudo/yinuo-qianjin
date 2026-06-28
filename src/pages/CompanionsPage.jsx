@@ -227,6 +227,46 @@ function buildRoomMembers(pledge) {
   return [owner, ...friends, ...empty].slice(0, TEAM_LIMIT)
 }
 
+function HelpGroupPill({ group, active, stats, onClick }) {
+  return (
+    <button style={{ ...S.helpPill, ...(active ? S.helpPillOn : {}) }} onClick={onClick}>
+      <div style={S.helpPillEmoji}>{group.emoji}</div>
+      <div style={{ minWidth: 0 }}>
+        <div style={S.helpPillName}>{group.name.replace('互助会', '')}</div>
+        <div style={S.helpPillMeta}>{stats.open}个可加入</div>
+      </div>
+    </button>
+  )
+}
+
+function HelpTeamCard({ pledge, joined, joining, match, onOpen, onJoin }) {
+  const group = groupForPledge(pledge)
+  const progress = pct(pledge)
+  const slots = teamSlots(pledge)
+  const full = slots <= 0
+  const label = joined ? '已在团中' : match === 0 ? '同誓言' : match === 1 ? '同类型' : '可加入'
+  return (
+    <div style={S.helpTeamCard}>
+      <div style={S.helpTeamMain}>
+        <div style={S.helpTeamEmoji}>{group.emoji}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={S.helpTeamTitle}>{pledge.title}</div>
+          <div style={S.helpTeamMeta}>{getHostName(pledge)}发起 · {teamSize(pledge)}/{TEAM_LIMIT}人 · 进度{progress}%</div>
+        </div>
+        <Tag tone={joined ? 'green' : match <= 1 ? 'blue' : 'gold'}>{label}</Tag>
+      </div>
+      <div style={S.helpTeamTrack}><div style={{ ...S.helpTeamFill, width: progress + '%' }} /></div>
+      <div style={S.helpTeamFoot}>
+        <span>{full ? '小队已满' : '还可加入' + slots + '人'}</span>
+        <div style={S.actions}>
+          <button style={S.btnGhost} onClick={onOpen}>{joined ? '团室' : '查看'}</button>
+          {!joined && (full ? <button style={S.btnDone} disabled>满员</button> : <button style={S.btnGold} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入'}</button>)}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function CheckinPrompt({ done, lateDays, onClick }) {
   return (
     <button style={S.promptCard} onClick={onClick}>
@@ -613,24 +653,32 @@ export default function CompanionsPage() {
 
       {!loading && !error && tab === 'help' && (
         <div style={S.scrollArea}>
-          <div style={S.discoverIntro}>
+          <div style={S.helpHero}>
             <div style={S.kicker}>互助会</div>
-            <div style={S.summaryTitle}>按誓言类型聚合，不要求文字完全相同。进入同一处境的小队，互相报到、提醒和支招。</div>
+            <div style={S.helpHeroTitle}>按处境找到同行者</div>
+            <div style={S.helpHeroText}>誓言文字不必完全相同，先进入同一类处境，再选择合适的小队。</div>
           </div>
 
-          <div style={S.groupGrid}>
+          <div style={S.helpPillRow}>
             {SUPPORT_GROUPS.map(group => (
-              <SupportGroupCard key={group.key} group={group} active={activeGroup === group.key}
+              <HelpGroupPill key={group.key} group={group} active={activeGroup === group.key}
                 stats={groupStats(group.key, publicPledges, joinedIds)} onClick={() => setActiveGroup(group.key)} />
             ))}
           </div>
 
-          <div style={S.sectionLabel}>{SUPPORT_GROUPS.find(g => g.key === activeGroup)?.name || '互助会'} · 可加入小队</div>
+          <div style={S.helpSectionHead}>
+            <div>
+              <div style={S.sectionTitle}>{SUPPORT_GROUPS.find(g => g.key === activeGroup)?.name || '互助会'}</div>
+              <div style={S.sectionHint}>{SUPPORT_GROUPS.find(g => g.key === activeGroup)?.hint || '找到同类誓言者'}</div>
+            </div>
+            <button style={S.btnGhost} onClick={() => setTab('my')}>我的团</button>
+          </div>
+
           {activeGroupPledges.length === 0 ? (
-            <EmptyState title="这个互助会暂时没有公开小队" text="你可以把自己的相关誓言发布招募，成为这个互助会里的第一个小队。" />
+            <EmptyState title="这个互助会暂时没有公开小队" text="把自己的相关誓言发布招募，就能成为这里的第一个小队。" />
           ) : (
-            activeGroupPledges.map(pledge => (
-              <PublicPledgeCard key={pledge.id} pledge={pledge} joined={joinedIds.has(pledge.id)} joining={joiningId === pledge.id}
+            activeGroupPledges.slice(0, 6).map(pledge => (
+              <HelpTeamCard key={pledge.id} pledge={pledge} joined={joinedIds.has(pledge.id)} joining={joiningId === pledge.id}
                 match={matchLevel(pledge, myPledges)} onOpen={() => openRoom(pledge)} onJoin={() => handleJoin(pledge)} />
             ))
           )}
@@ -672,6 +720,25 @@ const S = {
   groupMeta: { marginTop: 8, fontSize: 11, color: C.goldD, fontWeight: 800 },
   card: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: 14, marginBottom: 10, boxShadow: '0 2px 10px rgba(26,18,8,.06)' },
 
+
+  helpHero: { background: '#FFF9EA', border: '1px solid #E8D4A0', borderRadius: 16, padding: 14, marginBottom: 12, boxShadow: '0 3px 12px rgba(122,90,24,.05)' },
+  helpHeroTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 18, fontWeight: 900, color: C.ink, marginBottom: 5 },
+  helpHeroText: { fontSize: 12, color: C.muted, lineHeight: 1.65 },
+  helpPillRow: { display: 'flex', gap: 8, overflowX: 'auto', padding: '2px 0 12px', margin: '0 -16px 2px', paddingLeft: 16, paddingRight: 16 },
+  helpPill: { minWidth: 132, display: 'flex', alignItems: 'center', gap: 8, border: '1px solid ' + C.border, background: C.surf, borderRadius: 14, padding: '10px 11px', textAlign: 'left', fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer', boxShadow: '0 1px 7px rgba(26,18,8,.04)' },
+  helpPillOn: { borderColor: C.gold, background: '#FFFCF5' },
+  helpPillEmoji: { width: 30, height: 30, borderRadius: '50%', background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 },
+  helpPillName: { fontSize: 12, fontWeight: 900, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  helpPillMeta: { fontSize: 10, color: C.goldD, marginTop: 2, fontWeight: 800 },
+  helpSectionHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '8px 0 10px' },
+  helpTeamCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 15, padding: 12, marginBottom: 10, boxShadow: '0 2px 10px rgba(26,18,8,.04)' },
+  helpTeamMain: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 },
+  helpTeamEmoji: { width: 36, height: 36, borderRadius: 10, background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 },
+  helpTeamTitle: { fontSize: 15, fontWeight: 900, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  helpTeamMeta: { fontSize: 11, color: C.muted, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  helpTeamTrack: { height: 5, borderRadius: 999, background: C.soft, overflow: 'hidden', marginBottom: 9 },
+  helpTeamFill: { height: '100%', borderRadius: 999, background: C.gold },
+  helpTeamFoot: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: 11, color: C.muted },
   promptCard: { width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: '#FFF7E6', border: '1px solid #E6D3A4', borderRadius: 18, padding: '15px 14px', marginBottom: 18, boxShadow: '0 3px 12px rgba(122,90,24,.06)', fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   promptIcon: { width: 42, height: 42, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 },
   promptTitle: { fontSize: 16, fontWeight: 900, color: C.ink, marginBottom: 4 },
