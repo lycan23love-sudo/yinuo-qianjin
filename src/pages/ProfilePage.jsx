@@ -323,7 +323,7 @@ export default function ProfilePage() {
       {/* 顶栏 */}
       <div style={S.topbar}>
         <button style={S.iconBtn} onClick={() => nav(-1)}>←</button>
-        <div style={{ fontSize:16, fontWeight:600 }}>个人中心</div>
+        <div style={S.pageTitle}><span>个人</span><span style={S.pageTitleGold}>中心</span></div>
         <button style={{ ...S.iconBtn, color:'#C84040', fontSize:13 }}
           onClick={() => setConfirmOut(true)}>退出</button>
       </div>
@@ -645,6 +645,8 @@ const S = {
                background:'#FAF7F2', position:'sticky', top:0, zIndex:10 },
   iconBtn:   { background:'none', border:'none', fontSize:20, cursor:'pointer',
                color:'#1A1208', padding:4 },
+  pageTitle:  { fontSize:16, fontWeight:800, fontFamily:'Noto Serif SC,serif', color:'#1A1208' },
+  pageTitleGold: { color:'#C8922A' },
   hero:      { background:'linear-gradient(135deg,#2A1A08,#3A2510)',
                padding:'18px 18px 16px', margin:'0 16px 0',
                borderRadius:'0 0 16px 16px' },
