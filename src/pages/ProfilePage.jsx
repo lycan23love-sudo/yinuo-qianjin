@@ -44,6 +44,23 @@ function reminderLabel(reminder) {
   return '提醒 ' + (reminder.time || DEFAULT_REMINDER.time)
 }
 
+async function syncBrowserReminder(reminder, pledgeTitle) {
+  if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) return
+  if (reminder?.enabled) {
+    const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
+    if (permission !== 'granted') return
+    const [hour, minute] = (reminder.time || DEFAULT_REMINDER.time).split(':').map(Number)
+    const reg = await navigator.serviceWorker.ready.catch(() => null)
+    ;(reg?.active || navigator.serviceWorker.controller)?.postMessage({
+      type: 'SCHEDULE_REMINDER',
+      payload: { hour, minute, pledgeTitle }
+    })
+  } else {
+    const reg = await navigator.serviceWorker.ready.catch(() => null)
+    ;(reg?.active || navigator.serviceWorker.controller)?.postMessage({ type: 'CANCEL_REMINDER' })
+  }
+}
+
 /* ── 常量 ── */
 const AVA_COLORS = ['#C8922A','#3B7A4A','#3A6A9A','#8A5A2A','#6A4A8A','#C84040','#2A7A7A']
 function avaColor(str) {
@@ -242,6 +259,7 @@ export default function ProfilePage() {
     if (!userId) return
     const next = saveGlobalReminder(userId, { ...globalReminder, ...patch })
     setGlobalReminder(next)
+    syncBrowserReminder(next)
     showToast('提醒设置已保存 ✓', 'success')
   }
 
