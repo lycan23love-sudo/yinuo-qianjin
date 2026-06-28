@@ -465,6 +465,7 @@ export async function createPledge(userId, pledge) {
       charity_target: pledge.charityTarget,
       verify_type: pledge.verifyType,
       is_public: pledge.isPublic,
+      status: 'active',
     })
     .select()
     .single()
