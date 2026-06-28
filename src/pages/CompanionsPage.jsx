@@ -11,7 +11,17 @@ const C = {
   muted: '#7A6A50', hint: '#B8A88A', bg: '#FAF7F2', surf: '#FFFFFF',
   soft: '#F5F0E8', border: '#E0D5C0', red: '#C84040', redL: '#FCEBEB',
   green: '#3B7A4A', greenL: '#E8F5EC', blue: '#3A6A9A', blueL: '#E8F0FA',
+  purple: '#6A4A8A', purpleL: '#EFE9F7',
 }
+
+const SUPPORT_GROUPS = [
+  { key: 'study', emoji: '📚', name: '学习成长互助会', hint: '读书、学习AI、考试、技能训练', words: ['学习','读书','阅读','ai','AI','英语','单词','考试','产品','课程','写作业'] },
+  { key: 'health', emoji: '🏃', name: '健康运动互助会', hint: '跑步、健身、减脂、饮食管理', words: ['跑步','运动','健身','减肥','减脂','饮食','瑜伽','俯卧撑','公里'] },
+  { key: 'habit', emoji: '🌅', name: '生活习惯互助会', hint: '早起、早睡、洗脸、整理、作息', words: ['早起','早睡','睡觉','洗脸','整理','打扫','作息','习惯','起床'] },
+  { key: 'control', emoji: '🧘', name: '自控戒断互助会', hint: '戒断、少刷手机、情绪与冲动控制', words: ['戒','控制','自律','手机','游戏','短视频','情绪','拖延','冥想'] },
+  { key: 'create', emoji: '✍️', name: '创作输出互助会', hint: '写作、画画、视频、作品输出', words: ['写','画','创作','视频','发布','输出','作品','剪辑','日更'] },
+  { key: 'other', emoji: '🧭', name: '综合互助会', hint: '暂时无法归类，但同样需要同行者', words: [] },
+]
 
 function countFromRelation(value) {
   if (!Array.isArray(value) || value.length === 0) return 0
@@ -46,26 +56,38 @@ function getHostName(pledge) {
   return pledge.profiles?.nickname || pledge.profiles?.avatar_emoji || '匿名行者'
 }
 
-function categoryKey(pledge) {
-  return pledge.category || pledge.category_key || pledge.type || pledge.verify_type || ''
-}
-
 function normalizedTitle(pledge) {
   return String(pledge.title || '').replace(/s+/g, '').toLowerCase()
+}
+
+function groupForPledge(pledge) {
+  const text = [pledge.title, pledge.category, pledge.category_key, pledge.type, pledge.verify_type].filter(Boolean).join(' ')
+  const lower = text.toLowerCase()
+  return SUPPORT_GROUPS.find(group => group.key !== 'other' && group.words.some(word => lower.includes(String(word).toLowerCase()))) || SUPPORT_GROUPS[SUPPORT_GROUPS.length - 1]
 }
 
 function matchLevel(pledge, myPledges) {
   const title = normalizedTitle(pledge)
   if (title && myPledges.some(p => normalizedTitle(p) === title)) return 0
-  const cat = categoryKey(pledge)
-  if (cat && myPledges.some(p => categoryKey(p) === cat)) return 1
+  const group = groupForPledge(pledge).key
+  if (group && myPledges.some(p => groupForPledge(p).key === group)) return 1
   return 2
+}
+
+function groupStats(groupKey, pledges, joinedIds) {
+  const items = pledges.filter(p => groupForPledge(p).key === groupKey)
+  return {
+    teams: items.length,
+    open: items.filter(p => teamSlots(p) > 0 && !joinedIds.has(p.id)).length,
+    joined: items.filter(p => joinedIds.has(p.id)).length,
+  }
 }
 
 function Tag({ children, tone = 'gold' }) {
   const map = {
     gold: { bg: C.goldL, color: C.goldD }, green: { bg: C.greenL, color: C.green },
     red: { bg: C.redL, color: C.red }, blue: { bg: C.blueL, color: C.blue },
+    purple: { bg: C.purpleL, color: C.purple },
   }
   const t = map[tone] || map.gold
   return <span style={{ ...S.tag, background: t.bg, color: t.color }}>{children}</span>
@@ -82,29 +104,45 @@ function EmptyState({ title, text, action, onAction }) {
   )
 }
 
+function SupportGroupCard({ group, active, stats, onClick }) {
+  return (
+    <button style={{ ...S.groupCard, ...(active ? S.groupCardOn : {}) }} onClick={onClick}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={S.groupEmoji}>{group.emoji}</div>
+        <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+          <div style={S.groupName}>{group.name}</div>
+          <div style={S.groupHint}>{group.hint}</div>
+        </div>
+      </div>
+      <div style={S.groupMeta}>{stats.teams}个小队 · {stats.open}个可加入 · {stats.joined}个已加入</div>
+    </button>
+  )
+}
+
 function MyPledgeCard({ pledge, publishing, onRecruit, onDetail, onCheckin }) {
   const progress = pct(pledge)
   const slots = teamSlots(pledge)
   const isRecruiting = !!pledge.is_public
+  const group = groupForPledge(pledge)
   return (
     <div style={S.card}>
       <div style={S.cardHead}>
-        <div style={S.emoji}>{pledge.category_icon || '📜'}</div>
+        <div style={S.emoji}>{group.emoji}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={S.cardTitle}>{pledge.title}</div>
-          <div style={S.meta}>已守 {pledge.checkin_count || 0}/{pledge.total_days || 0} 天 · 还差{daysLeft(pledge)}天</div>
+          <div style={S.meta}>{group.name} · 已守 {pledge.checkin_count || 0}/{pledge.total_days || 0} 天 · 还差{daysLeft(pledge)}天</div>
         </div>
         <Tag tone={isRecruiting ? 'green' : 'gold'}>{isRecruiting ? '招募中' : '未招募'}</Tag>
       </div>
 
       <div style={S.teamLine}>
-        <span>同行团 {teamSize(pledge)}/{TEAM_LIMIT}</span>
+        <span>5人小队 {teamSize(pledge)}/{TEAM_LIMIT}</span>
         <span>{slots > 0 ? '还可加入' + slots + '人' : '已满员'}</span>
       </div>
       <div style={S.track}><div style={{ ...S.fill, width: progress + '%' }} /></div>
 
       <div style={S.cardFoot}>
-        <span>{progress}% · 每个誓言单独成团</span>
+        <span>{progress}% · 同一誓言单独成团</span>
         <div style={S.actions}>
           <button style={S.btnGhost} onClick={onDetail}>查看</button>
           <button style={S.btnGhost} onClick={onCheckin}>打卡</button>
@@ -119,36 +157,31 @@ function PublicPledgeCard({ pledge, match, joined, joining, onOpen, onJoin }) {
   const progress = pct(pledge)
   const slots = teamSlots(pledge)
   const full = slots <= 0
-  const tone = joined ? 'green' : match === 0 ? 'blue' : match === 1 ? 'green' : 'gold'
-  const label = joined ? '已加入' : match === 0 ? '同誓言' : match === 1 ? '同类' : '可加入'
+  const group = groupForPledge(pledge)
+  const tone = joined ? 'green' : match === 0 ? 'blue' : match === 1 ? 'purple' : 'gold'
+  const label = joined ? '已加入' : match === 0 ? '同誓言' : match === 1 ? '同互助会' : '可加入'
   return (
     <div style={S.card}>
       <div style={S.cardHead}>
-        <div style={S.emoji}>{pledge.category_icon || '🧭'}</div>
+        <div style={S.emoji}>{group.emoji}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={S.cardTitle}>{pledge.title}</div>
-          <div style={S.meta}>{getHostName(pledge)}发起 · 已守 {pledge.checkin_count || countFromRelation(pledge.checkins)}/{pledge.total_days || 0} 天</div>
+          <div style={S.meta}>{getHostName(pledge)}发起 · {group.name} · 已守 {pledge.checkin_count || countFromRelation(pledge.checkins)}/{pledge.total_days || 0} 天</div>
         </div>
         <Tag tone={tone}>{label}</Tag>
       </div>
 
       <div style={S.teamLine}>
-        <span>同行团 {teamSize(pledge)}/{TEAM_LIMIT}</span>
+        <span>5人小队 {teamSize(pledge)}/{TEAM_LIMIT}</span>
         <span>{full ? '已满员' : '空位' + slots + '个'}</span>
       </div>
       <div style={S.track}><div style={{ ...S.fill, width: progress + '%' }} /></div>
 
       <div style={S.cardFoot}>
-        <span>{progress}% · {joined ? '你已在这个团中' : '加入后进入我的团'}</span>
+        <span>{progress}% · {joined ? '你已在这个互助小队' : '加入后进入我的团'}</span>
         <div style={S.actions}>
           <button style={S.btnGhost} onClick={onOpen}>查看</button>
-          {joined ? (
-            <button style={S.btnDone} disabled>已加入</button>
-          ) : full ? (
-            <button style={S.btnDone} disabled>满员</button>
-          ) : (
-            <button style={S.btnGold} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入'}</button>
-          )}
+          {joined ? <button style={S.btnDone} disabled>已加入</button> : full ? <button style={S.btnDone} disabled>满员</button> : <button style={S.btnGold} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入'}</button>}
         </div>
       </div>
     </div>
@@ -159,6 +192,7 @@ export default function CompanionsPage() {
   const { session, profile } = useAuth()
   const nav = useNavigate()
   const [tab, setTab] = useState('my')
+  const [activeGroup, setActiveGroup] = useState('study')
   const [myPledges, setMyPledges] = useState([])
   const [publicPledges, setPublicPledges] = useState([])
   const [joinedIds, setJoinedIds] = useState(new Set())
@@ -183,9 +217,12 @@ export default function CompanionsPage() {
         session?.user?.id ? getMyCompanionJoins(session.user.id) : Promise.resolve([]),
       ])
       const activeMine = (mine || []).filter(p => p.status === 'active')
+      const publicList = (publics || []).filter(p => p.user_id !== session?.user?.id).slice(0, 30)
       setMyPledges(activeMine)
       setJoinedIds(new Set(joins || []))
-      setPublicPledges((publics || []).filter(p => p.user_id !== session?.user?.id).slice(0, 20))
+      setPublicPledges(publicList)
+      const preferred = activeMine[0] ? groupForPledge(activeMine[0]).key : (publicList[0] ? groupForPledge(publicList[0]).key : 'study')
+      setActiveGroup(preferred)
     } catch (err) {
       setError(err.message || '同行数据加载失败')
     } finally {
@@ -201,7 +238,7 @@ export default function CompanionsPage() {
     try {
       const updated = await publishCompanionRecruit(pledge.id, session.user.id)
       setMyPledges(list => list.map(item => item.id === pledge.id ? { ...item, ...updated, is_public: true } : item))
-      showToast('已发布同行招募，最多5人同行')
+      showToast('已发布到互助会，最多5人同行')
       load()
     } catch (err) {
       showToast(err.message || '发布失败，请稍后再试')
@@ -217,7 +254,7 @@ export default function CompanionsPage() {
       await joinCompanionTeam(session.user.id, pledge.id)
       setJoinedIds(ids => new Set([...ids, pledge.id]))
       setPublicPledges(list => list.map(item => item.id === pledge.id ? withBumpedWitnessCount(item) : item))
-      showToast('已加入同行团')
+      showToast('已加入互助小队')
     } catch (err) {
       showToast(err.message || '加入失败，请稍后再试')
     } finally {
@@ -236,19 +273,17 @@ export default function CompanionsPage() {
     })
   }, [publicPledges, myPledges, joinedIds])
   const joinedTeams = recommended.filter(p => joinedIds.has(p.id))
-  const sameVowRecommended = recommended.filter(p => !joinedIds.has(p.id) && matchLevel(p, myPledges) <= 1 && teamSlots(p) > 0).slice(0, 3)
+  const activeGroupPledges = recommended.filter(p => groupForPledge(p).key === activeGroup)
+  const suggestedForMy = recommended.filter(p => !joinedIds.has(p.id) && matchLevel(p, myPledges) <= 1 && teamSlots(p) > 0).slice(0, 3)
   const ownedMemberCount = myPledges.reduce((sum, p) => sum + teamSize(p), 0)
-  const recruitingCount = myPledges.filter(p => p.is_public).length
 
   return (
     <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column' }}>
       {toast && <div style={S.toast}>{toast}</div>}
-      <div style={S.topbar}>
-        <div style={S.logo}>同<em style={{ color: C.gold, fontStyle: 'normal' }}>行</em></div>
-      </div>
+      <div style={S.topbar}><div style={S.logo}>同<em style={{ color: C.gold, fontStyle: 'normal' }}>行</em></div></div>
 
       <div style={S.tabBar}>
-        {[['my','我的团'],['discover','发现同行']].map(([key, label]) => (
+        {[['my','我的团'],['help','互助会']].map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} style={{ ...S.tabBtn, ...(tab === key ? S.tabBtnOn : {}) }}>{label}</button>
         ))}
       </div>
@@ -259,8 +294,8 @@ export default function CompanionsPage() {
       {!loading && !error && tab === 'my' && (
         <div style={S.scrollArea}>
           <div style={S.summaryCard}>
-            <div style={S.kicker}>守诺小队</div>
-            <div style={S.summaryTitle}>{displayName}，同一个誓言最多组成5人同行团。</div>
+            <div style={S.kicker}>誓言互助会</div>
+            <div style={S.summaryTitle}>{displayName}，找到相同处境的人，比找到相同文字更重要。</div>
             <div style={S.summaryGrid}>
               <div><b>{myPledges.length}</b><span>我发起</span></div>
               <div><b>{joinedTeams.length}</b><span>我加入</span></div>
@@ -269,10 +304,10 @@ export default function CompanionsPage() {
           </div>
 
           {myPledges.length === 0 ? (
-            <EmptyState title="还没有进行中的誓言" text="先立下一份诺言，同行板块会自动把它变成你的守诺小队入口。" action="立下新誓" onAction={() => nav('/new')} />
+            <EmptyState title="还没有进行中的誓言" text="先立下一份诺言，同行板块会自动把它归入对应互助会。" action="立下新誓" onAction={() => nav('/new')} />
           ) : (
             <>
-              <div style={S.sectionLabel}>我的誓言团</div>
+              <div style={S.sectionLabel}>我的誓言小队</div>
               {myPledges.map(pledge => (
                 <MyPledgeCard key={pledge.id} pledge={pledge} publishing={publishingId === pledge.id}
                   onRecruit={() => handleRecruit(pledge)} onDetail={() => nav('/pledge/' + pledge.id)} onCheckin={() => nav('/pledge/' + pledge.id + '/checkin')} />
@@ -282,7 +317,7 @@ export default function CompanionsPage() {
 
           {joinedTeams.length > 0 && (
             <>
-              <div style={S.sectionLabel}>我加入的团</div>
+              <div style={S.sectionLabel}>我加入的互助小队</div>
               {joinedTeams.map(pledge => (
                 <PublicPledgeCard key={pledge.id} pledge={pledge} joined match={matchLevel(pledge, myPledges)}
                   onOpen={() => nav('/pledge/' + pledge.id)} onJoin={() => handleJoin(pledge)} />
@@ -290,10 +325,10 @@ export default function CompanionsPage() {
             </>
           )}
 
-          {sameVowRecommended.length > 0 && (
+          {suggestedForMy.length > 0 && (
             <>
               <div style={S.sectionLabel}>推荐加入</div>
-              {sameVowRecommended.map(pledge => (
+              {suggestedForMy.map(pledge => (
                 <PublicPledgeCard key={pledge.id} pledge={pledge} joined={false} joining={joiningId === pledge.id}
                   match={matchLevel(pledge, myPledges)} onOpen={() => nav('/pledge/' + pledge.id)} onJoin={() => handleJoin(pledge)} />
               ))}
@@ -302,23 +337,28 @@ export default function CompanionsPage() {
         </div>
       )}
 
-      {!loading && !error && tab === 'discover' && (
+      {!loading && !error && tab === 'help' && (
         <div style={S.scrollArea}>
           <div style={S.discoverIntro}>
-            <div style={S.kicker}>发现同行</div>
-            <div style={S.summaryTitle}>优先推荐与你誓言相同或相近的公开团。每个团最多5人，加入后会出现在我的团。</div>
+            <div style={S.kicker}>互助会</div>
+            <div style={S.summaryTitle}>按誓言类型聚合，不要求文字完全相同。进入同一处境的小队，互相报到、提醒和支招。</div>
           </div>
 
-          {recommended.length === 0 ? (
-            <EmptyState title="暂时没有可发现的公开誓言" text="发布同行招募后，你的公开誓言也会出现在这里。" />
+          <div style={S.groupGrid}>
+            {SUPPORT_GROUPS.map(group => (
+              <SupportGroupCard key={group.key} group={group} active={activeGroup === group.key}
+                stats={groupStats(group.key, publicPledges, joinedIds)} onClick={() => setActiveGroup(group.key)} />
+            ))}
+          </div>
+
+          <div style={S.sectionLabel}>{SUPPORT_GROUPS.find(g => g.key === activeGroup)?.name || '互助会'} · 可加入小队</div>
+          {activeGroupPledges.length === 0 ? (
+            <EmptyState title="这个互助会暂时没有公开小队" text="你可以把自己的相关誓言发布招募，成为这个互助会里的第一个小队。" />
           ) : (
-            <>
-              <div style={S.sectionLabel}>可加入的同行团</div>
-              {recommended.map(pledge => (
-                <PublicPledgeCard key={pledge.id} pledge={pledge} joined={joinedIds.has(pledge.id)} joining={joiningId === pledge.id}
-                  match={matchLevel(pledge, myPledges)} onOpen={() => nav('/pledge/' + pledge.id)} onJoin={() => handleJoin(pledge)} />
-              ))}
-            </>
+            activeGroupPledges.map(pledge => (
+              <PublicPledgeCard key={pledge.id} pledge={pledge} joined={joinedIds.has(pledge.id)} joining={joiningId === pledge.id}
+                match={matchLevel(pledge, myPledges)} onOpen={() => nav('/pledge/' + pledge.id)} onJoin={() => handleJoin(pledge)} />
+            ))
           )}
         </div>
       )}
@@ -340,7 +380,14 @@ const S = {
   discoverIntro: { background: C.goldL, border: '1px solid #E8D4A0', borderRadius: 14, padding: 14, marginBottom: 14 },
   summaryTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 16, lineHeight: 1.45, fontWeight: 900, color: C.ink },
   summaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 12 },
-  sectionLabel: { fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: .5, margin: '10px 0 10px' },
+  sectionLabel: { fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: .5, margin: '12px 0 10px' },
+  groupGrid: { display: 'grid', gap: 9, marginBottom: 14 },
+  groupCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 12, padding: 12, textAlign: 'left', fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer', boxShadow: '0 2px 8px rgba(26,18,8,.04)' },
+  groupCardOn: { borderColor: C.gold, background: '#FFFCF5' },
+  groupEmoji: { width: 34, height: 34, borderRadius: '50%', background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 },
+  groupName: { fontSize: 14, fontWeight: 900, color: C.ink, marginBottom: 3 },
+  groupHint: { fontSize: 11, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  groupMeta: { marginTop: 8, fontSize: 11, color: C.goldD, fontWeight: 800 },
   card: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: 14, marginBottom: 10, boxShadow: '0 2px 10px rgba(26,18,8,.06)' },
   cardHead: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 },
   emoji: { width: 34, height: 34, borderRadius: '50%', background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 },
