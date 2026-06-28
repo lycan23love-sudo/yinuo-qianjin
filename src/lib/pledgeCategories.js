@@ -38,6 +38,10 @@ export const PLEDGE_CATEGORIES = [
 ]
 
 export const PRIMARY_PLEDGE_CATEGORIES = PLEDGE_CATEGORIES.filter(c => c.key !== 'other')
+export const TRADED_INDEX_CATEGORIES = PRIMARY_PLEDGE_CATEGORIES.map(c => ({
+  ...c,
+  code: c.key === 'health' ? 'HEALTH' : c.key === 'study' ? 'STUDY' : c.key === 'habit' ? 'HABIT' : c.key === 'finance' ? 'FINANCE' : 'CREATIVE',
+}))
 export const CATEGORY_OPTIONS = [{ key: 'all', label: '全部', emoji: '🌐' }, ...PLEDGE_CATEGORIES]
 
 export function getPledgeCategory(keyOrLabel) {
