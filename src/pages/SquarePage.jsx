@@ -54,103 +54,164 @@ function Skeleton() {
 // ── 进行中 tab
 function LiveTab({ pledges, loading, cat, setCat, sort, setSort }) {
   const nav = useNavigate()
-  const filtered = pledges.filter(p => categoryFilterMatches(p, cat))
-  const ordered = [...filtered].sort((a, b) => {
-    if (sort === 'witnesses') {
-      const aw = a.witnesses?.[0]?.count ?? a.witnesses?.length ?? 0
-      const bw = b.witnesses?.[0]?.count ?? b.witnesses?.length ?? 0
-      return bw - aw
-    }
-    if (sort === 'progress') {
-      const ap = a.total_days ? a.checkin_count / a.total_days : 0
-      const bp = b.total_days ? b.checkin_count / b.total_days : 0
-      return bp - ap
-    }
-    return 0
+  const [batch, setBatch] = useState(0)
+
+  useEffect(() => { setBatch(0) }, [pledges.length, cat, sort])
+
+  const witnessCountOf = (p) => p.witnesses?.[0]?.count ?? p.witnesses?.length ?? 0
+  const progressOf = (p) => p.total_days ? (p.checkin_count || 0) / p.total_days : 0
+  const daysLeftOf = (p) => Math.max(0, differenceInDays(new Date(p.end_date), new Date()))
+  const stakeOf = (p) => Number(p.stake_coins || 0)
+  const createdAtOf = (p) => new Date(p.created_at || p.start_date || 0).getTime()
+  const featureScore = (p) => {
+    const daysLeft = daysLeftOf(p)
+    const endingBoost = daysLeft <= 3 ? 80 : daysLeft <= 7 ? 45 : 0
+    return stakeOf(p) * 2 + witnessCountOf(p) * 12 + progressOf(p) * 30 + endingBoost + createdAtOf(p) / 100000000000
+  }
+
+  const sortPledges = (items, mode = sort) => [...items].sort((a, b) => {
+    if (mode === 'ending_soon') return daysLeftOf(a) - daysLeftOf(b)
+    if (mode === 'stake') return stakeOf(b) - stakeOf(a)
+    if (mode === 'witnesses') return witnessCountOf(b) - witnessCountOf(a)
+    if (mode === 'progress') return progressOf(b) - progressOf(a)
+    return createdAtOf(b) - createdAtOf(a)
   })
+
+  const publicPledges = pledges || []
+  const filtered = publicPledges.filter(p => categoryFilterMatches(p, cat))
+  const ordered = sortPledges(filtered)
+  const featuredPool = [...publicPledges].sort((a, b) => featureScore(b) - featureScore(a))
+  const batchCount = Math.max(1, Math.ceil(featuredPool.length / 5))
+  const featured = featuredPool.slice((batch % batchCount) * 5, (batch % batchCount) * 5 + 5)
+  const browseItems = ordered.slice(0, 5)
+  const hotCount = publicPledges.filter(p => witnessCountOf(p) > 0).length
+  const endingCount = publicPledges.filter(p => daysLeftOf(p) <= 7).length
+  const highStakeCount = publicPledges.filter(p => stakeOf(p) >= 50).length
+  const freshCount = publicPledges.filter(p => differenceInDays(new Date(), new Date(p.created_at || p.start_date || new Date())) <= 3).length
+
+  const applyStatus = (nextSort) => {
+    setCat('all')
+    setSort(nextSort)
+  }
+
+  const renderCard = (p, compact = false) => {
+    const pct = Math.min(100, Math.round(((p.checkin_count || 0) / Math.max(1, p.total_days || 1)) * 100))
+    const daysLeft = daysLeftOf(p)
+    const name = p.profiles?.nickname || '匿名'
+    const witnessCount = witnessCountOf(p)
+    const category = inferPledgeCategory(p)
+    const tag = inferPledgeTag(p)
+    return (
+      <div key={p.id} style={{ ...S.pledgeCard, ...(compact ? S.featureCard : {}) }} onClick={() => nav(`/pledge/${p.id}`)}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+          <Ava name={name} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'Noto Serif SC,serif',
+              marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {p.title}
+            </div>
+            <div style={{ fontSize: 11, color: '#9A8A70', lineHeight: 1.5 }}>
+              {category.emoji} {category.label} · {tag} · {PERIOD_LABEL[p.period] || ''}度誓言 · 押{p.stake_coins}金币
+              {witnessCount > 0 && ` · ${witnessCount}人见证`}
+            </div>
+          </div>
+          <div style={{ ...S.tag, background: daysLeft <= 3 ? '#FCEBEB' : '#F7EED8', color: daysLeft <= 3 ? '#C84040' : '#C8922A' }}>
+            {daysLeft <= 0 ? '今日结束' : `剩${daysLeft}天`}
+          </div>
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#9A8A70', marginBottom: 4 }}>
+            <span>进度 {p.checkin_count || 0}/{p.total_days || 0} 天</span>
+            <span style={{ color: '#C8922A', fontWeight: 600 }}>{pct}%</span>
+          </div>
+          <div style={{ height: 5, background: '#F0EAE0', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ width: `${pct}%`, height: '100%', borderRadius: 3,
+              background: pct >= 80 ? 'linear-gradient(90deg,#3B7A4A,#5AAA6A)' : 'linear-gradient(90deg,#C8922A,#E8B84A)' }} />
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 11, color: '#B8A88A' }}>
+            {p.verify_type === 'screenshot' ? '📸 截图打卡' : p.verify_type === 'text' ? '✏️ 文字打卡' : '📍 定位打卡'}
+          </div>
+          <div style={S.cardActions}>
+            <button onClick={e => { e.stopPropagation(); nav(`/pledge/${p.id}?tab=witness`) }} style={S.witnessBtn}>👁 去见证</button>
+            <button onClick={e => { e.stopPropagation(); nav(`/pledge/${p.id}`) }} style={S.detailBtn}>查看 ›</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ padding: '0 16px' }}>
-      {/* 筛选工具条 */}
-      <div style={S.filterBar}>
-        <label style={S.selectBox}>
-          <span style={S.selectLabel}>分类</span>
-          <select value={cat} onChange={e => setCat(e.target.value)} style={S.select}>
-            {CATEGORY_OPTIONS.map(c => <option key={c.key} value={c.key}>{c.emoji} {c.label}</option>)}
-          </select>
-        </label>
-        <label style={S.selectBox}>
-          <span style={S.selectLabel}>排序</span>
-          <select value={sort} onChange={e => setSort(e.target.value)} style={S.select}>
-            <option value="created_at">最新发布</option>
-            <option value="ending_soon">即将结束</option>
-            <option value="stake">押注最高</option>
-            <option value="witnesses">热门见证</option>
-            <option value="progress">完成率高</option>
-          </select>
-        </label>
-      </div>
-
       {loading && [1,2,3].map(i => <Skeleton key={i} />)}
-      {!loading && filtered.length === 0 && (
-        <Empty text={cat === 'all' ? '还没有公开誓言，成为第一个！' : `暂无「${CATEGORY_OPTIONS.find(c => c.key === cat)?.label || '该'}」类誓言`} />
-      )}
+      {!loading && publicPledges.length === 0 && <Empty text='还没有公开誓言，成为第一个！' />}
 
-      {ordered.map(p => {
-        const pct = Math.min(100, Math.round((p.checkin_count / p.total_days) * 100))
-        const daysLeft = Math.max(0, differenceInDays(new Date(p.end_date), new Date()))
-        const name = p.profiles?.nickname || '匿名'
-        const witnessCount = p.witnesses?.[0]?.count ?? p.witnesses?.length ?? 0
-        const category = inferPledgeCategory(p)
-        const tag = inferPledgeTag(p)
-        return (
-          <div key={p.id} style={S.pledgeCard} onClick={() => nav(`/pledge/${p.id}`)}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
-              <Ava name={name} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'Noto Serif SC,serif',
-                  marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {p.title}
-                </div>
-                <div style={{ fontSize: 11, color: '#9A8A70' }}>
-                  {category.emoji} {category.label} · {tag} · {PERIOD_LABEL[p.period] || ''}度誓言 · 押{p.stake_coins}金币
-                  {witnessCount > 0 && ` · ${witnessCount}人见证`}
-                </div>
-              </div>
-              <div style={{ ...S.tag, background: daysLeft <= 3 ? '#FCEBEB' : '#FDF3E0',
-                color: daysLeft <= 3 ? '#C84040' : '#7A5A18', flexShrink: 0 }}>
-                {daysLeft <= 3 ? `⚡ 还剩${daysLeft}天` : '进行中'}
-              </div>
+      {!loading && publicPledges.length > 0 && (
+        <>
+          <div style={S.curatedHead}>
+            <div>
+              <div style={S.curatedTitle}>今日精选</div>
+              <div style={S.curatedHint}>先看 5 条最值得见证的誓言</div>
             </div>
-            <div style={{ marginBottom: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between',
-                fontSize: 11, color: '#9A8A70', marginBottom: 4 }}>
-                <span>第{p.checkin_count}天 / 共{p.total_days}天</span>
-                <span style={{ color: '#C8922A', fontWeight: 600 }}>{pct}%</span>
-              </div>
-              <div style={{ height: 5, background: '#F0EAE0', borderRadius: 3, overflow: 'hidden' }}>
-                <div style={{ width: `${pct}%`, height: '100%', borderRadius: 3,
-                  background: pct >= 80 ? 'linear-gradient(90deg,#3B7A4A,#5AAA6A)' : 'linear-gradient(90deg,#C8922A,#E8B84A)' }} />
-              </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 11, color: '#B8A88A' }}>
-                {p.verify_type === 'screenshot' ? '📸 截图打卡' : p.verify_type === 'text' ? '✏️ 文字打卡' : '📍 定位打卡'}
-              </div>
-              <div style={S.cardActions}>
-                <button onClick={e => { e.stopPropagation(); nav(`/pledge/${p.id}?tab=witness`) }}
-                  style={S.witnessBtn}>
-                  👁 去见证
+            <button style={S.refreshBtn} onClick={() => setBatch(v => (v + 1) % batchCount)}>换一批</button>
+          </div>
+          {featured.map(p => renderCard(p, true))}
+
+          <div style={S.entryGrid}>
+            {[
+              ['今日待见证', hotCount, 'witnesses'],
+              ['即将结束', endingCount, 'ending_soon'],
+              ['高押注', highStakeCount, 'stake'],
+              ['新立誓言', freshCount, 'created_at'],
+            ].map(([label, count, nextSort]) => (
+              <button key={label} style={S.entryBtn} onClick={() => applyStatus(nextSort)}>
+                <span>{label}</span><b>{count}</b>
+              </button>
+            ))}
+          </div>
+
+          <div style={S.categoryPanel}>
+            <div style={S.panelTitle}>按誓言分类浏览</div>
+            <div style={S.categoryGrid}>
+              {CATEGORY_OPTIONS.map(c => (
+                <button key={c.key} style={{ ...S.categoryBtn, ...(cat === c.key ? S.categoryBtnOn : {}) }} onClick={() => setCat(c.key)}>
+                  <span>{c.emoji}</span><b>{c.label}</b>
                 </button>
-                <button onClick={e => { e.stopPropagation(); nav(`/pledge/${p.id}`) }}
-                  style={S.detailBtn}>
-                  查看 ›
-                </button>
-              </div>
+              ))}
             </div>
           </div>
-        )
-      })}
+
+          <div style={S.browseHead}>
+            <div>
+              <div style={S.panelTitle}>主动浏览</div>
+              <div style={S.curatedHint}>当前显示前 5 条，可按分类和排序调整</div>
+            </div>
+          </div>
+          <div style={S.filterBar}>
+            <label style={S.selectBox}>
+              <span style={S.selectLabel}>分类</span>
+              <select value={cat} onChange={e => setCat(e.target.value)} style={S.select}>
+                {CATEGORY_OPTIONS.map(c => <option key={c.key} value={c.key}>{c.emoji} {c.label}</option>)}
+              </select>
+            </label>
+            <label style={S.selectBox}>
+              <span style={S.selectLabel}>排序</span>
+              <select value={sort} onChange={e => setSort(e.target.value)} style={S.select}>
+                <option value="created_at">最新发布</option>
+                <option value="ending_soon">即将结束</option>
+                <option value="stake">押注最高</option>
+                <option value="witnesses">热门见证</option>
+                <option value="progress">完成率高</option>
+              </select>
+            </label>
+          </div>
+          {filtered.length === 0 && (
+            <Empty text={cat === 'all' ? '还没有公开誓言，成为第一个！' : `暂无「${CATEGORY_OPTIONS.find(c => c.key === cat)?.label || '该'}」类誓言`} />
+          )}
+          {browseItems.map(p => renderCard(p))}
+        </>
+      )}
     </div>
   )
 }
@@ -249,6 +310,19 @@ const S = {
   squareNavBtnOn:{ color:'#C8922A', boxShadow:'inset 0 -3px 0 #C8922A' },
   navPrimary:{ fontSize:13, fontWeight:800 },
   navSub:    { fontSize:11, opacity:.72, marginTop:2 },
+  curatedHead: { display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, margin:'12px 0 10px' },
+  curatedTitle:{ fontFamily:'Noto Serif SC,serif', fontSize:17, fontWeight:900, color:'#1A1208' },
+  curatedHint: { fontSize:11, color:'#9A8A70', marginTop:2, lineHeight:1.5 },
+  refreshBtn:  { border:'0.5px solid #D9C79D', background:'#fff', color:'#9A6A10', borderRadius:18, padding:'7px 14px', fontSize:12, fontWeight:800, fontFamily:'Noto Sans SC,sans-serif', cursor:'pointer', flexShrink:0 },
+  featureCard: { borderColor:'#E3C576', background:'linear-gradient(180deg,#FFFDF8,#FFFFFF)' },
+  entryGrid:  { display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:7, margin:'4px 0 14px' },
+  entryBtn:   { minWidth:0, border:'0.5px solid #E0D5C0', background:'#fff', borderRadius:12, padding:'9px 4px', color:'#6A5A40', fontFamily:'Noto Sans SC,sans-serif', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:3 },
+  categoryPanel:{ background:'#FFFDF8', border:'0.5px solid #E6DCCB', borderRadius:14, padding:12, margin:'0 0 14px' },
+  panelTitle: { fontFamily:'Noto Serif SC,serif', fontSize:15, fontWeight:900, color:'#1A1208' },
+  categoryGrid:{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8, marginTop:10 },
+  categoryBtn:{ minWidth:0, border:'0.5px solid #E0D5C0', background:'#fff', color:'#6A5A40', borderRadius:12, padding:'9px 4px', fontFamily:'Noto Sans SC,sans-serif', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:4 },
+  categoryBtnOn:{ borderColor:'#C8922A', background:'#1A1208', color:'#F6D486' },
+  browseHead: { display:'flex', alignItems:'flex-end', justifyContent:'space-between', margin:'2px 0 8px' },
   filterBar: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, margin:'10px 0 12px' },
   selectBox: { minWidth:0, display:'flex', alignItems:'center', gap:6, border:'0.5px solid #E0D5C0', borderRadius:12, background:'#fff', padding:'7px 10px' },
   selectLabel:{ fontSize:10, color:'#B09A72', fontWeight:700, flexShrink:0 },
