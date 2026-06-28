@@ -1,403 +1,348 @@
 // src/pages/CharityPage.jsx
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../App'
+import { createCharityAction, donate, getCharityTotal, getDonations, getMyCharityActions } from '../lib/supabase'
 
 const C = {
-  gold:'#C8922A', goldL:'#FDF3E0', goldD:'#7A5A18',
-  ink:'#1A1208', muted:'#7A6A50', hint:'#B8A88A',
-  bg:'#FAF7F2', surf:'#FFFFFF', soft:'#F5F0E8', soft2:'#EDE6D8',
-  border:'#E0D5C0',
-  red:'#C84040', redL:'#FCEBEB', redD:'#8A2020',
-  green:'#3B7A4A', greenL:'#E8F5EC', greenD:'#1A4A28',
-  blue:'#3A6A9A', blueL:'#E8F0FA',
+  gold: '#C8922A', goldL: '#FDF3E0', goldD: '#7A5A18', ink: '#1A1208',
+  muted: '#7A6A50', hint: '#B8A88A', bg: '#FAF7F2', surf: '#FFFFFF',
+  soft: '#F5F0E8', border: '#E0D5C0', green: '#3B7A4A', greenL: '#E8F5EC',
+  red: '#C84040', redL: '#FCEBEB', blue: '#3A6A9A', blueL: '#E8F0FA',
 }
 
 const ORGS = [
-  { id:'animal',  emoji:'🐾', name:'中国动物保护联盟', desc:'救助流浪动物、反虐待倡导、野生动物保育',   total: 42800 },
-  { id:'library', emoji:'📚', name:'山区图书馆计划',   desc:'为偏远山区儿童建立图书室，捐书捐课',       total: 28400 },
-  { id:'child',   emoji:'❤️', name:'儿童健康基金',     desc:'贫困儿童医疗援助、营养干预、心理关怀',     total: 67200 },
-  { id:'env',     emoji:'🌳', name:'公益绿色行动',     desc:'植树造林、减碳倡导、环保教育',             total: 19600 },
-  { id:'poverty', emoji:'🏥', name:'贫困助学基金',     desc:'资助寒门学子完成学业，改变命运',           total: 31000 },
+  { id: 'library', emoji: '📚', name: '山区图书馆计划', desc: '为偏远地区儿童补充阅读资源', total: 28400 },
+  { id: 'child', emoji: '❤️', name: '儿童健康基金', desc: '儿童医疗援助、营养与心理关怀', total: 67200 },
+  { id: 'study', emoji: '🎓', name: '贫困助学基金', desc: '资助寒门学子完成学业', total: 31000 },
+  { id: 'env', emoji: '🌳', name: '公益绿色行动', desc: '植树、环保教育与减碳倡导', total: 19600 },
+  { id: 'animal', emoji: '🐾', name: '流浪动物救助', desc: '救助、绝育与领养支持', total: 42800 },
 ]
 
-const AMOUNTS = [200, 500, 1000, '全部']
-
-const RECORDS = [
-  { emoji:'🐾', org:'中国动物保护联盟', reason:'冥想30天完成',         date:'2025年4月', coins:500,  type:'gain', note:'「希望每只小动物都能被温柔对待」' },
-  { emoji:'📚', org:'山区图书馆计划',   reason:'阅读21天失败捐出',     date:'2025年3月', coins:300,  type:'loss', note:'失败的代价流向了有意义的地方' },
-  { emoji:'❤️', org:'儿童健康基金',     reason:'见证他人誓言失败分得', date:'2025年2月', coins:240,  type:'gain', note:'押对了，这笔钱由我来决定去向' },
+const AMOUNTS = [50, 100, 200, 500]
+const ACTION_TYPES = [
+  { id: 'clean', label: '清洁环境', reward: 30 },
+  { id: 'animal', label: '动物照护', reward: 40 },
+  { id: 'donate_goods', label: '捐物助人', reward: 50 },
+  { id: 'volunteer', label: '志愿服务', reward: 80 },
 ]
 
-const CERTS = [
-  { emoji:'🌿', name:'初级善行证书',  need:500,   done:500,  color:C.green,  earned:true,  date:'2025年4月', desc:'累计捐出 500 金币达成' },
-  { emoji:'🔵', name:'中级功德证书',  need:5000,  done:500,  color:C.blue,   earned:false, desc:'含机构公章，可用于个人简历' },
-  { emoji:'🟡', name:'高级行善证书',  need:20000, done:500,  color:C.gold,   earned:false, desc:'社会公益影响力认证' },
-  { emoji:'🪷', name:'至高菩萨证书',  need:50000, done:500,  color:'#7F77DD',earned:false, desc:'区块链存证 · 终身荣誉' },
-]
-
-function SecLabel({ children, style }) {
-  return <div style={{ fontSize:11, fontWeight:600, color:C.muted, letterSpacing:.5, marginBottom:10, ...style }}>{children}</div>
+function orgEmoji(name = '') {
+  const org = ORGS.find(item => name.includes(item.name) || item.name.includes(name))
+  if (org) return org.emoji
+  if (name.includes('图书') || name.includes('书')) return '📚'
+  if (name.includes('儿童') || name.includes('健康')) return '❤️'
+  if (name.includes('助学') || name.includes('贫困')) return '🎓'
+  if (name.includes('绿') || name.includes('环保')) return '🌳'
+  if (name.includes('动物')) return '🐾'
+  return '🪷'
 }
 
-function Tag({ text, bg, color }) {
-  return <div style={{ background:bg, color, fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:20, flexShrink:0 }}>{text}</div>
+function formatDate(value) {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+}
+
+function sourceLabel(source) {
+  if (source === 'manual') return '主动捐赠'
+  if (source === 'pledge_fail') return '誓言结算'
+  if (source === 'witness_pool') return '见证池结余'
+  return '公益入账'
+}
+
+function SectionTitle({ title, action }) {
+  return <div style={S.sectionHead}><div style={S.sectionTitle}>{title}</div>{action}</div>
 }
 
 export default function CharityPage() {
-  const { profile } = useAuth()
-  const nav = useNavigate()
-  const [tab, setTab]         = useState('donate')
-  const [selOrg, setSelOrg]   = useState('animal')
-  const [selAmt, setSelAmt]   = useState(500)
+  const { profile, session } = useAuth()
+  const [tab, setTab] = useState('projects')
+  const [selectedOrg, setSelectedOrg] = useState(ORGS[0].id)
+  const [amount, setAmount] = useState(100)
   const [message, setMessage] = useState('')
-  const [toast, setToast]     = useState(null)
-  const [joined, setJoined]   = useState({})
+  const [records, setRecords] = useState([])
+  const [vaultTotal, setVaultTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [donating, setDonating] = useState(false)
+  const [toast, setToast] = useState('')
+  const [actionType, setActionType] = useState('clean')
+  const [actionText, setActionText] = useState('')
+  const [actionProof, setActionProof] = useState('')
+  const [actionReward, setActionReward] = useState(30)
+  const [actionRecords, setActionRecords] = useState([])
+  const [localBalance, setLocalBalance] = useState(profile?.merit_coins || 0)
 
-  const coins   = profile?.merit_coins  ?? 1240
-  const merit   = profile?.total_merit  ?? 3800
-  const donated = 4300   // mock累计捐出
+  const userId = session?.user?.id
+
+  useEffect(() => setLocalBalance(profile?.merit_coins || 0), [profile?.merit_coins])
+
+  useEffect(() => {
+    if (!userId) return
+    let alive = true
+    async function loadActions() {
+      try {
+        const rows = await getMyCharityActions(userId)
+        if (alive) setActionRecords(rows || [])
+      } catch {
+        try {
+          const raw = window.localStorage.getItem('charity_actions_' + userId)
+          if (alive) setActionRecords(raw ? JSON.parse(raw) : [])
+        } catch {
+          if (alive) setActionRecords([])
+        }
+      }
+    }
+    loadActions()
+    return () => { alive = false }
+  }, [userId])
+
+  const selected = ORGS.find(item => item.id === selectedOrg) || ORGS[0]
+  const donated = records.reduce((sum, item) => sum + Number(item.coins || 0), 0)
+  const projectTotals = useMemo(() => {
+    const totals = Object.fromEntries(ORGS.map(item => [item.name, item.total]))
+    records.forEach(item => {
+      totals[item.org_name] = (totals[item.org_name] || 0) + Number(item.coins || 0)
+    })
+    return totals
+  }, [records])
+  const certLevel = donated >= 2000 ? '护法者' : donated >= 500 ? '种善者' : '初心善行'
+  const nextNeed = donated >= 2000 ? 5000 : donated >= 500 ? 2000 : 500
+  const progress = Math.min(100, Math.round((donated / nextNeed) * 100))
 
   function showToast(msg) {
     setToast(msg)
-    setTimeout(() => setToast(null), 2400)
+    setTimeout(() => setToast(''), 2400)
   }
 
-  function doDonate() {
-    const amt = selAmt === '全部' ? coins : selAmt
-    showToast(`❤️ 已捐出 ${amt} 金币，感谢你的善行！`)
+  async function load() {
+    if (!userId) return
+    setLoading(true)
+    try {
+      const [donations, total] = await Promise.all([getDonations(userId), getCharityTotal()])
+      setRecords(donations || [])
+      setVaultTotal(total || 0)
+    } catch (err) {
+      showToast(err.message || '公益数据加载失败')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // ─── 捐款 Tab ───
-  const DonateTab = () => (
-    <div style={{ padding:'14px 16px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
+  useEffect(() => { load() }, [userId])
 
-      {/* 钱包条 */}
-      <div style={{ ...S.walletStrip, cursor:'pointer' }} onClick={() => showToast('功德详情即将上线')}>
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:22, color:C.gold }}>🪙</span>
-          <div>
-            <div style={{ fontSize:11, color:C.muted }}>公益金币余额</div>
-            <div style={{ fontFamily:'Noto Serif SC,serif', fontSize:18, fontWeight:900, color:C.goldD }}>
-              🪙 {coins.toLocaleString()}
-            </div>
-          </div>
-        </div>
-        <div style={{ textAlign:'right' }}>
-          <div style={{ fontSize:11, color:C.muted }}>功德值</div>
-          <div style={{ fontSize:16, fontWeight:500, color:C.greenD }}>{merit.toLocaleString()}</div>
-        </div>
-      </div>
+  async function handleDonate() {
+    if (!userId) return showToast('请先登录')
+    const coins = Number(amount)
+    if (!Number.isFinite(coins) || coins <= 0) return showToast('请输入有效金额')
+    if (coins > localBalance) return showToast('公益金币不足')
+    setDonating(true)
+    try {
+      const row = await donate(userId, { coins, orgName: selected.name, message: message.trim() || '愿这份善意抵达需要的人' })
+      setRecords(list => [row, ...list])
+      setLocalBalance(value => Math.max(0, value - coins))
+      setMessage('')
+      showToast('已捐出 ' + coins + ' 公益金币')
+    } catch (err) {
+      showToast(err.message || '捐赠失败，请稍后再试')
+    } finally {
+      setDonating(false)
+    }
+  }
 
-      {/* 称号进度 */}
-      <div style={{ ...S.card, marginBottom:14 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
-          <span style={{ fontSize:22 }}>🌿</span>
-          <div style={{ flex:1 }}>
-            <div style={{ fontSize:14, fontWeight:600, color:C.greenD }}>种善者</div>
-            <div style={{ fontSize:11, color:C.muted }}>距「护法者」还需 760 金币</div>
-          </div>
-          <button style={S.btnSm} onClick={() => showToast('称号详情即将上线')}>称号详情</button>
-        </div>
-        <div style={{ background:C.soft2, borderRadius:3, height:7, overflow:'hidden' }}>
-          <div style={{ width:'62%', height:'100%', background:C.green, borderRadius:3 }} />
-        </div>
-        <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:C.hint, marginTop:4 }}>
-          <span>500</span><span>1,240 / 2,000</span><span>2,000</span>
-        </div>
-      </div>
 
-      <SecLabel>选择捐款机构</SecLabel>
-      <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
-        {ORGS.map(org => (
-          <div key={org.id}
-            onClick={() => setSelOrg(org.id)}
-            style={{ ...S.orgCard, ...(selOrg === org.id ? S.orgCardOn : {}) }}>
-            <div style={{ fontSize:28, marginBottom:6 }}>{org.emoji}</div>
-            <div style={{ fontSize:14, fontWeight:600, marginBottom:2, color:C.ink }}>{org.name}</div>
-            <div style={{ fontSize:11, color:C.muted, marginBottom:8, lineHeight:1.5 }}>{org.desc}</div>
-            <div style={{ display:'flex', justifyContent:'space-between', fontSize:11 }}>
-              <span style={{ color:C.muted }}>平台已捐 <b style={{ color:C.ink }}>{org.total.toLocaleString()}</b> 金币</span>
-              {selOrg === org.id && <span style={{ color:C.greenD, fontWeight:500 }}>已选 ✓</span>}
-            </div>
-          </div>
-        ))}
-      </div>
+  async function handleSubmitAction() {
+    if (!userId) return showToast('请先登录')
+    if (!actionText.trim()) return showToast('请写下你做了什么公益行动')
+    const type = ACTION_TYPES.find(item => item.id === actionType) || ACTION_TYPES[0]
+    const reward = Math.max(0, Math.min(100, Number(actionReward) || type.reward))
+    const draft = {
+      id: Date.now(),
+      user_id: userId,
+      type: type.label,
+      text: actionText.trim(),
+      proof: actionProof || '未上传文件名',
+      reward,
+      status: '待确认',
+      created_at: new Date().toISOString(),
+    }
 
-      <SecLabel>捐出金额</SecLabel>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:10 }}>
-        {AMOUNTS.map(a => (
-          <div key={a} onClick={() => setSelAmt(a)}
-            style={{ ...S.amtOpt, ...(selAmt === a ? S.amtOptOn : {}) }}>
-            {a}
-          </div>
-        ))}
-      </div>
+    try {
+      const row = await createCharityAction(userId, draft)
+      setActionRecords(list => [row, ...list])
+      showToast('善行已提交，已送入陪审团待确认')
+    } catch {
+      const nextList = [draft, ...actionRecords]
+      setActionRecords(nextList)
+      window.localStorage.setItem('charity_actions_' + userId, JSON.stringify(nextList))
 
-      <div style={{ marginBottom:12 }}>
-        <div style={{ fontSize:12, color:C.muted, marginBottom:6 }}>留言给受益者（选填）</div>
-        <textarea
-          value={message} onChange={e => setMessage(e.target.value)}
-          placeholder="写下你想说的话，与受益者分享…"
-          style={{ width:'100%', minHeight:56, border:`1px solid ${C.border}`, borderRadius:10,
-            padding:'10px 12px', fontSize:13, fontFamily:'Noto Sans SC,sans-serif',
-            color:C.ink, background:C.surf, outline:'none', resize:'none' }} />
-      </div>
+      const caseItem = {
+        id: 'charity-' + draft.id,
+        kind: 'charity_action',
+        applicant_id: userId,
+        type: draft.type,
+        text: draft.text,
+        proof: draft.proof,
+        reward: draft.reward,
+        status: 'pending',
+        votes: { approve: 0, reject: 0, revise: 0 },
+        voters: {},
+        created_at: draft.created_at,
+      }
+      try {
+        const rawCases = window.localStorage.getItem('charity_jury_cases')
+        const cases = rawCases ? JSON.parse(rawCases) : []
+        window.localStorage.setItem('charity_jury_cases', JSON.stringify([caseItem, ...cases]))
+      } catch {
+        window.localStorage.setItem('charity_jury_cases', JSON.stringify([caseItem]))
+      }
+      showToast('善行已提交到本机记录，等待云端表启用')
+    }
 
-      <button style={S.btnGold} onClick={doDonate}>
-        ❤️ 捐出 {selAmt === '全部' ? coins.toLocaleString() : selAmt} 金币
-      </button>
-      <div style={{ fontSize:11, color:C.hint, textAlign:'center', marginTop:8, lineHeight:1.7 }}>
-        金币不可提现 · 平台代为转交合规公益机构<br />捐款后自动生成公益记录，累计功德值
-      </div>
-      <div style={{ height:16 }} />
-    </div>
-  )
-
-  // ─── 公益活动 Tab ───
-  const ActivityTab = () => (
-    <div style={{ padding:'14px 16px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
-      <div style={{ ...S.notice, marginBottom:14 }}>
-        <div style={{ fontSize:13, fontWeight:700, color:C.goldD, marginBottom:4 }}>✨ 公益活动</div>
-        <div style={{ fontSize:12, color:C.muted, lineHeight:1.6 }}>参与平台发起或用户发起的公益行动，完成誓言即是最好的公益贡献。</div>
-      </div>
-
-      <SecLabel>平台发起</SecLabel>
-
-      {/* 活动卡1 */}
-      <div style={S.actCard}>
-        <div style={{ display:'flex', alignItems:'flex-start', gap:10, marginBottom:10 }}>
-          <span style={{ fontSize:28, flexShrink:0 }}>🌿</span>
-          <div style={{ flex:1 }}>
-            <div style={{ fontSize:14, fontWeight:600, marginBottom:2, color:C.ink }}>「一人一树」环保誓言月</div>
-            <div style={{ fontSize:11, color:C.muted }}>5月1日 — 5月31日 · 平台赞助</div>
-          </div>
-          <Tag text="进行中" bg={C.greenL} color={C.green} />
-        </div>
-        <div style={{ fontSize:12, color:C.muted, lineHeight:1.6, marginBottom:10 }}>
-          立下「减少碳足迹」类誓言，完成后平台代你种一棵树。已有 1,284 人参与，共种 847 棵。
-        </div>
-        <div style={{ background:C.soft2, borderRadius:3, height:5, overflow:'hidden', marginBottom:6 }}>
-          <div style={{ width:'66%', height:'100%', background:C.green, borderRadius:3 }} />
-        </div>
-        <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:C.muted }}>
-          <span>🌱 847 棵已种</span><span>目标 1280 棵</span>
-        </div>
-      </div>
-
-      {/* 活动卡2 */}
-      <div style={S.actCard}>
-        <div style={{ display:'flex', alignItems:'flex-start', gap:10, marginBottom:10 }}>
-          <span style={{ fontSize:28, flexShrink:0 }}>📚</span>
-          <div style={{ flex:1 }}>
-            <div style={{ fontSize:14, fontWeight:600, marginBottom:2, color:C.ink }}>「书香送山区」读书马拉松</div>
-            <div style={{ fontSize:11, color:C.muted }}>常设活动 · 山区图书馆计划</div>
-          </div>
-          <Tag text="常设" bg={C.goldL} color={C.goldD} />
-        </div>
-        <div style={{ fontSize:12, color:C.muted, lineHeight:1.6, marginBottom:10 }}>
-          每完成一个读书类誓言，捐出10%赌注给山区图书馆。本月已有 328 人参与，共捐出 84,200 金币。
-        </div>
-        <button style={{ ...S.btnSm, ...S.btnSmOn }}
-          onClick={() => showToast('已加入书香计划！')}>加入活动</button>
-      </div>
-
-      <SecLabel style={{ marginTop:4 }}>用户发起</SecLabel>
-
-      <div style={S.actCard}>
-        <div style={{ display:'flex', alignItems:'flex-start', gap:10, marginBottom:8 }}>
-          <div style={{ width:32, height:32, borderRadius:'50%', background:C.green,
-            display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize:12, color:'#fff', fontWeight:700, flexShrink:0 }}>铁</div>
-          <div style={{ flex:1 }}>
-            <div style={{ fontSize:13, fontWeight:600, color:C.ink }}>铁汉发起 · 「健身公益跑」</div>
-            <div style={{ fontSize:11, color:C.muted }}>每完成一周健身誓言，捐出50金币给残疾人体育基金</div>
-          </div>
-        </div>
-        <div style={{ fontSize:11, color:C.muted, marginBottom:8 }}>24人参与 · 共捐出 12,400 金币</div>
-        <button style={{ ...S.btnSm, ...S.btnSmOn }}
-          onClick={() => showToast('已加入健身公益跑！')}>加入</button>
-      </div>
-
-      <div style={{ marginTop:16 }}>
-        <button style={S.btnOutline} onClick={() => showToast('需达到功德大师称号才能发起活动')}>
-          ＋ 发起公益活动（功德大师以上）
-        </button>
-      </div>
-      <div style={{ height:16 }} />
-    </div>
-  )
-
-  // ─── 我的记录 Tab ───
-  const RecordTab = () => (
-    <div style={{ padding:'14px 16px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
-        {[['4,300','累计捐出金币'],['3','参与机构数'],['68','受益人次'],['3,800','累计功德值']].map(([v,l]) => (
-          <div key={l} style={S.statBox}>
-            <div style={{ fontFamily:'Noto Serif SC,serif', fontSize:20, fontWeight:700, color:C.ink }}>{v}</div>
-            <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{l}</div>
-          </div>
-        ))}
-      </div>
-
-      <SecLabel>捐款记录</SecLabel>
-      {RECORDS.map((r, i) => (
-        <div key={i} style={S.recItem}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
-            <span style={{ fontSize:18 }}>{r.emoji}</span>
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:C.ink }}>{r.org}</div>
-              <div style={{ fontSize:11, color:C.muted }}>{r.reason} · {r.date}</div>
-            </div>
-            <div style={{ fontSize:14, fontWeight:600,
-              color: r.type === 'gain' ? C.greenD : C.redD }}>
-              {r.type === 'gain' ? '+' : ''}{r.coins}金币
-            </div>
-          </div>
-          <div style={{ fontSize:12, color:C.hint, fontStyle:'italic', marginLeft:28 }}>
-            {r.note}
-          </div>
-        </div>
-      ))}
-      <div style={{ height:16 }} />
-    </div>
-  )
-
-  // ─── 证书 Tab ───
-  const CertTab = () => (
-    <div style={{ padding:'14px 16px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
-      <div style={{ fontSize:12, color:C.muted, lineHeight:1.7, marginBottom:16,
-        background:C.soft, borderRadius:10, padding:'10px 12px' }}>
-        慈善证书是你公益行动的凭证，可下载、分享、用于简历。累计捐出金币越多，证书等级越高。
-      </div>
-
-      {CERTS.map((cert, i) => cert.earned ? (
-        /* 已获得证书 */
-        <div key={i} style={S.certCard}>
-          <div style={{ fontSize:11, color:'rgba(128,224,160,.6)', marginBottom:4, letterSpacing:.5 }}>
-            已获得 · {cert.date}
-          </div>
-          <div style={{ fontSize:16, fontWeight:600, color:'#80E0A0', marginBottom:4 }}>
-            {cert.emoji} {cert.name}
-          </div>
-          <div style={{ fontSize:12, color:'rgba(128,224,160,.6)', marginBottom:12 }}>{cert.desc}</div>
-          <div style={{ display:'flex', gap:8 }}>
-            <button style={S.certBtn} onClick={() => showToast('证书下载中…')}>⬇ 下载证书</button>
-            <button style={S.certBtn} onClick={() => showToast('已分享到社区')}>↗ 分享展示</button>
-          </div>
-        </div>
-      ) : (
-        /* 未解锁证书 */
-        <div key={i} style={S.certLocked}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
-            <span style={{ fontSize:22, opacity: .4 + i * .05 }}>{cert.emoji}</span>
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:14, fontWeight:600, color:C.ink }}>{cert.name}</div>
-              <div style={{ fontSize:11, color:C.muted }}>需累计捐出 {cert.need.toLocaleString()} 金币</div>
-            </div>
-            <div style={{ fontSize:12, color:C.muted }}>
-              差 <b style={{ color:C.ink }}>{(cert.need - cert.done).toLocaleString()}</b>
-            </div>
-          </div>
-          <div style={{ background:C.soft2, borderRadius:3, height:5, overflow:'hidden' }}>
-            <div style={{ width:`${Math.round(cert.done/cert.need*100)}%`, height:'100%',
-              background:cert.color, borderRadius:3 }} />
-          </div>
-          <div style={{ fontSize:11, color:C.hint, marginTop:4 }}>{cert.desc}</div>
-        </div>
-      ))}
-
-      <div style={{ height:16 }} />
-    </div>
-  )
-
+    setActionText('')
+    setActionProof('')
+    setActionReward(type.reward)
+  }
   return (
-    <div style={{ background:C.bg, minHeight:'100vh', display:'flex', flexDirection:'column' }}>
+    <div style={S.page}>
+      {toast && <div style={S.toast}>{toast}</div>}
+      <div style={S.topbar}><div style={S.logo}>慈<em style={{ color: C.gold, fontStyle: 'normal' }}>善</em></div></div>
+      <div style={S.tabs}>{[['projects','公益项目'],['records','我的善行']].map(([key, label]) => <button key={key} style={{ ...S.tab, ...(tab === key ? S.tabOn : {}) }} onClick={() => setTab(key)}>{label}</button>)}</div>
 
-      {/* Toast */}
-      {toast && (
-        <div style={{ position:'fixed', top:60, left:'50%', transform:'translateX(-50%)',
-          background:'rgba(26,18,8,.88)', color:'#fff', padding:'9px 20px',
-          borderRadius:20, fontSize:13, zIndex:200, whiteSpace:'nowrap' }}>
-          {toast}
+      {tab === 'projects' && (
+        <div style={S.content}>
+          <div style={S.walletCard}>
+            <div><div style={S.kicker}>公益金币余额</div><div style={S.balance}>{localBalance.toLocaleString()}</div></div>
+            <div style={{ textAlign: 'right' }}><div style={S.kicker}>平台金库</div><div style={S.vault}>{vaultTotal.toLocaleString()}</div></div>
+          </div>
+
+          <SectionTitle title="选择公益项目" />
+          <div style={S.orgGrid}>{ORGS.map(org => {
+            const active = selectedOrg === org.id
+            return <button key={org.id} style={{ ...S.orgCard, ...(active ? S.orgCardOn : {}) }} onClick={() => setSelectedOrg(org.id)}>
+              <div style={S.orgEmoji}>{org.emoji}</div>
+              <div style={S.orgName}>{org.name}</div>
+              <div style={S.orgDesc}>{org.desc}</div>
+              <div style={S.orgMeta}>累计 {Number(projectTotals[org.name] || org.total).toLocaleString()} 金币</div>
+            </button>
+          })}</div>
+
+          <div style={S.donatePanel}>
+            <div style={S.panelTitle}>{selected.emoji} 捐给 {selected.name}</div>
+            <div style={S.amountGrid}>{AMOUNTS.map(value => <button key={value} style={{ ...S.amountBtn, ...(amount === value ? S.amountBtnOn : {}) }} onClick={() => setAmount(value)}>{value}</button>)}</div>
+            <input style={S.input} type="number" min="1" value={amount} onChange={e => setAmount(e.target.value)} placeholder="自定义公益金币" />
+            <textarea style={S.textarea} value={message} onChange={e => setMessage(e.target.value)} placeholder="给受益者留一句话，选填" />
+            <button style={{ ...S.primaryBtn, opacity: donating ? .7 : 1 }} onClick={handleDonate} disabled={donating}>{donating ? '捐赠中...' : '确认捐赠 ' + Number(amount || 0).toLocaleString() + ' 金币'}</button>
+          </div>
         </div>
       )}
 
-      {/* 顶栏 */}
-      <div style={S.topbar}>
-        <div style={S.logo}>公<em style={{ color:C.gold, fontStyle:'normal' }}>益</em></div>
-        <button style={S.iconBtn} onClick={() => showToast('功德账户即将上线')}>🪙</button>
-      </div>
+      {tab === 'records' && (
+        <div style={S.content}>
+          <div style={S.meritCard}>
+            <div><div style={S.kicker}>当前称号</div><div style={S.certTitle}>{certLevel}</div></div>
+            <div style={S.meritNum}>{donated.toLocaleString()}</div>
+            <div style={S.track}><div style={{ ...S.fill, width: progress + '%' }} /></div>
+            <div style={S.meritHint}>距下一阶段 {Math.max(0, nextNeed - donated).toLocaleString()} 公益金币</div>
+          </div>
 
-      {/* Sub-tabs */}
-      <div style={{ display:'flex', borderBottom:`1px solid ${C.border}`, background:C.bg, flexShrink:0 }}>
-        {[['donate','捐款'],['activity','公益活动'],['record','我的记录'],['cert','证书']].map(([key,label]) => (
-          <button key={key} onClick={() => setTab(key)} style={{
-            flex:1, padding:'10px 0', background:'none', border:'none', cursor:'pointer',
-            fontSize:12, fontWeight: tab===key ? 700 : 400,
-            color: tab===key ? C.gold : C.muted,
-            borderBottom: tab===key ? `2px solid ${C.gold}` : '2px solid transparent',
-            fontFamily:'Noto Sans SC,sans-serif', transition:'all .15s',
-          }}>{label}</button>
-        ))}
-      </div>
+          <SectionTitle title="行动善行" />
+          <div style={S.actionPanel}>
+            <div style={S.actionIntro}>做一件真实公益小事，上传证明，确认后可获得少量公益金币用于后续立誓。</div>
+            <div style={S.actionTypes}>{ACTION_TYPES.map(item => <button key={item.id} style={{ ...S.actionType, ...(actionType === item.id ? S.actionTypeOn : {}) }} onClick={() => { setActionType(item.id); setActionReward(item.reward) }}>{item.label}</button>)}</div>
+            <textarea style={S.textarea} value={actionText} onChange={e => setActionText(e.target.value)} placeholder="例如：在小区清理垃圾20分钟，并分类投放" />
+            <div style={S.proofRow}>
+              <label style={S.proofBtn}>上传证明<input type="file" accept="image/*,video/*,audio/*" style={{ display: 'none' }} onChange={e => setActionProof(e.target.files?.[0]?.name || '')} /></label>
+              <span style={S.proofName}>{actionProof || '图片/视频/语音均可'}</span>
+            </div>
+            <div style={S.rewardRow}><span>申请奖励</span><input style={S.rewardInput} type="number" min="0" max="100" value={actionReward} onChange={e => setActionReward(e.target.value)} /><span>金币</span></div>
+            <button style={S.primaryBtn} onClick={handleSubmitAction}>提交待确认善行</button>
+          </div>
 
-      {/* 内容区 */}
-      <div style={{ flex:1, overflowY:'auto' }}>
-        {tab === 'donate'   && <DonateTab />}
-        {tab === 'activity' && <ActivityTab />}
-        {tab === 'record'   && <RecordTab />}
-        {tab === 'cert'     && <CertTab />}
-      </div>
+          {actionRecords.length > 0 && <>
+            <SectionTitle title="待确认善行" />
+            {actionRecords.map(item => <div key={item.id} style={S.actionRecord}>
+              <div style={S.recordEmoji}>🌿</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={S.recordTitle}>{item.type}</div>
+                <div style={S.recordMeta}>{formatDate(item.created_at)} · {item.status} · 申请 {item.reward} 金币</div>
+                <div style={S.recordMsg}>{item.text}</div>
+                <div style={S.proofText}>证明：{item.proof}</div>
+              </div>
+            </div>)}
+          </>}
+
+          <SectionTitle title="捐赠记录" action={loading && <span style={S.loading}>加载中</span>} />
+          {records.length === 0 && !loading ? <div style={S.empty}>还没有公益记录。第一次捐赠会从这里开始留下痕迹。</div> : records.map(item => <div key={item.id || item.created_at} style={S.recordCard}>
+            <div style={S.recordEmoji}>{orgEmoji(item.org_name)}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={S.recordTitle}>{item.org_name || '公益项目'}</div>
+              <div style={S.recordMeta}>{sourceLabel(item.source)} · {formatDate(item.created_at)}</div>
+              {item.message && <div style={S.recordMsg}>{item.message}</div>}
+            </div>
+            <div style={S.recordCoins}>{Number(item.coins || 0).toLocaleString()}</div>
+          </div>)}
+        </div>
+      )}
     </div>
   )
 }
 
 const S = {
-  topbar:    { display:'flex', alignItems:'center', justifyContent:'space-between',
-               padding:'calc(14px + env(safe-area-inset-top)) 16px 12px', background:'#FAF7F2',
-               borderBottom:`1px solid #E0D5C0`, flexShrink:0 },
-  logo:      { fontFamily:'Noto Serif SC,serif', fontSize:20, fontWeight:900,
-               color:'#1A1208', letterSpacing:.5 },
-  iconBtn:   { background:'none', border:'none', cursor:'pointer', fontSize:22 },
-  walletStrip:{ background:'#FDF3E0', border:'1px solid #E8D4A0', borderRadius:12,
-                padding:'12px 14px', display:'flex', alignItems:'center',
-                justifyContent:'space-between', marginBottom:12 },
-  card:      { background:'#fff', border:'1px solid #E0D5C0', borderRadius:14,
-               padding:14, boxShadow:'0 2px 10px rgba(26,18,8,.06)' },
-  orgCard:   { background:'#fff', border:`1px solid #E0D5C0`, borderRadius:12,
-               padding:14, cursor:'pointer', transition:'all .15s' },
-  orgCardOn: { borderColor:'#C8922A', background:'#FFFAF0',
-               boxShadow:'0 0 0 2px rgba(200,146,42,.15)' },
-  amtOpt:    { background:'#F5F0E8', border:'1.5px solid #E0D5C0', borderRadius:10,
-               padding:'10px 0', textAlign:'center', fontSize:14, fontWeight:600,
-               color:'#7A6A50', cursor:'pointer' },
-  amtOptOn:  { background:'#FDF3E0', borderColor:'#C8922A', color:'#7A5A18' },
-  btnGold:   { width:'100%', background:'linear-gradient(135deg,#C8922A,#E8B84A)',
-               color:'#fff', border:'none', borderRadius:12, padding:'14px 0',
-               fontSize:15, fontWeight:700, cursor:'pointer',
-               fontFamily:'Noto Sans SC,sans-serif',
-               boxShadow:'0 4px 16px rgba(200,146,42,.35)' },
-  btnSm:     { background:'none', border:'1px solid #E0D5C0', borderRadius:20,
-               padding:'5px 12px', fontSize:12, cursor:'pointer', color:'#7A6A50',
-               fontFamily:'Noto Sans SC,sans-serif', flexShrink:0 },
-  btnSmOn:   { background:'#C8922A', borderColor:'#C8922A', color:'#fff' },
-  btnOutline:{ width:'100%', background:'none', border:'1px solid #E0D5C0',
-               borderRadius:10, padding:10, fontSize:13, cursor:'pointer',
-               color:'#7A6A50', fontFamily:'Noto Sans SC,sans-serif' },
-  notice:    { background:'#FDF3E0', border:'1px solid #E8D4A0', borderRadius:12, padding:'12px 14px' },
-  actCard:   { background:'#fff', border:'1px solid #E0D5C0', borderRadius:14,
-               padding:14, marginBottom:10, boxShadow:'0 2px 8px rgba(26,18,8,.05)' },
-  statBox:   { background:'#fff', border:'1px solid #E0D5C0', borderRadius:12,
-               padding:'12px 14px', textAlign:'center', boxShadow:'0 1px 4px rgba(26,18,8,.04)' },
-  recItem:   { background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:12,
-               padding:'12px 14px', marginBottom:8 },
-  certCard:  { background:'linear-gradient(135deg,#1A4A28,#2A6A38)', borderRadius:16,
-               padding:18, marginBottom:12 },
-  certLocked:{ background:'#fff', border:'1px solid #E0D5C0', borderRadius:14,
-               padding:14, marginBottom:10 },
-  certBtn:   { background:'none', border:'1px solid rgba(255,255,255,.25)',
-               borderRadius:20, padding:'5px 12px', fontSize:12,
-               color:'rgba(255,255,255,.7)', cursor:'pointer',
-               fontFamily:'Noto Sans SC,sans-serif' },
+  page: { minHeight: '100vh', background: C.bg, color: C.ink, paddingBottom: 'calc(76px + env(safe-area-inset-bottom))' },
+  topbar: { padding: 'calc(16px + env(safe-area-inset-top)) 16px 16px', borderBottom: '1px solid ' + C.border, background: C.bg },
+  logo: { fontFamily: 'Noto Serif SC,serif', fontSize: 24, fontWeight: 900, color: C.ink },
+  tabs: { display: 'flex', borderBottom: '1px solid ' + C.border, background: C.bg },
+  tab: { flex: 1, border: 'none', background: 'none', padding: '13px 0', fontSize: 15, fontWeight: 800, color: C.muted, fontFamily: 'Noto Sans SC,sans-serif' },
+  tabOn: { color: C.gold, borderBottom: '3px solid ' + C.gold },
+  content: { padding: 16 },
+  toast: { position: 'fixed', top: 66, left: '50%', transform: 'translateX(-50%)', background: 'rgba(26,18,8,.9)', color: '#fff', padding: '9px 16px', borderRadius: 999, fontSize: 13, zIndex: 20, whiteSpace: 'nowrap' },
+  walletCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: C.surf, border: '1px solid ' + C.border, borderRadius: 16, padding: 14, marginBottom: 16, boxShadow: '0 2px 10px rgba(26,18,8,.05)' },
+  kicker: { fontSize: 11, color: C.muted, marginBottom: 5, fontWeight: 800 },
+  balance: { fontFamily: 'Noto Serif SC,serif', fontSize: 26, color: C.goldD, fontWeight: 900 },
+  vault: { fontSize: 20, color: C.green, fontWeight: 900 },
+  sectionHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '12px 0 10px' },
+  sectionTitle: { fontSize: 15, fontWeight: 900, color: C.ink, fontFamily: 'Noto Serif SC,serif' },
+  orgGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, marginBottom: 14 },
+  orgCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: 12, textAlign: 'left', fontFamily: 'Noto Sans SC,sans-serif' },
+  orgCardOn: { borderColor: C.gold, background: '#FFFCF4', boxShadow: '0 2px 10px rgba(200,146,42,.12)' },
+  orgEmoji: { fontSize: 24, marginBottom: 6 },
+  orgName: { fontSize: 14, fontWeight: 900, color: C.ink, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  orgDesc: { fontSize: 11, color: C.muted, lineHeight: 1.5, minHeight: 34 },
+  orgMeta: { marginTop: 8, fontSize: 10, color: C.goldD, fontWeight: 800 },
+  donatePanel: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 16, padding: 14, boxShadow: '0 2px 10px rgba(26,18,8,.05)' },
+  panelTitle: { fontSize: 16, fontWeight: 900, color: C.ink, marginBottom: 12 },
+  amountGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 10 },
+  amountBtn: { border: '1px solid ' + C.border, background: C.surf, color: C.muted, borderRadius: 999, padding: '9px 0', fontSize: 13, fontWeight: 900 },
+  amountBtnOn: { background: C.ink, borderColor: C.ink, color: '#fff' },
+  input: { boxSizing: 'border-box', width: '100%', border: '1px solid ' + C.border, borderRadius: 12, padding: '11px 12px', fontSize: 14, marginBottom: 10, background: C.bg },
+  textarea: { boxSizing: 'border-box', width: '100%', minHeight: 66, border: '1px solid ' + C.border, borderRadius: 12, padding: '10px 12px', fontSize: 13, fontFamily: 'Noto Sans SC,sans-serif', resize: 'none', background: C.bg, marginBottom: 12 },
+  primaryBtn: { width: '100%', border: 'none', background: C.gold, color: '#fff', borderRadius: 999, padding: '13px 14px', fontSize: 15, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' },
+  meritCard: { background: 'linear-gradient(135deg,#FFF8E8,#FFFFFF)', border: '1px solid #E8D4A0', borderRadius: 16, padding: 14, marginBottom: 16 },
+  certTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 22, fontWeight: 900, color: C.goldD },
+  meritNum: { position: 'absolute', opacity: 0 },
+  track: { height: 8, borderRadius: 999, background: C.soft, overflow: 'hidden', margin: '12px 0 6px' },
+  fill: { height: '100%', borderRadius: 999, background: C.gold },
+  meritHint: { fontSize: 11, color: C.muted },
+  loading: { fontSize: 11, color: C.hint },
+  empty: { background: C.surf, border: '1px dashed ' + C.border, borderRadius: 14, padding: 22, textAlign: 'center', color: C.muted, fontSize: 13, lineHeight: 1.7 },
+
+  actionPanel: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 16, padding: 14, marginBottom: 14, boxShadow: '0 2px 10px rgba(26,18,8,.05)' },
+  actionIntro: { fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: 10 },
+  actionTypes: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 10 },
+  actionType: { border: '1px solid ' + C.border, background: C.surf, color: C.muted, borderRadius: 999, padding: '8px 6px', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' },
+  actionTypeOn: { background: C.ink, borderColor: C.ink, color: '#fff' },
+  proofRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 },
+  proofBtn: { border: '1px solid ' + C.border, background: C.goldL, color: C.goldD, borderRadius: 999, padding: '8px 12px', fontSize: 12, fontWeight: 900, flexShrink: 0 },
+  proofName: { fontSize: 11, color: C.hint, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  rewardRow: { display: 'flex', alignItems: 'center', gap: 8, color: C.muted, fontSize: 12, marginBottom: 12 },
+  rewardInput: { width: 74, border: '1px solid ' + C.border, borderRadius: 10, padding: '8px 9px', fontSize: 13, background: C.bg },
+  actionRecord: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: 12, marginBottom: 10, display: 'flex', alignItems: 'flex-start', gap: 10 },
+  proofText: { fontSize: 10, color: C.hint, marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  recordCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: 12, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 },
+  recordEmoji: { width: 36, height: 36, borderRadius: 10, background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 },
+  recordTitle: { fontSize: 14, fontWeight: 900, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  recordMeta: { fontSize: 11, color: C.muted, marginTop: 3 },
+  recordMsg: { fontSize: 11, color: C.hint, marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  recordCoins: { color: C.goldD, fontSize: 15, fontWeight: 900, flexShrink: 0 },
 }

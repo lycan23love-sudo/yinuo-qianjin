@@ -3,359 +3,630 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
 import { getMyPledges, hasCheckedInToday, getMeritTitle } from '../lib/supabase'
-import { format, differenceInDays } from 'date-fns'
-import ReminderSetup from '../components/ReminderSetup'
+import { differenceInDays } from 'date-fns'
 
-export default function HomePage() {
-  const { profile, session } = useAuth()
-  const nav = useNavigate()
-  const [pledges, setPledges]         = useState([])
-  const [checkedMap, setCheckedMap]   = useState({})
-  const [loading, setLoading]         = useState(true)
-  const [showHistory, setShowHistory] = useState(false)
-  const [reminderOpen, setReminderOpen] = useState(false)
 
-  useEffect(() => { if (session) load() }, [session])
 
-  async function load() {
-    setLoading(true)
-    try {
-      const data = await getMyPledges(session.user.id)
-      setPledges(data)
-      const map = {}
-      for (const p of data.filter(p => p.status === 'active')) {
-        map[p.id] = await hasCheckedInToday(p.id)
-      }
-      setCheckedMap(map)
-    } finally { setLoading(false) }
+
+function daysLeft(pledge) {
+  if (!pledge?.end_date) return null
+  return Math.max(0, differenceInDays(new Date(pledge.end_date), new Date()))
+}
+
+
+
+
+function progressOf(pledge) {
+  const done = pledge?.checkin_count || pledge?.current_days || pledge?.completed_days || 0
+  const total = pledge?.total_days || pledge?.duration_days || pledge?.target_days || pledge?.days || 1
+  return {
+    done,
+    total,
+    percent: Math.min(100, Math.round((done / Math.max(total, 1)) * 100))
+  }
+}
+
+
+
+
+function pledgeTitle(pledge) {
+  return pledge?.title || pledge?.content || pledge?.description || '未命名诺言'
+}
+
+
+
+
+function getMeritDisplay(score) {
+  const merit = getMeritTitle(score || 0)
+  if (typeof merit === 'string') return { emoji: '', title: merit }
+  return { emoji: merit?.emoji || '', title: merit?.title || '初心者' }
+}
+
+
+
+
+function getHomeFeedback({ pledge, progress, checkedToday, daysLeft }) {
+  if (!pledge) {
+    return {
+      label: '第一份契约',
+      title: '先写下一件每天能守住的小事',
+      body: '诺言不必宏大，真正改变人的，是每天都能重复一次的行动。',
+      next: '立下誓言后，首页会每天陪你守住它。'
+    }
   }
 
-  const title    = profile ? getMeritTitle(profile.total_merit) : { emoji:'🌱', title:'初心者' }
-  const active   = pledges.filter(p => p.status === 'active')
-  const cooldown = pledges.filter(p => p.status === 'cooldown')
-  const history  = pledges.filter(p => ['done','fail','abandoned'].includes(p.status))
-  const used     = active.length + cooldown.length
-  const limit    = profile?.quota_limit ?? 3
-  const totalCheckinDays = active.reduce((s,p) => s + p.checkin_count, 0)
 
-  function cooldownDays(p) {
-    if (!p.cooldown_until) return 0
-    return Math.max(0, differenceInDays(new Date(p.cooldown_until), new Date()) + 1)
+  const left = Math.max(0, progress.total - progress.done)
+  const nextMilestone = [7, 14, 21, 30, 60, 90, 365].find(day => day > progress.done && day <= progress.total)
+  if (checkedToday) {
+    return {
+      label: '今日回响',
+      title: '今天已经守住了',
+      body: '不用再证明给任何人看，今天这一笔已经写进你的契约。',
+      next: left <= 0 ? '这份契约已经走到终点，等待结算。' : '明天继续，还差 ' + left + ' 次完成全程。'
+    }
   }
-
-  function progress(p) {
-    return { pct: Math.round((p.checkin_count / p.total_days) * 100), done: p.checkin_count }
+  if (progress.percent >= 80) {
+    return {
+      label: '临近圆满',
+      title: '最后这段最有分量',
+      body: '很多诺言不是败在开始，而是败在接近完成时。今天守住，它就更像真的了。',
+      next: daysLeft === 0 ? '今日到期，完成这次证明。' : '还剩 ' + left + ' 次，别让前面的努力断在这里。'
+    }
   }
+  if (progress.done === 0) {
+    return {
+      label: '起誓之后',
+      title: '第一天不是仪式的结束',
+      body: '盖印只是开始，第一次打卡才是你真正把诺言带进生活。',
+      next: '完成今天这一次，契约就开始有重量。'
+    }
+  }
+  return {
+    label: '守诺回响',
+    title: nextMilestone ? '向第 ' + nextMilestone + ' 天靠近' : '稳稳推进中',
+    body: '你不需要每天都很热血，只要在该做的时候继续做。',
+    next: daysLeft === 0 ? '今日到期，完成最后的证明。' : '已完成 ' + progress.done + ' 次，今天再添一笔。'
+  }
+}
 
-  const topPledge  = active[0]
-  const topChecked = topPledge ? checkedMap[topPledge.id] : false
 
+
+
+const styles = {
+  page: {
+    minHeight: '100vh',
+    background: '#FAF7F2',
+    color: '#1A1208',
+    padding: '0 16px calc(96px + env(safe-area-inset-bottom))',
+    boxSizing: 'border-box'
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    margin: '0 -16px 14px',
+    padding: 'calc(14px + env(safe-area-inset-top)) 16px 12px',
+    borderBottom: '1px solid #E0D5C0',
+    background: '#FAF7F2'
+  },
+  title: {
+    margin: 0,
+    fontFamily: 'Noto Serif SC, serif',
+    fontSize: 22,
+    lineHeight: 1.1,
+    fontWeight: 900,
+    letterSpacing: .5
+  },
+  subtitle: {
+    margin: '4px 0 0',
+    fontSize: 12,
+    color: '#7A6A50'
+  },
+  meritButton: {
+    border: '1px solid #E0D5C0',
+    background: '#FFFFFF',
+    color: '#7A5A18',
+    borderRadius: 999,
+    padding: '6px 10px',
+    fontSize: 12,
+    fontWeight: 700,
+    whiteSpace: 'nowrap'
+  },
+  stats: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    border: '1px solid #E0D5C0',
+    borderRadius: 12,
+    background: '#FFFFFF',
+    overflow: 'hidden',
+    boxShadow: '0 2px 10px rgba(26,18,8,.05)',
+    marginBottom: 12
+  },
+  statItem: {
+    padding: '11px 6px',
+    textAlign: 'center',
+    borderRight: '1px solid #EDE6D8'
+  },
+  statItemLast: {
+    padding: '11px 6px',
+    textAlign: 'center'
+  },
+  statValue: {
+    fontSize: 20,
+    lineHeight: 1,
+    fontWeight: 900,
+    color: '#1A1208'
+  },
+  statLabel: {
+    marginTop: 6,
+    fontSize: 11,
+    color: '#7A6A50'
+  },
+  scrollCard: {
+    position: 'relative',
+    overflow: 'hidden',
+    border: '1px solid #E0D5C0',
+    borderRadius: 14,
+    background: '#FFFFFF',
+    padding: 16,
+    boxShadow: '0 2px 10px rgba(26,18,8,.06)',
+    marginBottom: 14
+  },
+  scrollLineTop: {
+    display: 'none'
+  },
+  scrollLineBottom: {
+    display: 'none'
+  },
+  eyebrow: {
+    margin: 0,
+    color: '#C8922A',
+    fontSize: 11,
+    fontWeight: 800,
+    letterSpacing: 1.5
+  },
+  pledgeName: {
+    margin: '7px 0 0',
+    maxWidth: '80%',
+    fontFamily: 'Noto Serif SC, serif',
+    fontSize: 20,
+    lineHeight: 1.35,
+    fontWeight: 900
+  },
+  bodyText: {
+    maxWidth: '100%',
+    margin: '12px 0 0',
+    color: '#7A6A50',
+    fontSize: 13,
+    lineHeight: 1.7
+  },
+  seal: {
+    position: 'absolute',
+    right: 14,
+    top: 18,
+    width: 54,
+    height: 54,
+    borderRadius: 4,
+    border: '2px solid rgba(176,36,24,.72)',
+    background: 'rgba(176,36,24,.08)',
+    color: '#9B1F16',
+    transform: 'rotate(-8deg)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: 'Noto Serif SC, serif',
+    boxSizing: 'border-box'
+  },
+  sealChar: {
+    fontSize: 18,
+    lineHeight: 1,
+    fontWeight: 900
+  },
+  sealText: {
+    marginTop: 3,
+    fontSize: 10,
+    fontWeight: 900,
+    letterSpacing: 1
+  },
+  progressMeta: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    marginBottom: 7,
+    fontSize: 12,
+    color: '#7A6A50'
+  },
+  progressTrack: {
+    height: 7,
+    borderRadius: 999,
+    background: '#EDE6D8',
+    overflow: 'hidden'
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+    background: '#C8922A'
+  },
+  feedbackCard: {
+    marginTop: 12,
+    border: '1px solid #E8D4A0',
+    borderRadius: 12,
+    background: '#FDF3E0',
+    padding: '11px 12px'
+  },
+  feedbackLabel: {
+    color: '#7A5A18',
+    fontSize: 10,
+    fontWeight: 900,
+    letterSpacing: 1.2,
+    marginBottom: 5
+  },
+  feedbackTitle: {
+    color: '#1A1208',
+    fontSize: 14,
+    fontWeight: 800,
+    lineHeight: 1.4,
+    marginBottom: 5
+  },
+  feedbackBody: {
+    color: '#5A4A30',
+    fontSize: 12,
+    lineHeight: 1.65
+  },
+  feedbackNext: {
+    marginTop: 7,
+    color: '#7A5A18',
+    fontSize: 12,
+    fontWeight: 800
+  },
+  actionRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 14
+  },
+  muted: {
+    color: '#7A6A50',
+    fontSize: 13
+  },
+  primaryButton: {
+    border: 0,
+    borderRadius: 999,
+    background: '#1A1208',
+    color: '#F6D486',
+    padding: '10px 18px',
+    fontSize: 13,
+    fontWeight: 900,
+    boxShadow: '0 4px 12px rgba(26,18,8,.14)'
+  },
+  fullButton: {
+    width: '100%',
+    border: 0,
+    borderRadius: 12,
+    background: '#1A1208',
+    color: '#F6D486',
+    padding: '13px 16px',
+    fontSize: 14,
+    fontWeight: 900,
+    marginTop: 14
+  },
+  panel: {
+    border: '1px solid #E0D5C0',
+    borderRadius: 14,
+    background: '#FFFFFF',
+    padding: 14,
+    boxShadow: '0 2px 10px rgba(26,18,8,.05)',
+    marginBottom: 14
+  },
+  panelHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12
+  },
+  panelTitle: {
+    margin: 0,
+    fontFamily: 'Noto Serif SC, serif',
+    fontSize: 18,
+    fontWeight: 900
+  },
+  linkButton: {
+    border: 0,
+    background: 'transparent',
+    color: '#C8922A',
+    fontSize: 13,
+    fontWeight: 900,
+    padding: 4
+  },
+  pledgeItem: {
+    width: '100%',
+    border: '1px solid #EDE6D8',
+    borderRadius: 12,
+    background: '#FFFCF6',
+    padding: 12,
+    textAlign: 'left',
+    marginBottom: 10
+  },
+  pledgeItemTop: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12
+  },
+  pledgeItemTitle: {
+    fontSize: 14,
+    fontWeight: 900,
+    color: '#1A1208'
+  },
+  pledgeMeta: {
+    marginTop: 5,
+    fontSize: 11,
+    color: '#7A6A50',
+    lineHeight: 1.45
+  },
+  empty: {
+    borderRadius: 12,
+    background: '#F5F0E8',
+    color: '#7A6A50',
+    padding: '18px 14px',
+    textAlign: 'center',
+    fontSize: 13,
+    lineHeight: 1.65
+  },
+  smallGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 10
+  },
+  smallCard: {
+    border: '1px solid #E0D5C0',
+    borderRadius: 14,
+    background: '#FFFFFF',
+    padding: 14,
+    textAlign: 'left',
+    boxShadow: '0 2px 10px rgba(26,18,8,.04)'
+  },
+  smallLabel: {
+    color: '#7A6A50',
+    fontSize: 12
+  },
+  smallValue: {
+    marginTop: 5,
+    color: '#1A1208',
+    fontSize: 22,
+    fontWeight: 900
+  }
+}
+
+
+function Seal({ profile }) {
+  const name = profile?.nickname || profile?.username || '我'
+  const first = String(name).trim().slice(0, 1) || '我'
   return (
-    <div style={{ background:'#FAF7F2', minHeight:'100vh',
-      paddingBottom:'calc(80px + env(safe-area-inset-bottom))' }}>
-
-      {reminderOpen && (
-        <ReminderSetup
-          pledgeTitle={topPledge?.title}
-          onClose={() => setReminderOpen(false)}
-        />
-      )}
-
-      {/* 顶栏 — 顶部安全区 */}
-      <div style={S.topbar}>
-        <div style={S.logo}>一诺<em style={{ color:'#C8922A', fontStyle:'normal' }}>千金</em></div>
-        <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-          <button style={S.iconBtn} onClick={() => setReminderOpen(true)}>
-            <span style={{ fontSize:22 }}>🔔</span>
-          </button>
-          <button style={S.iconBtn} onClick={() => nav('/profile')}>
-            <span style={{ fontSize:22 }}>👤</span>
-          </button>
-        </div>
-      </div>
-
-      <div style={{ padding:'12px 16px 0' }}>
-
-        {/* 白色统计卡片 */}
-        <div style={S.statsCard}>
-          <div style={{ display:'flex', alignItems:'center',
-            justifyContent:'space-between', marginBottom:12 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-              <div style={S.coinIcon}>$</div>
-              <div>
-                <div style={{ fontSize:11, color:'#9A8A70' }}>公益金币</div>
-                <div style={{ fontFamily:'Noto Serif SC,serif', fontSize:22,
-                  fontWeight:700, color:'#1A1208', lineHeight:1.2 }}>
-                  {(profile?.merit_coins ?? 0).toLocaleString()}
-                </div>
-              </div>
-            </div>
-            <div style={{ display:'flex', gap:8 }}>
-              <div style={S.statPill}>
-                <div style={{ fontSize:16, fontWeight:700, color:'#1A1208' }}>{totalCheckinDays}</div>
-                <div style={{ fontSize:10, color:'#9A8A70' }}>打卡天</div>
-              </div>
-              <div style={S.statPill}>
-                <div style={{ fontSize:16, fontWeight:700, color:'#1A1208' }}>{profile?.completed_count ?? 0}</div>
-                <div style={{ fontSize:10, color:'#9A8A70' }}>已完成</div>
-              </div>
-              <div style={{ ...S.statPill, background:'#E8F5EC', cursor:'pointer' }}
-                onClick={() => nav('/profile')}>
-                <div style={{ fontSize:16 }}>{title.emoji}</div>
-                <div style={{ fontSize:10, color:'#3B7A4A', whiteSpace:'nowrap' }}>{title.title}</div>
-              </div>
-            </div>
-          </div>
-          <div style={{ borderTop:'0.5px solid #F0EAE0', paddingTop:10,
-            display:'flex', alignItems:'center', justifyContent:'space-between',
-            cursor:'pointer' }} onClick={() => nav('/new')}>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <span style={{ fontSize:11, color:'#9A8A70' }}>立誓额度</span>
-              <div style={{ display:'flex', gap:4 }}>
-                {Array.from({ length: limit }).map((_,i) => (
-                  <span key={i} style={{ display:'inline-block', width:28, height:8,
-                    borderRadius:4, background: i < active.length ? '#C8922A'
-                      : i < used ? '#C84040' : '#E0D5C0' }} />
-                ))}
-              </div>
-            </div>
-            <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-              <span style={{ fontSize:11, color:'#9A8A70' }}>
-                进行中 {active.length} / 上限 {limit}
-              </span>
-              {used < limit && (
-                <span style={{ fontSize:11, color:'#C8922A', fontWeight:600 }}>
-                  完成解锁 +1 ›
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 深色 Hero 誓言卡片 */}
-        {topPledge && (() => {
-          const { pct, done } = progress(topPledge)
-          const daysLeft = Math.max(0, differenceInDays(new Date(topPledge.end_date), new Date()))
-          return (
-            <div style={S.heroCard} onClick={() => nav(`/pledge/${topPledge.id}`)}>
-              <div style={{ fontSize:16, fontWeight:700,
-                fontFamily:'Noto Serif SC,serif', color:'#fff', marginBottom:4 }}>
-                {topPledge.title}
-              </div>
-              <div style={{ fontSize:11, color:'rgba(255,255,255,.5)', marginBottom:14 }}>
-                {format(new Date(topPledge.start_date),'M月d日')}—{format(new Date(topPledge.end_date),'M月d日')}
-                {' · '}押注{topPledge.stake_coins}金币
-              </div>
-              <div style={S.pbarWrap}><div style={{ ...S.pbarFill, width:`${pct}%` }} /></div>
-              <div style={{ display:'flex', alignItems:'center',
-                justifyContent:'space-between', marginTop:10, marginBottom:14 }}>
-                <div style={{ fontFamily:'Noto Serif SC,serif',
-                  fontSize:16, fontWeight:700, color:'#E8B84A' }}>
-                  第 {done} / {topPledge.total_days} 天
-                </div>
-                <div style={{ fontSize:11, color:'rgba(255,255,255,.45)' }}>
-                  还剩 {daysLeft} 天
-                </div>
-              </div>
-              <div style={{ display:'flex', justifyContent:'flex-end' }}>
-                <button
-                  style={topChecked ? S.btnChecked : S.btnCheckin}
-                  onClick={e => {
-                    e.stopPropagation()
-                    !topChecked && nav(`/pledge/${topPledge.id}/checkin`)
-                  }}>
-                  {topChecked ? '✓ 已打卡' : '今日打卡'}
-                </button>
-              </div>
-            </div>
-          )
-        })()}
-
-        {loading && <div style={S.empty}>加载中…</div>}
-
-        {(active.length > 0 || cooldown.length > 0) && (
-          <div style={{ display:'flex', alignItems:'center',
-            justifyContent:'space-between', marginBottom:10,
-            marginTop: topPledge ? 6 : 0 }}>
-            <div style={S.secLabel}>我的承诺</div>
-            {used < limit && (
-              <button style={S.smBtn} onClick={() => nav('/new')}>+ 新立誓</button>
-            )}
-          </div>
-        )}
-
-        {active.map(p => {
-          const { pct, done } = progress(p)
-          const daysLeft = Math.max(0, differenceInDays(new Date(p.end_date), new Date()))
-          return (
-            <div key={p.id} style={S.listItem} onClick={() => nav(`/pledge/${p.id}`)}>
-              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <div style={S.activeDot} />
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:600,
-                    fontFamily:'Noto Serif SC,serif',
-                    overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                    {p.title}
-                  </div>
-                  <div style={{ fontSize:11, color:'#9A8A70', marginTop:2 }}>
-                    进行中 · 第{done}天 · {daysLeft}天后结束
-                  </div>
-                </div>
-                <div style={{ textAlign:'right', flexShrink:0 }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:'#C8922A' }}>{pct}%</div>
-                  <div style={{ fontSize:10, color:'#B8A88A' }}>完成度</div>
-                </div>
-                <span style={{ color:'#C0B090', fontSize:16 }}>›</span>
-              </div>
-            </div>
-          )
-        })}
-
-        {cooldown.map(p => (
-          <div key={p.id} style={S.listItem}>
-            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-              <div style={S.cooldownDot} />
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:13, fontFamily:'Noto Serif SC,serif' }}>{p.title}</div>
-                <div style={{ fontSize:11, color:'#C84040', marginTop:2 }}>
-                  冷静期 · {cooldownDays(p)}天后可重立
-                </div>
-              </div>
-              <div style={S.tagRed}>{cooldownDays(p)}天</div>
-            </div>
-          </div>
-        ))}
-
-        {!loading && Array.from({ length: Math.max(0, limit - used) }).map((_,i) => (
-          <div key={`e${i}`}
-            style={{ ...S.listItem, borderStyle:'dashed', cursor:'pointer' }}
-            onClick={() => nav('/new')}>
-            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-              <div style={S.emptyDot} />
-              <div>
-                <div style={{ fontSize:13, color:'#B8A88A' }}>空余槽位</div>
-                <div style={{ fontSize:11, color:'#C0B090' }}>点击立下新誓言</div>
-              </div>
-              <span style={{ marginLeft:'auto', fontSize:20, color:'#C0B090' }}>+</span>
-            </div>
-          </div>
-        ))}
-
-        {!loading && pledges.length === 0 && (
-          <div style={S.emptyCard} onClick={() => nav('/new')}>
-            <div style={{ fontSize:40, marginBottom:10 }}>🎯</div>
-            <div style={{ fontSize:15, fontWeight:700, marginBottom:4,
-              fontFamily:'Noto Serif SC,serif' }}>立下你的第一个誓言</div>
-            <div style={{ fontSize:12, color:'#9A8A70' }}>押注金币，邀人见证，坚持到底</div>
-          </div>
-        )}
-
-        {history.length > 0 && (
-          <div style={{ marginTop:16 }}>
-            <button onClick={() => setShowHistory(h => !h)}
-              style={{ width:'100%', background:'none', border:'none', cursor:'pointer',
-                display:'flex', alignItems:'center', justifyContent:'space-between',
-                padding:'8px 0', fontFamily:'Noto Sans SC,sans-serif' }}>
-              <span style={{ fontSize:12, color:'#9A8A70' }}>历史承诺（{history.length}条）</span>
-              <span style={{ fontSize:16, color:'#B8A88A', transition:'transform .2s',
-                transform: showHistory ? 'rotate(180deg)' : 'none' }}>⌄</span>
-            </button>
-            {showHistory && history.map(p => (
-              <div key={p.id} style={S.listItem} onClick={() => nav(`/pledge/${p.id}`)}>
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <div style={p.status==='done' ? S.doneDot : S.failDot} />
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontSize:13, fontWeight:500 }}>{p.title}</div>
-                    <div style={{ fontSize:11, color:'#9A8A70', marginTop:2 }}>
-                      {format(new Date(p.start_date),'yyyy年M月')}
-                      {p.status==='done'
-                        ? ` · 已完成 · +${p.stake_coins}金币`
-                        : ` · 未完成 · 捐出${p.stake_coins}金币`}
-                    </div>
-                  </div>
-                  <div style={p.status==='done' ? S.tagGreen : S.tagRed}>
-                    {p.status==='done' ? '达成' : '捐出'}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        <div style={{ height:16 }} />
-      </div>
-
-      {/* 底部浮动打卡按钮 */}
-      {topPledge && !topChecked && (
-        <div style={{ position:'fixed',
-          bottom:'calc(60px + env(safe-area-inset-bottom))',
-          left:'50%', transform:'translateX(-50%)',
-          width:'calc(100% - 32px)', maxWidth:390 }}>
-          <button style={S.floatCheckin}
-            onClick={() => nav(`/pledge/${topPledge.id}/checkin`)}>
-            ⊙ 今日打卡
-          </button>
-        </div>
-      )}
+    <div style={styles.seal}>
+      <div style={styles.sealChar}>{first}</div>
+      <div style={styles.sealText}>守诺印</div>
     </div>
   )
 }
 
-const S = {
-  topbar: {
-    display:'flex', alignItems:'center', justifyContent:'space-between',
-    padding:'12px 16px',
-    paddingTop:'calc(12px + env(safe-area-inset-top))',
-    position:'sticky', top:0, background:'#FAF7F2', zIndex:10,
-    borderBottom:'0.5px solid #E0D5C0',
-  },
-  logo:      { fontFamily:'Noto Serif SC,serif', fontSize:20, fontWeight:900,
-               color:'#1A1208', letterSpacing:.5 },
-  iconBtn:   { background:'none', border:'none', cursor:'pointer', padding:4 },
-  statsCard: { background:'#fff', borderRadius:16, padding:'14px 16px',
-               marginBottom:12, boxShadow:'0 2px 12px rgba(26,18,8,.07)' },
-  coinIcon:  { width:36, height:36, borderRadius:'50%', background:'#FDF3E0',
-               display:'flex', alignItems:'center', justifyContent:'center',
-               color:'#C8922A', fontWeight:700, fontSize:16 },
-  statPill:  { background:'#FAF7F2', borderRadius:10, padding:'6px 10px',
-               textAlign:'center', minWidth:48 },
-  heroCard:  { background:'linear-gradient(135deg,#2A1A08,#3A2510,#4A2E18)',
-               borderRadius:20, padding:18, marginBottom:14,
-               boxShadow:'0 8px 32px rgba(26,18,8,.2)', cursor:'pointer' },
-  pbarWrap:  { background:'rgba(255,255,255,.15)', borderRadius:4,
-               height:6, overflow:'hidden' },
-  pbarFill:  { height:'100%', background:'linear-gradient(90deg,#C8922A,#E8B84A)',
-               borderRadius:4, transition:'width .5s cubic-bezier(.4,0,.2,1)' },
-  btnCheckin:{ background:'#C8922A', color:'#fff', border:'none', borderRadius:20,
-               padding:'8px 18px', fontSize:13, fontWeight:600, cursor:'pointer',
-               fontFamily:'Noto Sans SC,sans-serif', flexShrink:0 },
-  btnChecked:{ background:'rgba(59,122,74,.4)', color:'rgba(128,220,160,.9)',
-               border:'none', borderRadius:20, padding:'8px 18px', fontSize:13,
-               fontWeight:600, fontFamily:'Noto Sans SC,sans-serif', flexShrink:0 },
-  secLabel:  { fontSize:11, fontWeight:600, color:'#9A8A70', letterSpacing:.5 },
-  listItem:  { background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:14,
-               padding:'12px 14px', marginBottom:8, cursor:'pointer',
-               boxShadow:'0 1px 4px rgba(26,18,8,.05)' },
-  activeDot: { width:10, height:10, borderRadius:'50%', background:'#C8922A',
-               boxShadow:'0 0 0 3px #FDF3E0', flexShrink:0 },
-  cooldownDot:{ width:10, height:10, borderRadius:'50%', background:'#C84040',
-                opacity:.7, flexShrink:0 },
-  emptyDot:  { width:10, height:10, borderRadius:'50%', background:'#E0D5C0', flexShrink:0 },
-  doneDot:   { width:10, height:10, borderRadius:'50%', background:'#3B7A4A', flexShrink:0 },
-  failDot:   { width:10, height:10, borderRadius:'50%', background:'#C84040',
-               opacity:.4, flexShrink:0 },
-  emptyCard: { background:'#fff', border:'1.5px dashed #E0D5C0', borderRadius:16,
-               padding:32, textAlign:'center', cursor:'pointer', marginTop:8 },
-  empty:     { textAlign:'center', color:'#9A8A70', padding:32, fontSize:13 },
-  tagGreen:  { background:'#E8F5EC', color:'#3B7A4A', fontSize:10, fontWeight:600,
-               padding:'3px 10px', borderRadius:20, flexShrink:0 },
-  tagRed:    { background:'#FCEBEB', color:'#C84040', fontSize:10, fontWeight:600,
-               padding:'3px 10px', borderRadius:20, flexShrink:0 },
-  smBtn:     { background:'none', border:'1px solid #C8922A', color:'#C8922A',
-               borderRadius:20, padding:'5px 12px', fontSize:12, cursor:'pointer',
-               fontFamily:'Noto Sans SC,sans-serif' },
-  floatCheckin:{ width:'100%', background:'linear-gradient(135deg,#C8922A,#E8B84A)',
-                 color:'#fff', border:'none', borderRadius:14, padding:'15px 0',
-                 fontSize:16, fontWeight:700, cursor:'pointer',
-                 fontFamily:'Noto Sans SC,sans-serif', letterSpacing:.5,
-                 boxShadow:'0 4px 20px rgba(200,146,42,.4)' },
+
+
+
+export default function HomePage() {
+  const { profile, session } = useAuth()
+  const nav = useNavigate()
+  const [pledges, setPledges] = useState([])
+  const [checkedMap, setCheckedMap] = useState({})
+  const [loading, setLoading] = useState(true)
+
+
+
+
+  useEffect(() => {
+    if (session) load()
+  }, [session])
+
+
+
+
+  async function load() {
+    setLoading(true)
+    try {
+      const data = await getMyPledges()
+      const list = data || []
+      setPledges(list)
+
+
+
+
+      const checks = {}
+      await Promise.all(
+        list.map(async pledge => {
+          checks[pledge.id] = await hasCheckedInToday(pledge.id)
+        })
+      )
+      setCheckedMap(checks)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
+
+
+  const activePledges = pledges.filter(p => p.status === 'active' || p.status === 'ongoing')
+  const unfinishedToday = activePledges.filter(p => !checkedMap[p.id])
+  const todayPledge = [...(unfinishedToday.length ? unfinishedToday : activePledges)].sort((a, b) => {
+    const aLeft = daysLeft(a) ?? 9999
+    const bLeft = daysLeft(b) ?? 9999
+    return aLeft - bLeft
+  })[0]
+
+
+
+
+  const completedToday = activePledges.filter(p => checkedMap[p.id]).length
+  const totalCheckins = pledges.reduce((sum, p) => sum + (p.checkin_count || p.current_days || p.completed_days || 0), 0)
+  const totalTarget = pledges.reduce((sum, p) => sum + (p.total_days || p.duration_days || p.target_days || p.days || 0), 0)
+  const keepRate = totalTarget ? Math.round((totalCheckins / totalTarget) * 100) : 0
+  const lockedCoins = activePledges.reduce((sum, p) => sum + Number(p.stake_coins || p.stake_amount || p.stake || 0), 0)
+  const merit = getMeritDisplay(profile?.merit_score)
+  const mainProgress = progressOf(todayPledge)
+  const mainChecked = todayPledge ? checkedMap[todayPledge.id] : false
+  const mainDaysLeft = daysLeft(todayPledge)
+  const homeFeedback = getHomeFeedback({ pledge: todayPledge, progress: mainProgress, checkedToday: mainChecked, daysLeft: mainDaysLeft })
+
+
+
+
+  if (!session) {
+    return (
+      <div style={styles.page}>
+        <h1 style={styles.title}>一诺千金</h1>
+        <p style={styles.subtitle}>先登录，再立下属于你的第一份诺言。</p>
+        <button onClick={() => nav('/auth')} style={styles.fullButton}>去登录</button>
+      </div>
+    )
+  }
+
+
+
+
+  return (
+    <div style={styles.page}>
+      <header style={styles.header}>
+        <div>
+          <h1 style={styles.title}>一诺千金</h1>
+          <p style={styles.subtitle}>守住今天，就是守住自己</p>
+        </div>
+        <button onClick={() => nav('/profile')} style={styles.meritButton}>
+          {merit.emoji} {merit.title}
+        </button>
+      </header>
+
+
+
+
+      <section style={styles.stats}>
+        <div style={styles.statItem}>
+          <div style={{ ...styles.statValue, color: '#c39a32' }}>{Math.max(activePledges.length - completedToday, 0)}</div>
+          <div style={styles.statLabel}>今日待守</div>
+        </div>
+        <div style={styles.statItem}>
+          <div style={styles.statValue}>{completedToday}/{activePledges.length || 0}</div>
+          <div style={styles.statLabel}>今日完成</div>
+        </div>
+        <div style={styles.statItemLast}>
+          <div style={styles.statValue}>{keepRate}%</div>
+          <div style={styles.statLabel}>总守约率</div>
+        </div>
+      </section>
+
+
+
+
+      <main style={styles.scrollCard}>
+        <div style={styles.scrollLineTop} />
+        <div style={styles.scrollLineBottom} />
+        <p style={styles.eyebrow}>今日诺言</p>
+        <h2 style={styles.pledgeName}>
+          {loading ? '正在展开契约...' : todayPledge ? pledgeTitle(todayPledge) : '写下你的第一份军令状'}
+        </h2>
+        {todayPledge && <Seal profile={profile} />}
+
+
+
+
+        {todayPledge ? (
+          <>
+            <p style={styles.bodyText}>这是一份已经盖印的诺言。今天只需要完成下一次证明，让契约继续有效。</p>
+            <div style={styles.progressMeta}>
+              <span>第 {mainProgress.done} / {mainProgress.total} 天</span>
+              <span>{mainProgress.percent}%</span>
+            </div>
+            <div style={styles.progressTrack}>
+              <div style={{ ...styles.progressFill, width: mainProgress.percent + '%' }} />
+            </div>
+            <div style={styles.feedbackCard}>
+              <div style={styles.feedbackLabel}>{homeFeedback.label}</div>
+              <div style={styles.feedbackTitle}>{homeFeedback.title}</div>
+              <div style={styles.feedbackBody}>{homeFeedback.body}</div>
+              <div style={styles.feedbackNext}>{homeFeedback.next}</div>
+            </div>
+            <div style={styles.actionRow}>
+              <div style={styles.muted}>
+                {mainDaysLeft === null ? '持续守诺中' : mainDaysLeft === 0 ? '今日到期' : '还剩 ' + mainDaysLeft + ' 天'}
+              </div>
+              <button
+                onClick={() => nav(mainChecked ? '/pledge/' + todayPledge.id : '/pledge/' + todayPledge.id + '/checkin')}
+                style={styles.primaryButton}
+              >
+                {mainChecked ? '查看记录' : '去打卡'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p style={styles.bodyText}>第一份诺言不用复杂，写清楚你每天要守住的一件事，再亲手盖下守诺印。</p>
+            <div style={styles.feedbackCard}>
+              <div style={styles.feedbackLabel}>{homeFeedback.label}</div>
+              <div style={styles.feedbackTitle}>{homeFeedback.title}</div>
+              <div style={styles.feedbackBody}>{homeFeedback.body}</div>
+              <div style={styles.feedbackNext}>{homeFeedback.next}</div>
+            </div>
+            <button onClick={() => nav('/new')} style={styles.fullButton}>立下第一个誓言</button>
+          </>
+        )}
+      </main>
+
+
+
+
+      <section style={styles.panel}>
+        <div style={styles.panelHeader}>
+          <h3 style={styles.panelTitle}>我的誓言</h3>
+          <button onClick={() => nav('/new')} style={styles.linkButton}>立新誓</button>
+        </div>
+        {activePledges.length ? (
+          <div>
+            {activePledges.slice(0, 3).map(pledge => {
+              const progress = progressOf(pledge)
+              return (
+                <button key={pledge.id} onClick={() => nav('/pledge/' + pledge.id)} style={styles.pledgeItem}>
+                  <div style={styles.pledgeItemTop}>
+                    <div>
+                      <div style={styles.pledgeItemTitle}>{pledgeTitle(pledge)}</div>
+                      <div style={styles.pledgeMeta}>押注 {pledge.stake_coins || pledge.stake_amount || pledge.stake || 0} 金币 · {checkedMap[pledge.id] ? '今日已打卡' : '今日待打卡'}</div>
+                    </div>
+                    <div style={{ color: '#c39a32', fontSize: 14, fontWeight: 900 }}>{progress.percent}%</div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        ) : (
+          <div style={styles.empty}>暂无进行中的诺言。让首页从第一份契约开始。</div>
+        )}
+      </section>
+
+
+
+
+      <section style={styles.smallGrid}>
+        <button onClick={() => nav('/charity')} style={styles.smallCard}>
+          <div style={styles.smallLabel}>公益金币</div>
+          <div style={styles.smallValue}>{profile?.merit_coins || 0}</div>
+        </button>
+        <button onClick={() => nav('/square')} style={styles.smallCard}>
+          <div style={styles.smallLabel}>契约押注中</div>
+          <div style={styles.smallValue}>{lockedCoins}</div>
+        </button>
+      </section>
+    </div>
+  )
 }

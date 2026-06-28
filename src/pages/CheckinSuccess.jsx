@@ -2,6 +2,9 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 
+
+
+
 const QUOTES = [
     [1,  7,  '万事开头难，但你已经迈出了最难的一步。'],
     [8,  14, '第二周是最容易放弃的时候，而你没有。'],
@@ -10,9 +13,57 @@ const QUOTES = [
     [29, 999,'走到这里的旅人，已经超过了95%的人。'],
   ]
 
+
+
+
 function getQuote(day) {
     return QUOTES.find(([a, b]) => day >= a && day <= b)?.[2] ?? '每一天的坚持都是对自己的承诺。'
 }
+
+
+function getCheckinEcho({ dayNum, streak, pct, totalCoins, isSettled }) {
+  if (isSettled) {
+    return {
+      label: '守诺回响',
+      title: '这不是一次打卡，而是一份契约的完成。',
+      body: '押注已经返还，记录已经封存。你完成的不是某一天，而是把一个承诺走到了尽头。',
+      next: '回到首页，开始选择下一件真正值得守住的事。'
+    }
+  }
+  if (streak >= 14) {
+    return {
+      label: '连续守诺',
+      title: '连续两周，习惯开始反过来扶住你。',
+      body: '你已经不只是在靠意志硬撑，而是在建立一条可以重复的路。',
+      next: '明天照常来，别让这条路断掉。'
+    }
+  }
+  if ([7, 14, 21, 28].includes(dayNum)) {
+    return {
+      label: '里程碑',
+      title: '今天这一笔，有额外的分量。',
+      body: '里程碑不是终点，它提醒你：前面的每一天都没有白费。',
+      next: '系统已发放奖励，共 +' + totalCoins + ' 金币。'
+    }
+  }
+  if (pct >= 50) {
+    return {
+      label: '过半之后',
+      title: '你已经越过最容易自我怀疑的地方。',
+      body: '接下来的目标不是更用力，而是更稳定。每天一次，别让节奏丢掉。',
+      next: '当前完成全程的 ' + pct + '%。'
+    }
+  }
+  return {
+    label: '今日回响',
+    title: '今天你没有把诺言留在嘴上。',
+    body: '一次打卡很小，但它把“我想改变”变成了“我已经做了”。',
+    next: '金币 +' + totalCoins + '，连续 ' + streak + ' 天。'
+  }
+}
+
+
+
 
 export default function CheckinSuccess() {
     const { state } = useLocation()
@@ -20,22 +71,37 @@ export default function CheckinSuccess() {
     const [show, setShow] = useState(false)
     const [coinsShow, setCoinsShow] = useState(false)
 
+
+
+
   useEffect(() => {
         if (!state) { nav('/'); return }
         setTimeout(() => setShow(true), 100)
         setTimeout(() => setCoinsShow(true), 600)
   }, [])
 
+
+
+
   if (!state) return null
     const { result, pledge } = state
-    const { totalCoins, streak, dayNum } = result
-    const pct = Math.min(100, Math.round((dayNum / (pledge?.total_days || 30)) * 100))
+    const { totalCoins, streak, dayNum, settlement } = result
+    const pledgeStake = pledge?.stake_coins || pledge?.stakeCoins || 0
+    const isSettled = settlement?.success
+    const pct = isSettled ? 100 : Math.min(100, Math.round((dayNum / (pledge?.total_days || 30)) * 100))
     const isMilestone = [7, 14, 21, 28].includes(dayNum)
+    const echo = getCheckinEcho({ dayNum, streak, pct, totalCoins, isSettled })
+
+
+
 
   return (
         <div style={{ minHeight:'100vh', background:'#FAF7F2', display:'flex',
                            flexDirection:'column', alignItems:'center', justifyContent:'center',
                            padding:'32px 24px', overflow:'hidden' }}>
+
+
+
 
                 <style>{`
                         @keyframes ringPop {
@@ -93,11 +159,11 @@ export default function CheckinSuccess() {
               <div style={{ fontFamily:'Noto Serif SC,serif', fontSize:24, fontWeight:900,
                                    color:'#1A1208', marginBottom:6, textAlign:'center',
                                    animation: show ? 'fadeUp .5s .4s ease both' : 'none' }}>
-                      第{dayNum}天，打卡成功！
+                      {isSettled ? '契约圆满，已完成结算！' : `第${dayNum}天，打卡成功！`}
               </div>
               <div style={{ fontSize:13, color:'#9A8A70', textAlign:'center', lineHeight:1.7,
                                    marginBottom:24, animation: show ? 'fadeUp .5s .5s ease both' : 'none' }}>
-                {streak > 1 ? `连续${streak}天 🔥 · ` : ''}完成全程的{pct}%
+                {isSettled ? '押注已返还，守诺记录已封存' : (streak > 1 ? `连续${streak}天 🔥 · ` : '') + `完成全程的${pct}%`}
               </div>
         
               <div style={{ background:'#FDF3E0', borderRadius:16, padding:'16px 32px',
@@ -106,6 +172,18 @@ export default function CheckinSuccess() {
                       <div style={{ fontFamily:'Noto Serif SC,serif', fontSize:36, fontWeight:900, color:'#C8922A', marginBottom:4 }}>+{totalCoins}</div>
                       <div style={{ fontSize:12, color:'#9A8A70' }}>金币入账 · 已进入公益账户</div>
               </div>
+
+
+              {isSettled && (
+                <div style={{ ...achCard, borderColor:'#C8922A', background:'#FFF8EA', marginBottom:16 }}>
+                  <span style={{ fontSize:22 }}>🏁</span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:'#1A1208' }}>契约已自动结算</div>
+                    <div style={{ fontSize:11, color:'#7A6A50', marginTop:2 }}>押注 {pledgeStake} 金币已返还；见证池同步完成结算。</div>
+                  </div>
+                  <div style={tagGold}>已封印</div>
+                </div>
+              )}
         
               <div style={{ width:'100%', marginBottom:20,
                                    animation: show ? 'fadeUp .5s .7s ease both' : 'none', opacity: show ? 1 : 0 }}>
@@ -131,11 +209,11 @@ export default function CheckinSuccess() {
                                 <div style={{ ...tagGold, background:'#E8F5EC', color:'#1A4A28' }}>+100</div>
                     </div>
                       )}
-                      <div style={{ background:'rgba(200,146,42,.08)', borderRadius:12, padding:'12px 16px', display:'flex', alignItems:'flex-start', gap:8 }}>
-                                <span style={{ fontSize:16 }}>✨</span>
-                                <span style={{ fontSize:13, color:'#5A4A30', lineHeight:1.7, fontStyle:'italic' }}>
-                                  {getQuote(dayNum)}
-                                </span>
+                      <div style={echoCard}>
+                                <div style={{ fontSize:11, color:'#C8922A', fontWeight:900, letterSpacing:1.5, marginBottom:6 }}>{echo.label}</div>
+                                <div style={{ fontSize:15, color:'#1A1208', fontWeight:800, lineHeight:1.45, marginBottom:6 }}>{echo.title}</div>
+                                <div style={{ fontSize:13, color:'#5A4A30', lineHeight:1.75 }}>{echo.body}</div>
+                                <div style={{ fontSize:12, color:'#7A5A18', fontWeight:800, marginTop:8 }}>{echo.next}</div>
                       </div>
               </div>
         
@@ -149,10 +227,17 @@ export default function CheckinSuccess() {
       )
 }
 
+
+
+
 const achCard = {
     display:'flex', alignItems:'center', gap:12, background:'#fff',
     border:'0.5px solid #E0D5C0', borderRadius:12, padding:12, marginBottom:8, width:'100%'
 }
+  const echoCard = {
+      background:'rgba(200,146,42,.08)', border:'1px solid rgba(200,146,42,.18)',
+      borderRadius:12, padding:'13px 15px', width:'100%', boxSizing:'border-box'
+  }
   const tagGold = {
       background:'#FDF3E0', color:'#7A5A18', fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:20, flexShrink:0
   }
