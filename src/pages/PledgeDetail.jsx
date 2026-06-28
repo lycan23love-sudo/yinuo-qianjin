@@ -411,7 +411,7 @@ function CalendarView({ checkins, pledge }) {
                                                                                         </div>
                                                                                         <WeekHeatmap checkinDates={checkinDates} startDate={pledge.start_date} />
                                                                                         <MilestoneAxis totalDays={pledge.total_days} checkinCount={pledge.checkin_count} />
-                                                                                        {isOwner && pledge.status === 'active' && (
+                                                                                        {isOwner && pledge.status === 'active' && (canSettleSuccess || canSettleFailure) && (
                                                                                           <div style={{ marginTop:14, background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', borderRadius:12, padding:12 }}>
                                                                                             <div style={{ fontSize:12, fontWeight:700, color:'#E8B84A', marginBottom:6 }}>结算中心</div>
                                                                                             <div style={{ fontSize:11, color:'rgba(255,255,255,.55)', lineHeight:1.6, marginBottom:10 }}>
@@ -427,11 +427,6 @@ function CalendarView({ checkins, pledge }) {
                                                                                                 失败并捐出
                                                                                               </button>
                                                                                             </div>
-                                                                                            {!canSettleSuccess && !canSettleFailure && (
-                                                                                              <div style={{ fontSize:10, color:'rgba(255,255,255,.45)', marginTop:8 }}>
-                                                                                                当前还未到结算条件：需完成全部打卡，或到期后未完成。
-                                                                                              </div>
-                                                                                            )}
                                                                                           </div>
                                                                                         )}
                                                                               </div>
