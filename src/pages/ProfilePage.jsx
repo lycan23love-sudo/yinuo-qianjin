@@ -6,6 +6,44 @@ import { getCoinLedger, getDonations, getMeritTitle, getMyPledges,
          updateProfile, signOut } from '../lib/supabase'
 import { format, parseISO, differenceInDays } from 'date-fns'
 
+
+const DEFAULT_REMINDER = { enabled: true, time: '20:30', style: 'gentle' }
+function reminderStoreKey(userId) { return 'ynq_reminders_' + (userId || 'guest') }
+function readReminderStore(userId) {
+  if (typeof window === 'undefined') return { global: DEFAULT_REMINDER, pledges: {} }
+  try {
+    const raw = window.localStorage.getItem(reminderStoreKey(userId))
+    const parsed = raw ? JSON.parse(raw) : {}
+    return { global: { ...DEFAULT_REMINDER, ...(parsed.global || {}) }, pledges: parsed.pledges || {} }
+  } catch {
+    return { global: DEFAULT_REMINDER, pledges: {} }
+  }
+}
+function writeReminderStore(userId, store) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(reminderStoreKey(userId), JSON.stringify(store))
+}
+function getReminderForPledge(userId, pledgeId) {
+  const store = readReminderStore(userId)
+  return { ...store.global, ...(store.pledges?.[pledgeId] || {}) }
+}
+function saveReminderForPledge(userId, pledgeId, reminder) {
+  const store = readReminderStore(userId)
+  const next = { ...store, pledges: { ...(store.pledges || {}), [pledgeId]: { ...reminder } } }
+  writeReminderStore(userId, next)
+  return next.pledges[pledgeId]
+}
+function saveGlobalReminder(userId, reminder) {
+  const store = readReminderStore(userId)
+  const next = { ...store, global: { ...store.global, ...reminder } }
+  writeReminderStore(userId, next)
+  return next.global
+}
+function reminderLabel(reminder) {
+  if (!reminder?.enabled) return '提醒已关闭'
+  return '提醒 ' + (reminder.time || DEFAULT_REMINDER.time)
+}
+
 /* ── 常量 ── */
 const AVA_COLORS = ['#C8922A','#3B7A4A','#3A6A9A','#8A5A2A','#6A4A8A','#C84040','#2A7A7A']
 function avaColor(str) {
@@ -169,6 +207,8 @@ export default function ProfilePage() {
   const [editOpen, setEditOpen]   = useState(false)
   const [confirmOut, setConfirmOut] = useState(false)
   const [toast, setToast]         = useState(null)
+  const userId = session?.user?.id
+  const [globalReminder, setGlobalReminder] = useState(DEFAULT_REMINDER)
 
   function showToast(msg, type = 'info') {
     setToast({ msg, type })
@@ -178,6 +218,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!session) return
     const uid = session.user.id
+    setGlobalReminder(readReminderStore(uid).global)
     setLoading(true)
     Promise.all([getMyPledges(uid), getCoinLedger(uid, 50), getDonations(uid)])
       .then(([p, l, d]) => { setPledges(p || []); setLedger(l || []); setDonations(d || []) })
@@ -196,6 +237,13 @@ export default function ProfilePage() {
   const nickDisplay  = profile?.nickname    || '立誓者'
   const emojiDisplay = profile?.avatar_emoji || '🌱'
   const bioDisplay   = profile?.bio          || ''
+
+  function updateGlobalReminder(patch) {
+    if (!userId) return
+    const next = saveGlobalReminder(userId, { ...globalReminder, ...patch })
+    setGlobalReminder(next)
+    showToast('提醒设置已保存 ✓', 'success')
+  }
 
   async function handleSaveProfile(updates) {
     try {
@@ -347,7 +395,7 @@ export default function ProfilePage() {
 
       {/* Tabs */}
       <div style={S.tabRow}>
-        {[['pledges','我的誓言'],['coins','金币流水'],['donations','捐款'],['certs','证书']].map(([k, lbl]) => (
+        {[['pledges','我的誓言'],['reminders','提醒'],['coins','金币'],['donations','捐款'],['certs','证书']].map(([k, lbl]) => (
           <button key={k} onClick={() => setTab(k)}
             style={{ ...S.tab, ...(tab === k ? S.tabOn : {}) }}>
             {lbl}
@@ -384,6 +432,32 @@ export default function ProfilePage() {
               <div style={S.secLabel}>历史记录 · {historyPledges.length}</div>
               {historyPledges.map(p => <PledgeRow key={p.id} p={p} nav={nav} />)}
             </>)}
+          </div>
+        )}
+
+        {/* ── 提醒设置 ── */}
+        {tab === 'reminders' && (
+          <div style={{ paddingTop:12 }}>
+            <div style={S.reminderPanel}>
+              <div style={S.reminderTitle}>全局提醒</div>
+              <div style={S.reminderDesc}>这里是所有新誓言的默认提醒。单个誓言可以在誓言详情页单独覆盖。</div>
+              <label style={S.reminderRow}>
+                <span>每日打卡提醒</span>
+                <input type="checkbox" checked={!!globalReminder.enabled} onChange={e => updateGlobalReminder({ enabled: e.target.checked })} />
+              </label>
+              <label style={S.reminderRow}>
+                <span>默认时间</span>
+                <input type="time" value={globalReminder.time || '20:30'} onChange={e => updateGlobalReminder({ time: e.target.value })} style={S.reminderTimeInput} />
+              </label>
+              <div style={{ fontSize:12, color:'#9A8A70', margin:'14px 0 8px' }}>提醒语气</div>
+              <div style={S.reminderStyleGrid}>
+                {[['gentle','温和'],['strict','严厉'],['ritual','仪式感']].map(([key, label]) => (
+                  <button key={key} onClick={() => updateGlobalReminder({ style: key })} style={{ ...S.reminderStyleBtn, ...(globalReminder.style === key ? S.reminderStyleBtnOn : {}) }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -576,5 +650,13 @@ const S = {
   input:     { width:'100%', border:'1px solid #E0D5C0', borderRadius:10, padding:'10px 12px',
                fontSize:14, fontFamily:'Noto Sans SC,sans-serif', color:'#1A1208',
                background:'#FAF7F2', outline:'none', boxSizing:'border-box' },
+  reminderPanel: { background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:14, padding:16, boxShadow:'0 1px 4px rgba(26,18,8,.04)' },
+  reminderTitle: { fontSize:16, fontWeight:800, fontFamily:'Noto Serif SC,serif', marginBottom:6 },
+  reminderDesc: { fontSize:12, color:'#9A8A70', lineHeight:1.6, marginBottom:14 },
+  reminderRow: { display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:14, fontWeight:700, padding:'12px 0', borderTop:'1px solid #F0EAE0' },
+  reminderTimeInput: { border:'1px solid #E0D5C0', borderRadius:10, padding:'8px 10px', background:'#FAF7F2', color:'#1A1208', fontWeight:700 },
+  reminderStyleGrid: { display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8 },
+  reminderStyleBtn: { border:'1px solid #E0D5C0', borderRadius:999, background:'#fff', color:'#7A6A50', padding:'10px 6px', fontWeight:800 },
+  reminderStyleBtnOn: { borderColor:'#C8922A', background:'#FDF3E0', color:'#7A5A18' },
   empty:     { textAlign:'center', color:'#9A8A70', padding:32, fontSize:13 },
 }
