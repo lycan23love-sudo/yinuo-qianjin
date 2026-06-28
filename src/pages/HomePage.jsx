@@ -423,21 +423,29 @@ export default function HomePage() {
   const [pledges, setPledges] = useState([])
   const [checkedMap, setCheckedMap] = useState({})
   const [loading, setLoading] = useState(true)
+  const userId = session?.user?.id
 
 
 
 
   useEffect(() => {
-    if (session) load()
-  }, [session])
+    if (userId) {
+      load()
+    } else {
+      setPledges([])
+      setCheckedMap({})
+      setLoading(false)
+    }
+  }, [userId])
 
 
 
 
   async function load() {
+    if (!userId) return
     setLoading(true)
     try {
-      const data = await getMyPledges()
+      const data = await getMyPledges(userId)
       const list = data || []
       setPledges(list)
 
