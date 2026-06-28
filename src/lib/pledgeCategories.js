@@ -61,7 +61,10 @@ export function inferPledgeTag(pledge = {}) {
   if (pledge.category_tag || pledge.subcategory) return pledge.category_tag || pledge.subcategory
   const category = inferPledgeCategory(pledge)
   const text = String(pledge.title || '').toLowerCase()
-  return category.tags.find(tag => text.includes(tag.toLowerCase())) || category.tags[0] || category.label
+  const matched = category.tags.find(tag => text.includes(tag.toLowerCase()))
+  if (matched) return matched
+  if (category.key === 'other') return '其他'
+  return category.tags[0] || category.label
 }
 
 export function categoryFilterMatches(pledge, keyOrLabel) {
