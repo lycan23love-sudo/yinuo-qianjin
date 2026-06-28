@@ -488,7 +488,7 @@ export default function CompanionsPage() {
         getPublicPledges({ sort: 'created_at' }),
         session?.user?.id ? getMyCompanionJoins(session.user.id) : Promise.resolve([]),
       ])
-      const activeMine = (mine || []).filter(p => p.status === 'active')
+      const activeMine = (mine || []).filter(p => !p.status || p.status === 'active' || p.status === 'ongoing')
       const publicList = (publics || []).filter(p => p.user_id !== session?.user?.id).slice(0, 30)
       setMyPledges(activeMine)
       setJoinedIds(new Set(joins || []))
