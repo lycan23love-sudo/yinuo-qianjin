@@ -157,7 +157,7 @@ export default function JuryPage() {
         {loading ? <div style={S.empty}>加载中...</div> : (
           <>
             {tab === 'charity' && (
-              charityCases.length ? charityCases.map(item => <CharityCase key={item.id} item={item} voting={voting} onVote={voteCharity} />) : <div style={S.empty}>{emptyText}</div>
+              charityCases.length ? charityCases.map(item => <CharityCase key={item.id} item={item} userId={userId} voting={voting} onVote={voteCharity} />) : <div style={S.empty}>{emptyText}</div>
             )}
 
             {tab === 'disputes' && (
@@ -186,8 +186,10 @@ export default function JuryPage() {
   )
 }
 
-function CharityCase({ item, voting, onVote }) {
+function CharityCase({ item, userId, voting, onVote }) {
   const votes = { approve: 0, reject: 0, revise: 0, ...(item.votes || {}) }
+  const isOwnCase = Boolean(userId && item.applicant_id === userId)
+  const canVote = Boolean(userId && !isOwnCase)
   return (
     <article style={S.card}>
       <div style={S.cardHead}>
@@ -205,10 +207,12 @@ function CharityCase({ item, voting, onVote }) {
         <span>补充 {votes.revise}</span>
         <span>驳回 {votes.reject}</span>
       </div>
+      {isOwnCase && <div style={S.selfNotice}>这是你提交的善行，需由其他用户确认。</div>}
+      {!userId && <div style={S.selfNotice}>登录后可参与确认。</div>}
       <div style={S.actions}>
-        <button style={S.primaryBtn} disabled={voting === item.id + 'approve'} onClick={() => onVote(item.id, 'approve')}>认可</button>
-        <button style={S.ghostBtn} disabled={voting === item.id + 'revise'} onClick={() => onVote(item.id, 'revise')}>需补充</button>
-        <button style={S.dangerBtn} disabled={voting === item.id + 'reject'} onClick={() => onVote(item.id, 'reject')}>驳回</button>
+        <button style={S.primaryBtn} disabled={!canVote || voting === item.id + 'approve'} onClick={() => onVote(item.id, 'approve')}>认可</button>
+        <button style={S.ghostBtn} disabled={!canVote || voting === item.id + 'revise'} onClick={() => onVote(item.id, 'revise')}>需补充</button>
+        <button style={S.dangerBtn} disabled={!canVote || voting === item.id + 'reject'} onClick={() => onVote(item.id, 'reject')}>驳回</button>
       </div>
     </article>
   )
@@ -237,6 +241,7 @@ const S = {
   proofLine: { background: '#f5efe4', borderRadius: 12, padding: '10px 12px', color: C.sub, fontSize: 14, overflowWrap: 'anywhere' },
   metaLine: { marginTop: 10, color: C.sub, fontSize: 13 },
   voteLine: { display: 'flex', gap: 14, color: C.sub, fontSize: 13, marginTop: 12 },
+  selfNotice: { marginTop: 12, background: '#f5efe4', borderRadius: 12, padding: '10px 12px', color: C.sub, fontSize: 14, lineHeight: 1.5 },
   proofImg: { width: '100%', maxHeight: 280, objectFit: 'cover', borderRadius: 14, marginTop: 12, border: '1px solid #eadfce' },
   actions: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 16 },
   primaryBtn: { border: 0, borderRadius: 999, background: C.gold, color: '#fff', padding: '12px 10px', fontWeight: 900, fontSize: 15 },
