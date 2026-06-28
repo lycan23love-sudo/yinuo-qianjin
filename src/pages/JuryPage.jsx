@@ -29,7 +29,8 @@ function writeLocalCharityCases(cases) {
 
 export default function JuryPage() {
   const navigate = useNavigate()
-  const { userId } = useAuth()
+  const { session } = useAuth()
+  const userId = session?.user?.id
   const [tab, setTab] = useState('charity')
   const [disputes, setDisputes] = useState([])
   const [charityCases, setCharityCases] = useState([])
