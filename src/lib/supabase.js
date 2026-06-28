@@ -1626,148 +1626,34 @@ export async function getCoinLedger(userId, limit = 20) {
 // DONATIONS
 // ============================================================
 export async function donate(userId, { coins, orgName, message }) {
-  // 先扣金币
-  await addCoins(userId, -coins, 'donate', null, `捐款给${orgName}`)
+  const amount = Number(coins)
+  if (!userId) throw new Error('请先登录')
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error('捐赠金额无效')
 
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('merit_coins,total_merit')
+    .eq('id', userId)
+    .single()
+  if (profileError) throw profileError
+  if ((profile?.merit_coins || 0) < amount) throw new Error('公益金币不足')
 
+  await addCoins(userId, -amount, 'donate', null, '捐款给' + orgName)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // 再写记录
   const { data, error } = await supabase
     .from('donations')
-    .insert({ user_id: userId, coins, org_name: orgName, source: 'manual', message })
+    .insert({ user_id: userId, coins: amount, org_name: orgName, source: 'manual', message })
     .select()
     .single()
   if (error) throw error
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // 更新功德值（total_merit 由 add_coins 函数自动处理收入，捐款是支出不更新，
-  // 但为了称号计算，捐出的也要加到功德值）
   await supabase
     .from('profiles')
-    .update({ total_merit: supabase.sql`total_merit + ${coins}` })
+    .update({ total_merit: (profile?.total_merit || 0) + amount, updated_at: new Date().toISOString() })
     .eq('id', userId)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   return data
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
