@@ -99,7 +99,7 @@ export default function NewPledge() {
       const pledge = await createPledge(session.user.id, { title: form.title, period: form.period, stakeCoins: form.stake, charityTarget: form.charity, verifyType: form.verify, isPublic: form.isPublic })
       refreshProfile()
       showToast('契约已立，金币已托管', 'success')
-      nav('/pledge/' + pledge.id)
+      nav('/', { replace: true, state: { createdPledgeId: pledge.id } })
     } catch (err) {
       showToast(err.message || '立誓失败', 'error')
     } finally {
