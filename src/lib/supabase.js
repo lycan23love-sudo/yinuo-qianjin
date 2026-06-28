@@ -1722,6 +1722,18 @@ export async function castCharityJuryVote(userId, actionId, vote) {
   if (!userId) throw new Error('请先登录')
   if (!['approve', 'reject', 'revise'].includes(vote)) throw new Error('确认选项无效')
 
+  const { data: rpcRow, error: rpcError } = await supabase
+    .rpc('cast_charity_jury_vote', { p_action_id: actionId, p_vote: vote })
+
+  if (!rpcError) return mapCharityAction(rpcRow)
+
+  const missingRpc = rpcError.code === '42883' || rpcError.code === 'PGRST202' || (rpcError.message || '').includes('cast_charity_jury_vote')
+  if (!missingRpc) {
+    const message = rpcError.message || '确认失败'
+    if (message.includes('duplicate') || rpcError.code === '23505') throw new Error('你已经确认过这个案件')
+    throw new Error(message)
+  }
+
   const { data: action, error: actionError } = await supabase
     .from('charity_actions')
     .select('*')
@@ -1770,7 +1782,7 @@ export async function castCharityJuryVote(userId, actionId, vote) {
   if (updateError) throw updateError
 
   if (nextStatus === 'approved') {
-    await addCoins(action.user_id, Number(action.reward_coins || 0), 'charity_action', actionId, '善行通过陪审团确认')
+    await addCoins(action.user_id, Number(action.reward_coins || 0), 'reward_milestone', actionId, '善行通过陪审团确认')
       .catch(() => null)
   }
 
