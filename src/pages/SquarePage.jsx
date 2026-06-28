@@ -4,10 +4,8 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { getPublicPledges } from '../lib/supabase'
 import { differenceInDays } from 'date-fns'
 import IndexHallPage from './IndexHallPage'
+import { CATEGORY_OPTIONS, categoryFilterMatches, inferPledgeCategory, inferPledgeTag } from '../lib/pledgeCategories'
 
-// ── 分类映射（title 关键词 → 分类）
-const CAT_LIST = ['全部','健康运动','学习成长','生活习惯','财务目标','创作']
-const CAT_ICONS = { '健康运动':'🏃','学习成长':'📚','游戏目标':'🎮','生活习惯':'🌅','财务目标':'💰','创作':'🎨','全部':'🌐' }
 const PERIOD_LABEL = { week:'周', month:'月', season:'季', year:'年' }
 
 // 头像颜色池
@@ -56,11 +54,7 @@ function Skeleton() {
 // ── 进行中 tab
 function LiveTab({ pledges, loading, cat, setCat, sort, setSort }) {
   const nav = useNavigate()
-  const filtered = cat === '全部' ? pledges : pledges.filter(p => {
-    const t = p.title?.toLowerCase() || ''
-    const map = { '健康运动':['跑','健身','运动','锻炼','瑜伽','游泳'],'学习成长':['读','学','英语','考','练','写作'],'游戏目标':['游戏','通关','段位','cs','王者','s级'],'生活习惯':['早起','冥想','睡','戒','打卡','习惯'],'财务目标':['存钱','理财','收入','副业','赚'],'创作':['创作','拍','绘','画','写','视频'] }
-    return (map[cat] || []).some(kw => t.includes(kw))
-  })
+  const filtered = pledges.filter(p => categoryFilterMatches(p, cat))
   const ordered = [...filtered].sort((a, b) => {
     if (sort === 'witnesses') {
       const aw = a.witnesses?.[0]?.count ?? a.witnesses?.length ?? 0
@@ -82,7 +76,7 @@ function LiveTab({ pledges, loading, cat, setCat, sort, setSort }) {
         <label style={S.selectBox}>
           <span style={S.selectLabel}>分类</span>
           <select value={cat} onChange={e => setCat(e.target.value)} style={S.select}>
-            {CAT_LIST.map(c => <option key={c} value={c}>{CAT_ICONS[c]} {c}</option>)}
+            {CATEGORY_OPTIONS.map(c => <option key={c.key} value={c.key}>{c.emoji} {c.label}</option>)}
           </select>
         </label>
         <label style={S.selectBox}>
@@ -99,7 +93,7 @@ function LiveTab({ pledges, loading, cat, setCat, sort, setSort }) {
 
       {loading && [1,2,3].map(i => <Skeleton key={i} />)}
       {!loading && filtered.length === 0 && (
-        <Empty text={cat === '全部' ? '还没有公开誓言，成为第一个！' : `暂无「${cat}」类誓言`} />
+        <Empty text={cat === 'all' ? '还没有公开誓言，成为第一个！' : `暂无「${CATEGORY_OPTIONS.find(c => c.key === cat)?.label || '该'}」类誓言`} />
       )}
 
       {ordered.map(p => {
@@ -107,6 +101,8 @@ function LiveTab({ pledges, loading, cat, setCat, sort, setSort }) {
         const daysLeft = Math.max(0, differenceInDays(new Date(p.end_date), new Date()))
         const name = p.profiles?.nickname || '匿名'
         const witnessCount = p.witnesses?.[0]?.count ?? p.witnesses?.length ?? 0
+        const category = inferPledgeCategory(p)
+        const tag = inferPledgeTag(p)
         return (
           <div key={p.id} style={S.pledgeCard} onClick={() => nav(`/pledge/${p.id}`)}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
@@ -117,7 +113,7 @@ function LiveTab({ pledges, loading, cat, setCat, sort, setSort }) {
                   {p.title}
                 </div>
                 <div style={{ fontSize: 11, color: '#9A8A70' }}>
-                  {name} · {PERIOD_LABEL[p.period] || ''}度誓言 · 押{p.stake_coins}金币
+                  {category.emoji} {category.label} · {tag} · {PERIOD_LABEL[p.period] || ''}度誓言 · 押{p.stake_coins}金币
                   {witnessCount > 0 && ` · ${witnessCount}人见证`}
                 </div>
               </div>
@@ -196,7 +192,7 @@ export default function SquarePage() {
     const path = next === 'index' ? '/square/index' : next === 'pool' ? '/square/pool' : '/square'
     if (location.pathname !== path) nav(path)
   }
-  const [cat, setCat]         = useState('全部')
+  const [cat, setCat]         = useState('all')
   const [sort, setSort]       = useState('created_at')
   const [pledges, setPledges] = useState([])
   const [loading, setLoading] = useState(true)
