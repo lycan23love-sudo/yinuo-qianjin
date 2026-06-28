@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
 import { getMyPledges, getPublicPledges, getPledgeDetail, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins } from '../lib/supabase'
+import { PLEDGE_CATEGORIES, inferPledgeCategory, inferPledgeTag } from '../lib/pledgeCategories'
 
 const TEAM_LIMIT = 5
 
@@ -14,15 +15,12 @@ const C = {
   purple: '#6A4A8A', purpleL: '#EFE9F7',
 }
 
-const SUPPORT_GROUPS = [
-  { key: 'study', emoji: '📚', name: '学习成长互助会', hint: '读书、学习AI、考试、技能训练', words: ['学习','读书','阅读','ai','AI','英语','单词','考试','产品','课程','写作业'] },
-  { key: 'health', emoji: '🏃', name: '健康运动互助会', hint: '跑步、健身、减脂、饮食管理', words: ['跑步','运动','健身','减肥','减脂','饮食','瑜伽','俯卧撑','公里'] },
-  { key: 'habit', emoji: '🌅', name: '生活习惯互助会', hint: '早起、早睡、洗脸、整理、作息', words: ['早起','早睡','睡觉','洗脸','整理','打扫','作息','习惯','起床'] },
-  { key: 'control', emoji: '🧘', name: '自控戒断互助会', hint: '戒断、少刷手机、情绪与冲动控制', words: ['戒','控制','自律','手机','游戏','短视频','情绪','拖延','冥想'] },
-  { key: 'create', emoji: '✍️', name: '创作输出互助会', hint: '写作、画画、视频、作品输出', words: ['写','画','创作','视频','发布','输出','作品','剪辑','日更'] },
-  { key: 'other', emoji: '🧭', name: '综合互助会', hint: '暂时无法归类，但同样需要同行者', words: [] },
-]
-
+const SUPPORT_GROUPS = PLEDGE_CATEGORIES.map(c => ({
+  key: c.key,
+  emoji: c.emoji,
+  name: c.groupName,
+  hint: c.hint,
+}))
 function countFromRelation(value) {
   if (!Array.isArray(value) || value.length === 0) return 0
   return value[0]?.count || value.length || 0
@@ -61,17 +59,18 @@ function normalizedTitle(pledge) {
 }
 
 function groupForPledge(pledge) {
-  const text = [pledge.title, pledge.category, pledge.category_key, pledge.type, pledge.verify_type].filter(Boolean).join(' ')
-  const lower = text.toLowerCase()
-  return SUPPORT_GROUPS.find(group => group.key !== 'other' && group.words.some(word => lower.includes(String(word).toLowerCase()))) || SUPPORT_GROUPS[SUPPORT_GROUPS.length - 1]
+  const category = inferPledgeCategory(pledge)
+  return SUPPORT_GROUPS.find(group => group.key === category.key) || SUPPORT_GROUPS[SUPPORT_GROUPS.length - 1]
 }
 
 function matchLevel(pledge, myPledges) {
   const title = normalizedTitle(pledge)
   if (title && myPledges.some(p => normalizedTitle(p) === title)) return 0
   const group = groupForPledge(pledge).key
-  if (group && myPledges.some(p => groupForPledge(p).key === group)) return 1
-  return 2
+  const tag = inferPledgeTag(pledge)
+  if (tag && myPledges.some(p => groupForPledge(p).key === group && inferPledgeTag(p) === tag)) return 1
+  if (group && myPledges.some(p => groupForPledge(p).key === group)) return 2
+  return 3
 }
 
 function groupStats(groupKey, pledges, joinedIds) {
@@ -130,7 +129,7 @@ function MyPledgeCard({ pledge, publishing, onRecruit, onRoom, onCheckin }) {
         <div style={S.emoji}>{group.emoji}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={S.cardTitle}>{pledge.title}</div>
-          <div style={S.meta}>{group.name} · 已守 {pledge.checkin_count || 0}/{pledge.total_days || 0} 天 · 还差{daysLeft(pledge)}天</div>
+          <div style={S.meta}>{group.name} · {inferPledgeTag(pledge)} · 已守 {pledge.checkin_count || 0}/{pledge.total_days || 0} 天 · 还差{daysLeft(pledge)}天</div>
         </div>
         <Tag tone={isRecruiting ? 'green' : 'gold'}>{isRecruiting ? '招募中' : '未招募'}</Tag>
       </div>
