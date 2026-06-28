@@ -64,3 +64,94 @@ create policy "users create own charity jury votes"
   on public.charity_jury_votes for insert
   to authenticated
   with check (juror_id = auth.uid());
+
+-- Atomic charity jury vote RPC. Run this after table creation.
+
+create or replace function public.cast_charity_jury_vote(
+  p_action_id uuid,
+  p_vote text
+) returns public.charity_actions
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_juror uuid := auth.uid();
+  v_action public.charity_actions%rowtype;
+  v_approve integer := 0;
+  v_reject integer := 0;
+  v_revise integer := 0;
+  v_next_status text := 'pending';
+begin
+  if v_juror is null then
+    raise exception '请先登录';
+  end if;
+
+  if p_vote not in ('approve', 'reject', 'revise') then
+    raise exception '确认选项无效';
+  end if;
+
+  select * into v_action
+  from public.charity_actions
+  where id = p_action_id
+  for update;
+
+  if not found then
+    raise exception '善行案件不存在';
+  end if;
+
+  if v_action.user_id = v_juror then
+    raise exception '不能确认自己的善行';
+  end if;
+
+  if v_action.status <> 'pending' then
+    raise exception '这个案件已经形成结论';
+  end if;
+
+  insert into public.charity_jury_votes(action_id, juror_id, vote)
+  values (p_action_id, v_juror, p_vote);
+
+  select
+    count(*) filter (where vote = 'approve'),
+    count(*) filter (where vote = 'reject'),
+    count(*) filter (where vote = 'revise')
+  into v_approve, v_reject, v_revise
+  from public.charity_jury_votes
+  where action_id = p_action_id;
+
+  if v_approve >= 2 then
+    v_next_status := 'approved';
+  elsif v_reject >= 2 then
+    v_next_status := 'rejected';
+  elsif v_revise >= 2 then
+    v_next_status := 'needs_revision';
+  end if;
+
+  update public.charity_actions
+  set approve_count = v_approve,
+      reject_count = v_reject,
+      revise_count = v_revise,
+      status = v_next_status,
+      decided_at = case when v_next_status = 'pending' then null else now() end
+  where id = p_action_id
+  returning * into v_action;
+
+  if v_next_status = 'approved' and coalesce(v_action.reward_coins, 0) > 0 then
+    perform public.add_coins(
+      v_action.user_id,
+      v_action.reward_coins,
+      'reward_milestone',
+      v_action.id,
+      '善行通过陪审团确认'
+    );
+  end if;
+
+  return v_action;
+exception
+  when unique_violation then
+    raise exception '你已经确认过这个案件';
+end;
+$$;
+
+grant execute on function public.cast_charity_jury_vote(uuid, text) to authenticated;
+
