@@ -3,10 +3,23 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
 import { getIndexFunds, placeIndexBet, getMyIndexBets } from '../lib/supabase'
+import { PLEDGE_CATEGORIES } from '../lib/pledgeCategories'
 
 const DIR_LABEL = { believe:'看多 📈', doubt:'看空 📉' }
 const STATUS_LABEL = { active:'进行中', won:'赢了', lost:'输了', settled:'已结算' }
 const STATUS_COLOR = { active:'#C8922A', won:'#3B7A4A', lost:'#C84040', settled:'#9A8A70' }
+
+function displayIndexName(fund) {
+  const raw = [fund?.code, fund?.name].filter(Boolean).join(' ')
+  const text = raw.toLowerCase()
+  const matched = PLEDGE_CATEGORIES.find(c => c.key !== 'other' && (
+    text.includes(c.key) || text.includes(c.label) || c.words.some(w => text.includes(String(w).toLowerCase()))
+  ))
+  if (matched) return matched.indexName
+  if (text.includes('创作') || text.includes('输出')) return '创作输出指数'
+  if (text.includes('自控') || text.includes('戒断')) return '生活习惯指数'
+  return fund?.name || '综合自律指数'
+}
 
 export default function IndexHallPage({ embedded = false }) {
   const { session, profile } = useAuth()
@@ -177,7 +190,7 @@ export default function IndexHallPage({ embedded = false }) {
             <div style={{ background:'rgba(200,146,42,.1)', borderRadius:12, padding:'10px 14px',
               marginBottom:14, border:'1px solid rgba(200,146,42,.2)' }}>
               <div style={{ fontSize:12, color:'#C8922A', lineHeight:1.7 }}>
-                💡 四大自律指数基于全网真实打卡数据计算。看多 = 相信大家能坚持，看空 = 认为坚持率会下降。每日结算。
+                💡 分类自律指数基于全网真实打卡数据计算，与誓言分类、广场筛选、同行互助会保持一致。看多 = 相信大家能坚持，看空 = 认为坚持率会下降。每日结算。
               </div>
             </div>
 
@@ -199,7 +212,7 @@ export default function IndexHallPage({ embedded = false }) {
                       <div style={{ fontSize:28 }}>{f.emoji}</div>
                       <div>
                         <div style={{ fontSize:15, fontWeight:700, color:'#fff' }}>{f.code}</div>
-                        <div style={{ fontSize:11, color:'#888' }}>{f.name}</div>
+                        <div style={{ fontSize:11, color:'#888' }}>{displayIndexName(f)}</div>
                       </div>
                     </div>
                     <div style={{ textAlign:'right' }}>
