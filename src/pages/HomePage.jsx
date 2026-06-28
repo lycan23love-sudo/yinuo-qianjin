@@ -6,6 +6,44 @@ import { getMyPledges, hasCheckedInToday, getMeritTitle } from '../lib/supabase'
 import { differenceInDays } from 'date-fns'
 
 
+const DEFAULT_REMINDER = { enabled: true, time: '20:30', style: 'gentle' }
+function reminderStoreKey(userId) { return 'ynq_reminders_' + (userId || 'guest') }
+function readReminderStore(userId) {
+  if (typeof window === 'undefined') return { global: DEFAULT_REMINDER, pledges: {} }
+  try {
+    const raw = window.localStorage.getItem(reminderStoreKey(userId))
+    const parsed = raw ? JSON.parse(raw) : {}
+    return { global: { ...DEFAULT_REMINDER, ...(parsed.global || {}) }, pledges: parsed.pledges || {} }
+  } catch {
+    return { global: DEFAULT_REMINDER, pledges: {} }
+  }
+}
+function writeReminderStore(userId, store) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(reminderStoreKey(userId), JSON.stringify(store))
+}
+function getReminderForPledge(userId, pledgeId) {
+  const store = readReminderStore(userId)
+  return { ...store.global, ...(store.pledges?.[pledgeId] || {}) }
+}
+function saveReminderForPledge(userId, pledgeId, reminder) {
+  const store = readReminderStore(userId)
+  const next = { ...store, pledges: { ...(store.pledges || {}), [pledgeId]: { ...reminder } } }
+  writeReminderStore(userId, next)
+  return next.pledges[pledgeId]
+}
+function saveGlobalReminder(userId, reminder) {
+  const store = readReminderStore(userId)
+  const next = { ...store, global: { ...store.global, ...reminder } }
+  writeReminderStore(userId, next)
+  return next.global
+}
+function reminderLabel(reminder) {
+  if (!reminder?.enabled) return '提醒已关闭'
+  return '提醒 ' + (reminder.time || DEFAULT_REMINDER.time)
+}
+
+
 
 
 function daysLeft(pledge) {
@@ -488,6 +526,7 @@ export default function HomePage() {
   const mainChecked = todayPledge ? checkedMap[todayPledge.id] : false
   const mainDaysLeft = daysLeft(todayPledge)
   const homeFeedback = getHomeFeedback({ pledge: todayPledge, progress: mainProgress, checkedToday: mainChecked, daysLeft: mainDaysLeft })
+  const mainReminder = todayPledge ? getReminderForPledge(userId, todayPledge.id) : readReminderStore(userId).global
 
 
 
@@ -565,6 +604,10 @@ export default function HomePage() {
               <div style={styles.feedbackTitle}>{homeFeedback.title}</div>
               <div style={styles.feedbackBody}>{homeFeedback.body}</div>
               <div style={styles.feedbackNext}>{homeFeedback.next}</div>
+            </div>
+            <div style={styles.reminderStrip}>
+              <span>{reminderLabel(mainReminder)}</span>
+              <button onClick={() => nav('/pledge/' + todayPledge.id + '?tab=settings')} style={styles.reminderButton}>修改</button>
             </div>
             <div style={styles.actionRow}>
               <div style={styles.muted}>
