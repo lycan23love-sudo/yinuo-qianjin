@@ -55,7 +55,7 @@ function getHostName(pledge) {
 }
 
 function normalizedTitle(pledge) {
-  return String(pledge.title || '').replace(/s+/g, '').toLowerCase()
+  return String(pledge.title || '').replace(/\s+/g, '').toLowerCase()
 }
 
 function groupForPledge(pledge) {
@@ -250,17 +250,59 @@ function HelpTeamCard({ pledge, joined, joining, match, onOpen, onJoin }) {
         <div style={S.helpTeamEmoji}>{group.emoji}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={S.helpTeamTitle}>{pledge.title}</div>
-          <div style={S.helpTeamMeta}>{getHostName(pledge)}发起 · {teamSize(pledge)}/{TEAM_LIMIT}人 · 进度{progress}%</div>
+          <div style={S.helpTeamMeta}>{getHostName(pledge)}发起 · {inferPledgeTag(pledge)} · {teamSize(pledge)}/{TEAM_LIMIT}人 · 进度{progress}%</div>
         </div>
         <Tag tone={joined ? 'green' : match <= 1 ? 'blue' : 'gold'}>{label}</Tag>
       </div>
       <div style={S.helpTeamTrack}><div style={{ ...S.helpTeamFill, width: progress + '%' }} /></div>
       <div style={S.helpTeamFoot}>
-        <span>{full ? '小队已满' : '还可加入' + slots + '人'}</span>
+        <span>{full ? '小队已满' : group.name.replace('互助会', '') + ' · 还可加入' + slots + '人'}</span>
         <div style={S.actions}>
           <button style={S.btnGhost} onClick={onOpen}>{joined ? '团室' : '查看'}</button>
           {!joined && (full ? <button style={S.btnDone} disabled>满员</button> : <button style={S.btnGold} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入'}</button>)}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function recommendationReason(pledge, myPledges) {
+  const match = matchLevel(pledge, myPledges)
+  const group = groupForPledge(pledge)
+  const tag = inferPledgeTag(pledge)
+  if (match === 0) return '与你有相同誓言'
+  if (match === 1) return '同属' + group.name.replace('互助会', '') + ' · ' + tag
+  if (match === 2) return '同属' + group.name.replace('互助会', '')
+  return '还有空位，可先观察'
+}
+
+function TodayTeamStatus({ featuredTeam, totalTeams, pendingCount, joinedCount, suggestedCount, onPrimary, onDiscover }) {
+  const hasTeam = !!featuredTeam
+  const done = hasTeam ? checkedToday(featuredTeam.pledge) : false
+  const statusTitle = !hasTeam ? '还没有同行小队' : done ? '今日已守，进团室看看队友' : '今日待守，别让小队等你'
+  const statusText = !hasTeam
+    ? '先立下誓言或加入一个同类小队，让守约从独行变成同行。'
+    : done
+      ? '你的节奏已经跟上，适合给待守队友一次轻提醒。'
+      : '先完成今天的打卡，再回来看队友状态。'
+  return (
+    <div style={S.todayStatusCard}>
+      <div style={S.todayStatusHead}>
+        <div style={S.todayIcon}>{done ? '✓' : hasTeam ? '!' : '+'}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={S.todayTitle}>{statusTitle}</div>
+          <div style={S.todayText}>{statusText}</div>
+        </div>
+      </div>
+      <div style={S.todayStats}>
+        <div style={S.todayStatBox}><b style={S.todayStatNum}>{totalTeams}</b><span style={S.todayStatLabel}>我的小队</span></div>
+        <div style={S.todayStatBox}><b style={S.todayStatNum}>{pendingCount}</b><span style={S.todayStatLabel}>今日待守</span></div>
+        <div style={S.todayStatBox}><b style={S.todayStatNum}>{joinedCount}</b><span style={S.todayStatLabel}>已加入</span></div>
+        <div style={S.todayStatBox}><b style={S.todayStatNum}>{suggestedCount}</b><span style={S.todayStatLabel}>可加入</span></div>
+      </div>
+      <div style={S.todayActions}>
+        <button style={S.primaryTeamBtn} onClick={onPrimary}>{hasTeam ? (done ? '进入团室' : '去打卡') : '立下新誓'}</button>
+        <button style={S.secondaryTeamBtn} onClick={onDiscover}>发现小队</button>
       </div>
     </div>
   )
@@ -336,14 +378,15 @@ function SoloRecruitCard({ item, publishing, onRecruit, onRoom }) {
   )
 }
 
-function JoinRecommendationCard({ pledge, joining, onJoin }) {
+function JoinRecommendationCard({ pledge, joining, reason, onJoin }) {
   const group = groupForPledge(pledge)
+  const tag = inferPledgeTag(pledge)
   return (
     <div style={S.joinCard}>
       <div style={S.joinEmoji}>{group.emoji}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={S.joinTitle}>{pledge.title}</div>
-        <div style={S.joinMeta}>{getHostName(pledge)}发起 · {teamSize(pledge)}人同行 · 进行第{pledge.checkin_count || countFromRelation(pledge.checkins) || 0}天</div>
+        <div style={S.joinMeta}>{reason || group.name + ' · ' + tag} · {teamSize(pledge)}/{TEAM_LIMIT}人 · 空位{teamSlots(pledge)}个</div>
       </div>
       <button style={S.joinBtn} onClick={onJoin} disabled={joining}>{joining ? '加入中' : '加入'}</button>
     </div>
@@ -573,6 +616,8 @@ export default function CompanionsPage() {
   const soloTeamItems = myTeamItems.filter(item => item.role === 'owned' && teamSize(item.pledge) <= 1 && !item.pledge.is_public)
   const featuredTeam = activeTeamItems[0]
   const secondaryTeams = activeTeamItems.slice(1, 3)
+  const pendingTodayCount = myPledges.filter(p => !checkedToday(p)).length
+  const suggestedOpenCount = recommended.filter(p => !joinedIds.has(p.id) && teamSlots(p) > 0).length
 
   if (roomPledge) {
     return (
@@ -601,7 +646,9 @@ export default function CompanionsPage() {
 
       {!loading && !error && tab === 'my' && (
         <div style={S.scrollArea}>
-          <CheckinPrompt done={featuredTeam ? checkedToday(featuredTeam.pledge) : false} lateDays={1} onClick={() => featuredTeam ? nav('/pledge/' + featuredTeam.pledge.id + '/checkin') : nav('/new')} />
+          <TodayTeamStatus featuredTeam={featuredTeam} totalTeams={allTeamCount} pendingCount={pendingTodayCount} joinedCount={joinedTeams.length} suggestedCount={suggestedOpenCount}
+            onPrimary={() => featuredTeam ? (checkedToday(featuredTeam.pledge) ? openRoom(featuredTeam.pledge) : nav('/pledge/' + featuredTeam.pledge.id + '/checkin')) : nav('/new')}
+            onDiscover={() => setTab('help')} />
 
           <div style={S.sectionHeadProto}>
             <div style={S.sectionTitle}>我的团</div>
@@ -643,7 +690,7 @@ export default function CompanionsPage() {
             <div style={S.recommendBlock}>
               <div style={S.recommendTitle}>推荐加入</div>
               {suggestedForMy.slice(0, 2).map(pledge => (
-                <JoinRecommendationCard key={pledge.id} pledge={pledge} joining={joiningId === pledge.id} onJoin={() => handleJoin(pledge)} />
+                <JoinRecommendationCard key={pledge.id} pledge={pledge} joining={joiningId === pledge.id} reason={recommendationReason(pledge, myPledges)} onJoin={() => handleJoin(pledge)} />
               ))}
             </div>
           )}
@@ -732,6 +779,16 @@ const S = {
   helpTeamTrack: { height: 5, borderRadius: 999, background: C.soft, overflow: 'hidden', marginBottom: 9 },
   helpTeamFill: { height: '100%', borderRadius: 999, background: C.gold },
   helpTeamFoot: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: 11, color: C.muted },
+  todayStatusCard: { background: '#FFF7E6', border: '1px solid #E6D3A4', borderRadius: 18, padding: 15, marginBottom: 14, boxShadow: '0 3px 12px rgba(122,90,24,.06)' },
+  todayStatusHead: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 },
+  todayIcon: { width: 42, height: 42, borderRadius: '50%', background: C.ink, color: '#F6D486', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 900, flexShrink: 0 },
+  todayTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 17, fontWeight: 900, color: C.ink, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  todayText: { fontSize: 12, color: C.muted, lineHeight: 1.55 },
+  todayStats: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 7, marginBottom: 12 },
+  todayStatBox: { background: 'rgba(255,255,255,.68)', border: '1px solid rgba(224,213,192,.72)', borderRadius: 12, padding: '8px 4px', textAlign: 'center' },
+  todayStatNum: { display: 'block', fontSize: 17, lineHeight: 1, fontWeight: 900, color: C.ink, marginBottom: 5 },
+  todayStatLabel: { display: 'block', fontSize: 10, color: C.muted, whiteSpace: 'nowrap' },
+  todayActions: { display: 'grid', gridTemplateColumns: '1.35fr 1fr', gap: 8 },
   promptCard: { width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: '#FFF7E6', border: '1px solid #E6D3A4', borderRadius: 18, padding: '15px 14px', marginBottom: 18, boxShadow: '0 3px 12px rgba(122,90,24,.06)', fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   promptIcon: { width: 42, height: 42, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 },
   promptTitle: { fontSize: 16, fontWeight: 900, color: C.ink, marginBottom: 4 },
