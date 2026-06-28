@@ -152,12 +152,10 @@ function LiveTab({ pledges, loading, cat, setCat, sort, setSort }) {
           <div style={S.curatedHead}>
             <div>
               <div style={S.curatedTitle}>今日精选</div>
-              <div style={S.curatedHint}>先看 5 条最值得见证的誓言</div>
+              <div style={S.curatedHint}>先选入口，再看 5 条最值得见证的誓言</div>
             </div>
             <button style={S.refreshBtn} onClick={() => setBatch(v => (v + 1) % batchCount)}>换一批</button>
           </div>
-          {featured.map(p => renderCard(p, true))}
-
           <div style={S.entryGrid}>
             {[
               ['今日待见证', hotCount, 'witnesses'],
@@ -170,6 +168,7 @@ function LiveTab({ pledges, loading, cat, setCat, sort, setSort }) {
               </button>
             ))}
           </div>
+          {featured.map(p => renderCard(p, true))}
 
           <div style={S.categoryPanel}>
             <div style={S.panelTitle}>按誓言分类浏览</div>
