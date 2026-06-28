@@ -256,21 +256,36 @@ export default function CharityPage() {
               <span style={S.proofName}>{actionProof || '图片/视频/语音均可'}</span>
             </div>
             <div style={S.rewardRow}><span>申请奖励</span><input style={S.rewardInput} type="number" min="0" max="100" value={actionReward} onChange={e => setActionReward(e.target.value)} /><span>金币</span></div>
-            <button style={S.primaryBtn} onClick={handleSubmitAction}>提交待确认善行</button>
+            <button style={S.primaryBtn} onClick={handleSubmitAction}>提交善行申请</button>
           </div>
 
-          {actionRecords.length > 0 && <>
-            <SectionTitle title="待确认善行" />
-            {actionRecords.map(item => <div key={item.id} style={S.actionRecord}>
-              <div style={S.recordEmoji}>🌿</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={S.recordTitle}>{item.type}</div>
-                <div style={S.recordMeta}>{formatDate(item.created_at)} · {item.status} · 申请 {item.reward} 金币</div>
-                <div style={S.recordMsg}>{item.text}</div>
-                <div style={S.proofText}>证明：{item.proof}</div>
+          {actionRecords.length > 0 && (() => {
+            const pendingActions = actionRecords.filter(item => item.raw_status === 'pending' || item.status === '待确认')
+            const approvedActions = actionRecords.filter(item => item.raw_status === 'approved' || item.status === '已通过')
+            const returnedActions = actionRecords.filter(item => ['rejected','needs_revision'].includes(item.raw_status) || ['未通过','需补充'].includes(item.status))
+            const renderAction = item => (
+              <div key={item.id} style={S.actionRecord}>
+                <div style={S.recordEmoji}>🌿</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={S.recordTitle}>{item.type}</div>
+                  <div style={S.recordMeta}>{formatDate(item.created_at)} · {item.status} · 申请 {item.reward} 金币</div>
+                  <div style={S.recordMsg}>{item.text}</div>
+                  <div style={S.proofText}>证明：{item.proof}</div>
+                </div>
               </div>
-            </div>)}
-          </>}
+            )
+            return (
+              <>
+                <SectionTitle title="我的善行记录" />
+                {pendingActions.length > 0 && <div style={S.recordGroupTitle}>待陪审确认</div>}
+                {pendingActions.map(renderAction)}
+                {approvedActions.length > 0 && <div style={S.recordGroupTitle}>已通过认定</div>}
+                {approvedActions.map(renderAction)}
+                {returnedActions.length > 0 && <div style={S.recordGroupTitle}>需补充 / 未通过</div>}
+                {returnedActions.map(renderAction)}
+              </>
+            )
+          })()}
 
           <SectionTitle title="捐赠记录" action={loading && <span style={S.loading}>加载中</span>} />
           {records.length === 0 && !loading ? <div style={S.empty}>还没有公益记录。第一次捐赠会从这里开始留下痕迹。</div> : records.map(item => <div key={item.id || item.created_at} style={S.recordCard}>
