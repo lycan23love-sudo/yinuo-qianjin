@@ -4059,3 +4059,70 @@ export async function getPendingDisputes(limit = 20) {
   if (error) throw new Error(error.message || '获取待裁定失败')
   return data || []
 }
+
+// ============================================================
+// NOTIFICATIONS（消息中心）
+// ============================================================
+function isMissingNotificationsTable(error) {
+  const msg = String(error?.message || '')
+  return error?.code === '42P01' || error?.code === 'PGRST205' || msg.includes('notifications') || msg.includes('schema cache')
+}
+
+export async function createNotification({ userId, actorId, pledgeId = null, type = 'system', title, body = '', metadata = {} }) {
+  if (!userId || !actorId || userId === actorId) return { delivered: false, reason: 'invalid_recipient' }
+  const { data, error } = await supabase
+    .from('notifications')
+    .insert({ user_id: userId, actor_id: actorId, pledge_id: pledgeId, type, title, body, metadata })
+    .select()
+    .single()
+  if (error) {
+    if (isMissingNotificationsTable(error)) return { delivered: false, reason: 'missing_table' }
+    throw error
+  }
+  return { delivered: true, data }
+}
+
+export async function getNotifications(userId) {
+  if (!userId) return { items: [], ready: false }
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(80)
+  if (error) {
+    if (isMissingNotificationsTable(error)) return { items: [], ready: false }
+    throw error
+  }
+  return { items: data || [], ready: true }
+}
+
+export async function markNotificationRead(userId, notificationId) {
+  if (!userId || !notificationId) return
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('id', notificationId)
+    .eq('user_id', userId)
+  if (error && !isMissingNotificationsTable(error)) throw error
+}
+
+export async function markAllNotificationsRead(userId) {
+  if (!userId) return
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .is('read_at', null)
+  if (error && !isMissingNotificationsTable(error)) throw error
+}
+
+export function subscribeToNotifications(userId, onInsert) {
+  if (!userId) return null
+  const channel = supabase
+    .channel('notifications:' + userId)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: 'user_id=eq.' + userId }, payload => onInsert?.(payload.new))
+    .subscribe()
+  return channel
+}
+
