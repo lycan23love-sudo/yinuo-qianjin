@@ -1,6 +1,6 @@
 // public/sw.js — 一诺千金 Service Worker
-// v4 — 提醒设置与页面缓存刷新
-const CACHE_VERSION = 'yinuo-v4'
+// v5 — 提醒设置、页面缓存刷新与远程推送
+const CACHE_VERSION = 'yinuo-v5'
 
 self.addEventListener('install', () => self.skipWaiting())
 
@@ -72,15 +72,40 @@ function cancelReminder() {
   if (reminderTimer) { clearTimeout(reminderTimer); reminderTimer = null }
 }
 
+
+
+// ── 远程推送
+self.addEventListener('push', e => {
+  let payload = {}
+  try { payload = e.data ? e.data.json() : {} } catch { payload = { title: '一诺千金', body: e.data?.text?.() || '你收到一条新消息' } }
+  const title = payload.title || '一诺千金'
+  const body = payload.body || '你收到一条新消息'
+  const url = payload.url || payload.data?.url || '/notifications'
+  e.waitUntil(self.registration.showNotification(title, {
+    body,
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: payload.tag || 'ynq-notification',
+    renotify: true,
+    vibrate: [160, 80, 160],
+    data: { url },
+    actions: [
+      { action: 'open', title: '查看' },
+      { action: 'dismiss', title: '稍后' },
+    ],
+  }))
+})
+
 // ── 点击通知
 self.addEventListener('notificationclick', e => {
   e.notification.close()
   if (e.action === 'dismiss') return
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(wins => {
+      const targetUrl = e.notification.data?.url || '/'
       const w = wins.find(w => w.url.includes('yinuo-qianjin') || w.url.includes('localhost'))
-      if (w) { w.focus(); w.navigate?.('/') }
-      else clients.openWindow('/')
+      if (w) { w.focus(); w.navigate?.(targetUrl) }
+      else clients.openWindow(targetUrl)
     })
   )
 })
