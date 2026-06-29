@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
-import { getMyPledges, hasCheckedInToday, getMeritTitle } from '../lib/supabase'
+import { getMyPledges, hasCheckedInToday, getMeritTitle, getNotifications, subscribeToNotifications } from '../lib/supabase'
 import { differenceInDays } from 'date-fns'
 
 
@@ -163,6 +163,46 @@ const styles = {
     margin: '4px 0 0',
     fontSize: 12,
     color: '#7A6A50'
+  },
+  headerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0
+  },
+  noticeButton: {
+    position: 'relative',
+    width: 38,
+    height: 38,
+    border: '1px solid #E0D5C0',
+    background: '#FFFFFF',
+    color: '#7A5A18',
+    borderRadius: 999,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 2px 8px rgba(26,18,8,.05)'
+  },
+  noticeIcon: {
+    fontSize: 17,
+    lineHeight: 1
+  },
+  noticeBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 17,
+    height: 17,
+    padding: '0 4px',
+    borderRadius: 999,
+    background: '#C84040',
+    color: '#FFFFFF',
+    border: '2px solid #FAF7F2',
+    fontSize: 10,
+    lineHeight: '17px',
+    fontWeight: 900,
+    textAlign: 'center',
+    boxSizing: 'border-box'
   },
   meritButton: {
     border: '1px solid #E0D5C0',
@@ -467,6 +507,7 @@ export default function HomePage() {
   const [pledges, setPledges] = useState([])
   const [checkedMap, setCheckedMap] = useState({})
   const [loading, setLoading] = useState(true)
+  const [unreadCount, setUnreadCount] = useState(0)
   const userId = session?.user?.id
 
 
@@ -478,7 +519,44 @@ export default function HomePage() {
     } else {
       setPledges([])
       setCheckedMap({})
+      setUnreadCount(0)
       setLoading(false)
+    }
+  }, [userId])
+
+
+
+
+  useEffect(() => {
+    if (!userId) {
+      setUnreadCount(0)
+      return undefined
+    }
+
+    let mounted = true
+
+    async function loadUnread() {
+      try {
+        const result = await getNotifications(userId)
+        if (!mounted) return
+        const items = result?.items || []
+        setUnreadCount(items.filter(item => !item.read_at).length)
+      } catch (error) {
+        if (mounted) setUnreadCount(0)
+      }
+    }
+
+    loadUnread()
+    window.addEventListener('focus', loadUnread)
+
+    const channel = subscribeToNotifications(userId, item => {
+      if (!item?.read_at) setUnreadCount(count => count + 1)
+    })
+
+    return () => {
+      mounted = false
+      window.removeEventListener('focus', loadUnread)
+      channel?.unsubscribe?.()
     }
   }, [userId])
 
@@ -557,9 +635,17 @@ export default function HomePage() {
           <h1 style={styles.title}><span>一诺</span><span style={styles.titleGold}>千金</span></h1>
           <p style={styles.subtitle}>守住今天，就是守住自己</p>
         </div>
-        <button onClick={() => nav('/profile')} style={styles.meritButton}>
-          {merit.emoji} {merit.title}
-        </button>
+        <div style={styles.headerActions}>
+          <button onClick={() => nav('/notifications')} style={styles.noticeButton} aria-label="消息中心">
+            <span style={styles.noticeIcon}>🔔</span>
+            {unreadCount > 0 && (
+              <span style={styles.noticeBadge}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+            )}
+          </button>
+          <button onClick={() => nav('/profile')} style={styles.meritButton}>
+            {merit.emoji} {merit.title}
+          </button>
+        </div>
       </header>
 
 
