@@ -196,6 +196,22 @@ function checkedToday(pledge) {
   return (pledge.checkins || []).some(item => item.checkin_date === today)
 }
 
+
+function memberCheckinLine(member, index) {
+  if (member.empty) return '这里还空着，等一个同路人坐下。'
+  if (member.doneToday) {
+    const lines = ['今天已报到：我守住了这一日。', '今日已守：先把该做的做完。', '已完成今日诺言，给后来的人留一盏灯。']
+    return lines[index % lines.length]
+  }
+  const lines = ['还没报到，可能正在和拖延拉扯。', '今日待守，等一句提醒把他拉回来。', '还没出现，也许需要有人说一句：别一个人扛。']
+  return lines[index % lines.length]
+}
+
+function getBuddy(activeMembers) {
+  if (!activeMembers.length) return null
+  return activeMembers.find(member => !member.doneToday) || activeMembers[0]
+}
+
 function buildRoomMembers(pledge) {
   const active = (pledge.witnesses || []).filter(item => !item.status || item.status === 'active').slice(0, TEAM_LIMIT - 1)
   const ownerDone = checkedToday(pledge)
@@ -467,6 +483,13 @@ function TeamRoom({ pledge, loading, error, toast, onBack, onNudge, onEncourage,
   const activeMembers = members.filter(item => !item.empty)
   const doneCount = activeMembers.filter(item => item.doneToday).length
   const progress = pct(pledge)
+  const buddy = getBuddy(activeMembers)
+  const [echoes, setEchoes] = useState({})
+  function sendEcho(member, label) {
+    if (!member || member.empty) return
+    setEchoes(prev => ({ ...prev, [member.id]: label }))
+    onEncourage?.(label, member)
+  }
   return (
     <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column' }}>
       {toast && <div style={S.toast}>{toast}</div>}
@@ -491,22 +514,57 @@ function TeamRoom({ pledge, loading, error, toast, onBack, onNudge, onEncourage,
           </div>
         </div>
 
-        <div style={S.sectionLabel}>团内成员</div>
-        <div style={S.panelCard}>{members.map((member, index) => <TeamMemberRow key={member.id} member={member} rank={index + 1} />)}</div>
+        <div style={S.meetingCard}>
+          <div style={S.meetingTitle}>今日报到圈</div>
+          <div style={S.meetingSub}>{doneCount > 0 ? '有人已经先坐下报到。给一个回应，让守诺被看见。' : '今天还没人报到。互助会里，先开口的人会把大家拉回正轨。'}</div>
+          {members.map((member, index) => (
+            <div key={member.id} style={{ ...S.shareRow, ...(member.empty ? { opacity: .58 } : {}) }}>
+              <div style={{ ...S.shareAvatar, background: member.empty ? C.soft : member.doneToday ? C.green : C.gold }}>{member.empty ? '+' : member.name.slice(0, 1)}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={S.shareName}>{member.name}<span>{member.role}</span></div>
+                <div style={S.shareText}>{memberCheckinLine(member, index)}</div>
+                {!member.empty && (
+                  <div style={S.echoRow}>
+                    {['看见了', '稳住', '鼓掌', '跟上'].map(label => (
+                      <button key={label} style={{ ...S.echoBtn, ...(echoes[member.id] === label ? S.echoBtnOn : {}) }} onClick={() => sendEcho(member, label)}>{label}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Tag tone={member.empty ? 'gold' : member.doneToday ? 'green' : 'red'}>{member.empty ? '空位' : member.doneToday ? '已报到' : '待报到'}</Tag>
+            </div>
+          ))}
+        </div>
 
-        <div style={S.sectionLabel}>纵向比较</div>
+        {buddy && (
+          <div style={S.buddyCard}>
+            <div style={S.buddyTop}>
+              <div style={S.buddyIcon}>☕</div>
+              <div style={{ flex: 1 }}>
+                <div style={S.buddyTitle}>今日搭子：{buddy.name}</div>
+                <div style={S.buddyText}>{buddy.doneToday ? 'TA已经完成。你可以把这份节奏接过来。' : 'TA今天还没报到。轻轻提醒一句，比沉默更有力量。'}</div>
+              </div>
+            </div>
+            <div style={S.buddyActions}>
+              <button style={S.buddyBtn} onClick={() => sendEcho(buddy, '我陪你')}>我陪你</button>
+              <button style={S.buddyBtnDark} onClick={onNudge}>提醒报到</button>
+            </div>
+          </div>
+        )}
+
+        <div style={S.sectionLabel}>队内压力</div>
         <div style={S.panelCard}>
-          <div style={S.compareRow}><span>当前誓言总进度</span><b>{progress}%</b></div>
-          <div style={S.compareRow}><span>今日已完成</span><b>{doneCount}人</b></div>
+          <div style={S.compareRow}><span>今日报到率</span><b>{doneCount}/{activeMembers.length || 1}</b></div>
+          <div style={S.compareRow}><span>我的位置</span><b>{checkedToday(pledge) ? '已跟上' : '待跟上'}</b></div>
           <div style={S.compareRow}><span>团队目标</span><b>满5人后开启PK</b></div>
-          <div style={S.compareHint}>下一步接入团员各自誓言后，这里会显示个人连续天数排行、掉队提醒和小队PK积分。</div>
+          <div style={S.compareHint}>这里保留一点压力：不是排名羞辱，而是让你清楚自己是否掉队。下一步接入真实团员打卡后，会显示连续天数榜、最早报到和小队PK积分。</div>
         </div>
 
         <div style={S.sectionLabel}>互助动作</div>
         <div style={S.actionGrid}>
           <button style={S.actionBtn} onClick={onHelp}><b>我卡住了</b><span>向团友发起求助</span></button>
           <button style={S.actionBtn} onClick={onNudge}><b>提醒待守</b><span>给未完成者一次轻提醒</span></button>
-          <button style={S.actionBtn} onClick={onEncourage}><b>送出鼓励</b><span>给完成者正向反馈</span></button>
+          <button style={S.actionBtn} onClick={() => activeMembers[0] && sendEcho(activeMembers[0], '鼓掌')}><b>送出鼓励</b><span>让今天的努力被看见</span></button>
         </div>
       </div>
     </div>
@@ -875,6 +933,24 @@ const S = {
   miniFill: { height: '100%', borderRadius: 999, background: C.gold },
   compareRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 4px', fontSize: 13, color: C.muted, borderBottom: '1px solid ' + C.soft },
   compareHint: { fontSize: 11, color: C.hint, lineHeight: 1.7, padding: '10px 4px 2px' },
+  meetingCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 18, padding: 14, marginBottom: 14, boxShadow: '0 4px 16px rgba(26,18,8,.06)' },
+  meetingTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 17, fontWeight: 900, color: C.ink, marginBottom: 4 },
+  meetingSub: { fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: 10 },
+  shareRow: { display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 0', borderTop: '1px solid ' + C.soft },
+  shareAvatar: { width: 34, height: 34, borderRadius: '50%', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, flexShrink: 0 },
+  shareName: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 900, color: C.ink },
+  shareText: { fontSize: 12, color: C.muted, lineHeight: 1.55, marginTop: 4 },
+  echoRow: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 },
+  echoBtn: { border: '1px solid ' + C.border, background: '#FFFDF8', color: C.goldD, borderRadius: 999, padding: '5px 9px', fontSize: 11, fontWeight: 800, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
+  echoBtnOn: { background: C.ink, borderColor: C.ink, color: '#F6D486' },
+  buddyCard: { background: '#FFF7E6', border: '1px solid #E6D3A4', borderRadius: 18, padding: 14, marginBottom: 14, boxShadow: '0 3px 12px rgba(122,90,24,.06)' },
+  buddyTop: { display: 'flex', alignItems: 'center', gap: 11, marginBottom: 12 },
+  buddyIcon: { width: 40, height: 40, borderRadius: '50%', background: C.ink, color: '#F6D486', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 },
+  buddyTitle: { fontSize: 15, fontWeight: 900, color: C.ink, marginBottom: 4 },
+  buddyText: { fontSize: 12, color: C.muted, lineHeight: 1.55 },
+  buddyActions: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 },
+  buddyBtn: { border: '1px solid ' + C.border, background: C.surf, color: C.goldD, borderRadius: 999, padding: '10px 12px', fontSize: 13, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
+  buddyBtnDark: { border: 'none', background: C.ink, color: '#F6D486', borderRadius: 999, padding: '10px 12px', fontSize: 13, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   actionGrid: { display: 'grid', gridTemplateColumns: '1fr', gap: 9, marginBottom: 12 },
   actionBtn: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, textAlign: 'left', fontFamily: 'Noto Sans SC,sans-serif', color: C.ink, cursor: 'pointer', boxShadow: '0 2px 10px rgba(26,18,8,.04)' },
 }
