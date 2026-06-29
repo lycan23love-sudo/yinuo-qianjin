@@ -16,6 +16,7 @@ import CharityPage     from './pages/CharityPage'
 import IndexHallPage   from './pages/IndexHallPage'
 import BlindBetPage    from './pages/BlindBetPage'
 import JuryPage        from './pages/JuryPage'
+import NotificationsPage from './pages/NotificationsPage'
 import BottomNav       from './components/BottomNav'
 import Toast       from './components/Toast'
 
@@ -113,6 +114,7 @@ function App() {
           <Route path="/pledge/:id/checkin" element={session ? <CheckinPage /> : <Navigate to="/auth" />} />
           <Route path="/checkin-success"    element={session ? <CheckinSuccess /> : <Navigate to="/auth" />} />
           <Route path="/profile" element={session ? <ProfilePage /> : <Navigate to="/auth" />} />
+          <Route path="/notifications" element={session ? <NotificationsPage /> : <Navigate to="/auth" />} />
 
           {/* fallback */}
           <Route path="*" element={<Navigate to={session ? "/" : "/auth"} />} />
