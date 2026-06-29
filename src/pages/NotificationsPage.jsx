@@ -2,7 +2,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
-import { getNotifications, markAllNotificationsRead, markNotificationRead, subscribeToNotifications } from '../lib/supabase'
+import { getNotifications, markAllNotificationsRead, markNotificationRead, subscribeToNotifications, savePushSubscription, getPushSubscriptionStatus } from '../lib/supabase'
+
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || ''
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  return Uint8Array.from([...rawData].map(ch => ch.charCodeAt(0)))
+}
 
 const C = { gold:'#C8922A', goldL:'#FDF3E0', ink:'#1A1208', muted:'#7A6A50', hint:'#B8A88A', bg:'#FAF7F2', surf:'#FFFFFF', border:'#E0D5C0', green:'#3B7A4A', greenL:'#E8F5EC' }
 
@@ -35,6 +44,8 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState('')
   const [permission, setPermission] = useState(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
+  const [pushReady, setPushReady] = useState(false)
+  const [pushSubscribed, setPushSubscribed] = useState(false)
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 2200) }
 
@@ -44,6 +55,9 @@ export default function NotificationsPage() {
       const res = await getNotifications(userId)
       setReady(res.ready)
       setItems(res.ready ? res.items : readLocal(userId))
+      const push = await getPushSubscriptionStatus(userId)
+      setPushReady(push.ready)
+      setPushSubscribed(push.subscribed)
     } catch (err) {
       setReady(false)
       setItems(readLocal(userId))
