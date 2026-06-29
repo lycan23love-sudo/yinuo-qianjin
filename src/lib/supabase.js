@@ -4126,3 +4126,60 @@ export function subscribeToNotifications(userId, onInsert) {
   return channel
 }
 
+// ============================================================
+// PUSH SUBSCRIPTIONS（浏览器推送订阅）
+// ============================================================
+function isMissingPushTable(error) {
+  const msg = String(error?.message || '')
+  return error?.code === '42P01' || error?.code === 'PGRST205' || msg.includes('push_subscriptions') || msg.includes('schema cache')
+}
+
+export async function savePushSubscription(userId, subscription, userAgent = '') {
+  if (!userId || !subscription?.endpoint) return { saved: false, reason: 'invalid_subscription' }
+  const json = subscription.toJSON ? subscription.toJSON() : subscription
+  const row = {
+    user_id: userId,
+    endpoint: json.endpoint,
+    p256dh: json.keys?.p256dh,
+    auth: json.keys?.auth,
+    user_agent: userAgent,
+    enabled: true,
+    updated_at: new Date().toISOString()
+  }
+  const { data, error } = await supabase
+    .from('push_subscriptions')
+    .upsert(row, { onConflict: 'endpoint' })
+    .select()
+    .single()
+  if (error) {
+    if (isMissingPushTable(error)) return { saved: false, reason: 'missing_table' }
+    throw error
+  }
+  return { saved: true, data }
+}
+
+export async function getPushSubscriptionStatus(userId) {
+  if (!userId) return { ready: false, subscribed: false }
+  const { data, error } = await supabase
+    .from('push_subscriptions')
+    .select('id, enabled, updated_at')
+    .eq('user_id', userId)
+    .eq('enabled', true)
+    .limit(1)
+  if (error) {
+    if (isMissingPushTable(error)) return { ready: false, subscribed: false }
+    throw error
+  }
+  return { ready: true, subscribed: (data || []).length > 0, item: data?.[0] || null }
+}
+
+export async function disablePushSubscription(userId, endpoint) {
+  if (!userId || !endpoint) return
+  const { error } = await supabase
+    .from('push_subscriptions')
+    .update({ enabled: false, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('endpoint', endpoint)
+  if (error && !isMissingPushTable(error)) throw error
+}
+
