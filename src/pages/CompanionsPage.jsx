@@ -207,9 +207,10 @@ function memberCheckinLine(member, index) {
   return lines[index % lines.length]
 }
 
-function getBuddy(activeMembers) {
-  if (!activeMembers.length) return null
-  return activeMembers.find(member => !member.doneToday) || activeMembers[0]
+function getBuddy(activeMembers, currentUserId) {
+  const candidates = activeMembers.filter(member => member.id !== currentUserId)
+  if (!candidates.length) return null
+  return candidates.find(member => !member.doneToday) || candidates[0]
 }
 
 function buildRoomMembers(pledge) {
@@ -477,16 +478,17 @@ function TeamMemberRow({ member, rank }) {
   )
 }
 
-function TeamRoom({ pledge, loading, error, toast, onBack, onNudge, onEncourage, onHelp }) {
+function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudge, onEncourage, onHelp }) {
   const group = groupForPledge(pledge)
   const members = buildRoomMembers(pledge)
   const activeMembers = members.filter(item => !item.empty)
   const doneCount = activeMembers.filter(item => item.doneToday).length
   const progress = pct(pledge)
-  const buddy = getBuddy(activeMembers)
+  const buddy = getBuddy(activeMembers, currentUserId)
   const [echoes, setEchoes] = useState({})
   function sendEcho(member, label) {
     if (!member || member.empty) return
+    if (member.id === currentUserId) return onEncourage?.('self', member)
     setEchoes(prev => ({ ...prev, [member.id]: label }))
     onEncourage?.(label, member)
   }
@@ -517,40 +519,41 @@ function TeamRoom({ pledge, loading, error, toast, onBack, onNudge, onEncourage,
         <div style={S.meetingCard}>
           <div style={S.meetingTitle}>今日报到圈</div>
           <div style={S.meetingSub}>{doneCount > 0 ? '有人已经先坐下报到。给一个回应，让守诺被看见。' : '今天还没人报到。互助会里，先开口的人会把大家拉回正轨。'}</div>
-          {members.map((member, index) => (
+          {members.map((member, index) => {
+            const isSelf = member.id === currentUserId
+            return (
             <div key={member.id} style={{ ...S.shareRow, ...(member.empty ? { opacity: .58 } : {}) }}>
               <div style={{ ...S.shareAvatar, background: member.empty ? C.soft : member.doneToday ? C.green : C.gold }}>{member.empty ? '+' : member.name.slice(0, 1)}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={S.shareName}>{member.name}<span>{member.role}</span></div>
+                <div style={S.shareName}>{member.name}<span>{isSelf ? '我' : member.role}</span></div>
                 <div style={S.shareText}>{memberCheckinLine(member, index)}</div>
-                {!member.empty && (
+                {!member.empty && !isSelf && (
                   <div style={S.echoRow}>
                     {['看见了', '稳住', '鼓掌', '跟上'].map(label => (
                       <button key={label} style={{ ...S.echoBtn, ...(echoes[member.id] === label ? S.echoBtnOn : {}) }} onClick={() => sendEcho(member, label)}>{label}</button>
                     ))}
                   </div>
                 )}
+                {!member.empty && isSelf && <div style={S.selfHint}>这是你自己。反馈和提醒只会发给其他团友。</div>}
               </div>
               <Tag tone={member.empty ? 'gold' : member.doneToday ? 'green' : 'red'}>{member.empty ? '空位' : member.doneToday ? '已报到' : '待报到'}</Tag>
             </div>
-          ))}
+          )})}
         </div>
 
-        {buddy && (
-          <div style={S.buddyCard}>
-            <div style={S.buddyTop}>
-              <div style={S.buddyIcon}>☕</div>
-              <div style={{ flex: 1 }}>
-                <div style={S.buddyTitle}>今日搭子：{buddy.name}</div>
-                <div style={S.buddyText}>{buddy.doneToday ? 'TA已经完成。你可以把这份节奏接过来。' : 'TA今天还没报到。轻轻提醒一句，比沉默更有力量。'}</div>
-              </div>
-            </div>
-            <div style={S.buddyActions}>
-              <button style={S.buddyBtn} onClick={() => sendEcho(buddy, '我陪你')}>我陪你</button>
-              <button style={S.buddyBtnDark} onClick={onNudge}>提醒报到</button>
+        <div style={S.buddyCard}>
+          <div style={S.buddyTop}>
+            <div style={S.buddyIcon}>☕</div>
+            <div style={{ flex: 1 }}>
+              <div style={S.buddyTitle}>{buddy ? '今日搭子：' + buddy.name : '今日搭子：暂无其他团友'}</div>
+              <div style={S.buddyText}>{buddy ? (buddy.doneToday ? 'TA已经完成。你可以把这份节奏接过来。' : 'TA今天还没报到。轻轻提醒一句，比沉默更有力量。') : '搭子只能是其他用户。等有人加入小队后，这里才会出现真正的守诺搭子。'}</div>
             </div>
           </div>
-        )}
+          <div style={S.buddyActions}>
+            <button style={S.buddyBtn} onClick={() => buddy ? sendEcho(buddy, '我陪你') : onEncourage?.('empty')} disabled={!buddy}>我陪你</button>
+            <button style={S.buddyBtnDark} onClick={() => onNudge?.(buddy)} disabled={!buddy}>提醒报到</button>
+          </div>
+        </div>
 
         <div style={S.sectionLabel}>队内压力</div>
         <div style={S.panelCard}>
@@ -563,8 +566,8 @@ function TeamRoom({ pledge, loading, error, toast, onBack, onNudge, onEncourage,
         <div style={S.sectionLabel}>互助动作</div>
         <div style={S.actionGrid}>
           <button style={S.actionBtn} onClick={onHelp}><b>我卡住了</b><span>向团友发起求助</span></button>
-          <button style={S.actionBtn} onClick={onNudge}><b>提醒待守</b><span>给未完成者一次轻提醒</span></button>
-          <button style={S.actionBtn} onClick={() => activeMembers[0] && sendEcho(activeMembers[0], '鼓掌')}><b>送出鼓励</b><span>让今天的努力被看见</span></button>
+          <button style={S.actionBtn} onClick={() => onNudge?.(buddy)}><b>提醒待守</b><span>{buddy ? '提醒今日搭子' : '暂无其他团友可提醒'}</span></button>
+          <button style={S.actionBtn} onClick={() => buddy ? sendEcho(buddy, '鼓掌') : onEncourage?.('empty')}><b>送出鼓励</b><span>{buddy ? '让搭子的努力被看见' : '暂无其他团友可鼓励'}</span></button>
         </div>
       </div>
     </div>
@@ -694,11 +697,15 @@ export default function CompanionsPage() {
 
   if (roomPledge) {
     return (
-      <TeamRoom pledge={roomPledge} loading={roomLoading} error={roomError} toast={toast}
+      <TeamRoom pledge={roomPledge} loading={roomLoading} error={roomError} toast={toast} currentUserId={session?.user?.id}
         onBack={() => setRoomPledge(null)}
-        onHelp={() => showToast('求助入口已打开：下一步会接入团内留言')}
-        onNudge={() => showToast('已生成提醒：下一步会推送给待守团友')}
-        onEncourage={() => showToast('鼓励已送出：下一步会记录为团内正反馈')} />
+        onHelp={() => showToast('求助已记录在本页；接入消息中心后才能通知团友')}
+        onNudge={(member) => showToast(member ? '已记录给' + member.name + '的提醒；当前尚未接入真实推送' : '暂无其他团友可提醒')}
+        onEncourage={(label, member) => {
+          if (label === 'self') return showToast('不能给自己发送小队反馈')
+          if (label === 'empty') return showToast('暂无其他团友可反馈')
+          showToast(member ? '已记录给' + member.name + '的「' + label + '」；当前尚未接入真实推送' : '反馈已记录')
+        }} />
     )
   }
 
@@ -940,6 +947,7 @@ const S = {
   shareAvatar: { width: 34, height: 34, borderRadius: '50%', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, flexShrink: 0 },
   shareName: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 900, color: C.ink },
   shareText: { fontSize: 12, color: C.muted, lineHeight: 1.55, marginTop: 4 },
+  selfHint: { marginTop: 8, fontSize: 11, color: C.hint, lineHeight: 1.45 },
   echoRow: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 },
   echoBtn: { border: '1px solid ' + C.border, background: '#FFFDF8', color: C.goldD, borderRadius: 999, padding: '5px 9px', fontSize: 11, fontWeight: 800, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   echoBtnOn: { background: C.ink, borderColor: C.ink, color: '#F6D486' },
