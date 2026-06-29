@@ -264,3 +264,37 @@ CREATE POLICY "checkins_upload" ON storage.objects
   FOR INSERT WITH CHECK (bucket_id = 'checkins' AND auth.role() = 'authenticated');
 CREATE POLICY "checkins_public_read" ON storage.objects
   FOR SELECT USING (bucket_id = 'checkins');
+
+-- ============================================================
+-- NOTIFICATIONS（消息中心 / 同行提醒）
+-- ============================================================
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  actor_id uuid references auth.users(id) on delete set null,
+  pledge_id uuid references public.pledges(id) on delete cascade,
+  type text not null default 'system',
+  title text not null,
+  body text,
+  metadata jsonb not null default '{}'::jsonb,
+  read_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists notifications_user_created_idx on public.notifications(user_id, created_at desc);
+create index if not exists notifications_user_unread_idx on public.notifications(user_id) where read_at is null;
+
+alter table public.notifications enable row level security;
+
+drop policy if exists "Users can read own notifications" on public.notifications;
+create policy "Users can read own notifications" on public.notifications
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "Authenticated users can send notifications" on public.notifications;
+create policy "Authenticated users can send notifications" on public.notifications
+  for insert with check (auth.uid() = actor_id and auth.uid() <> user_id);
+
+drop policy if exists "Users can update own notifications" on public.notifications;
+create policy "Users can update own notifications" on public.notifications
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
