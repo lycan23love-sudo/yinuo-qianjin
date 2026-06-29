@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
-import { getMyPledges, getPublicPledges, getPledgeDetail, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins, createNotification } from '../lib/supabase'
+import { getMyPledges, getPublicPledges, getPledgeDetail, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins, sendUserNotification } from '../lib/supabase'
 import { PLEDGE_CATEGORIES, inferPledgeCategory, inferPledgeTag } from '../lib/pledgeCategories'
 
 const TEAM_LIMIT = 5
@@ -677,16 +677,17 @@ export default function CompanionsPage() {
       ? '有人在「' + (roomPledge?.title || '小队') + '」里提醒你：今天别一个人扛。'
       : '有人在「' + (roomPledge?.title || '小队') + '」里对你说：' + label
     try {
-      const result = await createNotification({
+      const result = await sendUserNotification({
         userId: member.id,
         actorId: session.user.id,
         pledgeId: roomPledge?.id,
         type: kind === 'nudge' ? 'companion_nudge' : 'companion_echo',
         title,
         body,
-        metadata: { label, teamTitle: roomPledge?.title || '' }
+        metadata: { label, teamTitle: roomPledge?.title || '', url: '/companions' },
+        url: '/companions'
       })
-      showToast(result.delivered ? '已送达' + member.name + '的消息中心' : '消息中心通知表未启用，请先执行数据库 SQL')
+      showToast(result.delivered ? '已送达' + member.name + (result.pushed ? '，并已尝试推送' : '的消息中心') : '消息中心通知表未启用，请先执行数据库 SQL')
     } catch (err) {
       showToast(err.message || '通知发送失败')
     }
