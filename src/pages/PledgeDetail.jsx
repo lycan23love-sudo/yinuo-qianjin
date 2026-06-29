@@ -363,7 +363,7 @@ function CalendarView({ checkins, pledge }) {
                                                       const canSettleFailure = isOwner && pledge.status === 'active' && daysLeft <= 0 && pledge.checkin_count < pledge.total_days
                                                         
                                                           return (
-                                                                <div style={{ paddingBottom: canCheckin ? 'calc(176px + env(safe-area-inset-bottom))' : 'calc(100px + env(safe-area-inset-bottom))', background:'#FAF7F2', minHeight:'100vh' }}>
+                                                                <div style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom))', background:'#FAF7F2', minHeight:'100vh' }}>
                                                                       {toast && (
                                                                         <div style={{ position:'fixed', top:60, left:'50%', transform:'translateX(-50%)',
                                                                           background: toast.type === 'error' ? '#C84040' : toast.type === 'success' ? '#3B7A4A' : 'rgba(26,18,8,.88)',
@@ -446,12 +446,15 @@ function CalendarView({ checkins, pledge }) {
                                                                         {tab === 'log' && (
                                                                             <div>
                                                                               {canCheckin && (
-                                                                                            <div style={S.todayPrompt}>
-                                                                                                            <div>
-                                                                                                                              <div style={{ fontSize:13, fontWeight:700, color:'#7A5A18' }}>📸 今日还未打卡</div>
-                                                                                                                              <div style={{ fontSize:11, color:'rgba(122,90,24,.7)', marginTop:2 }}>见证者都在等你今天的进展，底部按钮可提交今日证明</div>
-                                                                                                              </div>
-                                                                                              </div>
+                                                                                            <div>
+                                                                                              <div style={S.todayPrompt}>
+                                                                                                              <div>
+                                                                                                                                <div style={{ fontSize:13, fontWeight:700, color:'#7A5A18' }}>📸 今日还未打卡</div>
+                                                                                                                                <div style={{ fontSize:11, color:'rgba(122,90,24,.7)', marginTop:2 }}>见证者都在等你今天的进展</div>
+                                                                                                                </div>
+                                                                                                </div>
+                                                                                              <button style={S.checkinMainButton} onClick={() => nav(`/pledge/${id}/checkin`)}>今日打卡</button>
+                                                                                            </div>
                                                                                         )}
                                                                               {checkedToday && pledge.status==='active' && isOwner && (
                                                                                             <div style={{ ...S.todayPrompt, background:'#E8F5EC', border:'1.5px solid #3B7A4A' }}>
@@ -728,14 +731,7 @@ function CalendarView({ checkins, pledge }) {
                                                                           })()}
                                                                               <div style={{ height:20 }} />
                                                                       </div>
-                                                                  {pledge.status==='active' && isOwner && !checkedToday && (
-                                                                          <div style={{ position:'fixed', bottom:80, left:'50%', transform:'translateX(-50%)', width:'calc(100% - 32px)', maxWidth:358 }}>
-                                                                                    <button style={{ ...S.btnGold, width:'100%', padding:14, fontSize:15 }}
-                                                                                      onClick={() => nav(`/pledge/${id}/checkin`)}>
-                                                                            今日打卡
-                                                                          </button>
-                                                                  </div>
-                                                                        )}
+                                                                  
                                                                   </div>
                                                                   )
                                                                   }
@@ -755,4 +751,5 @@ function CalendarView({ checkins, pledge }) {
                                                                   diaryCard: { background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:14, padding:14, marginBottom:10 },
                                                                   dayBadge: { background:'#FDF3E0', color:'#7A5A18', fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:20 },
                                                                   btnGold: { background:'linear-gradient(135deg,#C8922A,#E8B84A)', color:'#fff', border:'none', borderRadius:12, fontWeight:700, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
+                                                                  checkinMainButton: { width:'100%', padding:14, margin:'0 0 14px', background:'linear-gradient(135deg,#C8922A,#E8B84A)', color:'#fff', border:'none', borderRadius:12, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif', boxShadow:'0 6px 18px rgba(200,146,42,.22)' },
                                                                   }
