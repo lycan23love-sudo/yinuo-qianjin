@@ -363,7 +363,7 @@ function CalendarView({ checkins, pledge }) {
                                                       const canSettleFailure = isOwner && pledge.status === 'active' && daysLeft <= 0 && pledge.checkin_count < pledge.total_days
                                                         
                                                           return (
-                                                                <div style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom))', background:'#FAF7F2', minHeight:'100vh' }}>
+                                                                <div style={{ paddingBottom: canCheckin ? 'calc(176px + env(safe-area-inset-bottom))' : 'calc(100px + env(safe-area-inset-bottom))', background:'#FAF7F2', minHeight:'100vh' }}>
                                                                       {toast && (
                                                                         <div style={{ position:'fixed', top:60, left:'50%', transform:'translateX(-50%)',
                                                                           background: toast.type === 'error' ? '#C84040' : toast.type === 'success' ? '#3B7A4A' : 'rgba(26,18,8,.88)',
@@ -449,9 +449,8 @@ function CalendarView({ checkins, pledge }) {
                                                                                             <div style={S.todayPrompt}>
                                                                                                             <div>
                                                                                                                               <div style={{ fontSize:13, fontWeight:700, color:'#7A5A18' }}>📸 今日还未打卡</div>
-                                                                                                                              <div style={{ fontSize:11, color:'rgba(122,90,24,.7)', marginTop:2 }}>见证者都在等你今天的进展</div>
+                                                                                                                              <div style={{ fontSize:11, color:'rgba(122,90,24,.7)', marginTop:2 }}>见证者都在等你今天的进展，底部按钮可提交今日证明</div>
                                                                                                               </div>
-                                                                                                            <button style={S.smBtnGold} onClick={() => nav(`/pledge/${id}/checkin`)}>去打卡</button>
                                                                                               </div>
                                                                                         )}
                                                                               {checkedToday && pledge.status==='active' && isOwner && (
@@ -729,11 +728,11 @@ function CalendarView({ checkins, pledge }) {
                                                                           })()}
                                                                               <div style={{ height:20 }} />
                                                                       </div>
-                                                                  {pledge.status==='active' && isOwner && (
+                                                                  {pledge.status==='active' && isOwner && !checkedToday && (
                                                                           <div style={{ position:'fixed', bottom:80, left:'50%', transform:'translateX(-50%)', width:'calc(100% - 32px)', maxWidth:358 }}>
-                                                                                    <button style={{ ...S.btnGold, width:'100%', padding:14, fontSize:15, opacity:checkedToday?.6:1 }}
-                                                                                      disabled={checkedToday} onClick={() => !checkedToday && nav(`/pledge/${id}/checkin`)}>
-                                                                            {checkedToday ? '✓ 今日已打卡' : '今日打卡'}
+                                                                                    <button style={{ ...S.btnGold, width:'100%', padding:14, fontSize:15 }}
+                                                                                      onClick={() => nav(`/pledge/${id}/checkin`)}>
+                                                                            今日打卡
                                                                           </button>
                                                                   </div>
                                                                         )}
