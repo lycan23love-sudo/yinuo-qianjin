@@ -70,6 +70,19 @@ async function syncBrowserReminder(reminder, pledgeTitle) {
 const PERIOD_LABEL = { week:'周', month:'月', season:'季', year:'年' }
 const MOOD_LABEL = { great:'💪 超级顺利', grind:'😤 咬牙坚持', steady:'😌 平稳推进', danger:'🆘 差点放弃' }
 
+function getCheckinAudioUrl(checkin) {
+  if (checkin?.audio_url) return checkin.audio_url
+  const match = String(checkin?.note || '').match(/语音证明[:：]\s*(https?:\/\/\S+)/)
+  return match?.[1] || ''
+}
+function getCheckinDisplayNote(checkin) {
+  return String(checkin?.note || '')
+    .split('\n')
+    .filter(line => !/^\s*语音证明[:：]\s*https?:\/\//.test(line))
+    .join('\n')
+    .trim()
+}
+
 
 
 
@@ -456,7 +469,15 @@ function CalendarView({ checkins, pledge }) {
                                                                                                                 {c.coins_earned > 0 && <div style={{ marginLeft:'auto', fontSize:11, color:'#C8922A', fontWeight:600 }}>+{c.coins_earned}金币</div>}
                                                                                                                 </div>
                                                                                               {c.image_url && <img src={c.image_url} alt="打卡" style={{ width:'100%', borderRadius:10, maxHeight:180, objectFit:'cover', marginBottom:8 }} />}
-                                                                                              {c.note && <div style={{ fontSize:13, lineHeight:1.7, color:'#3A2A18', borderLeft:'3px solid #C8922A', paddingLeft:10, fontStyle:'italic', marginBottom:8 }}>「{c.note}」</div>}
+                                                                                              {getCheckinAudioUrl(c) && (
+                                                                                                <div style={{ background:'#FFF8E8', border:'1px solid rgba(200,146,42,.28)', borderRadius:12, padding:10, marginBottom:8 }}>
+                                                                                                  <div style={{ display:'flex', alignItems:'center', gap:7, fontSize:12, fontWeight:800, color:'#7A5A18', marginBottom:8 }}>
+                                                                                                    <span>🎧</span><span>语音证明</span>
+                                                                                                  </div>
+                                                                                                  <audio controls src={getCheckinAudioUrl(c)} preload="metadata" style={{ width:'100%', height:36 }} />
+                                                                                                </div>
+                                                                                              )}
+                                                                                              {getCheckinDisplayNote(c) && <div style={{ fontSize:13, lineHeight:1.7, color:'#3A2A18', borderLeft:'3px solid #C8922A', paddingLeft:10, fontStyle:'italic', marginBottom:8, whiteSpace:'pre-wrap' }}>「{getCheckinDisplayNote(c)}」</div>}
                                                                                               {c.mood && <div style={{ fontSize:11, color:'#9A8A70' }}>{MOOD_LABEL[c.mood]||c.mood}</div>}
                                                                                                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginTop:8 }}>
                                                                                                                 {!isOwner && c.status === 'valid' ? (
