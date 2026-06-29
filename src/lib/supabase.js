@@ -4082,6 +4082,45 @@ export async function createNotification({ userId, actorId, pledgeId = null, typ
   return { delivered: true, data }
 }
 
+
+export async function sendUserNotification({ userId, actorId, pledgeId = null, type = 'system', title, body = '', metadata = {}, url = '/notifications' }) {
+  if (!userId || !actorId || userId === actorId) return { delivered: false, reason: 'invalid_recipient' }
+
+  try {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData?.session?.access_token
+    if (token) {
+      const response = await fetch('/api/send-notification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + token,
+        },
+        body: JSON.stringify({
+          toUserId: userId,
+          pledgeId,
+          type,
+          title,
+          body,
+          metadata,
+          url: metadata?.url || url,
+        }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (response.ok && result?.ok) {
+        return { delivered: true, pushed: result.push?.sent > 0, data: result.notification, result }
+      }
+      if (result?.error && result.error !== 'missing_server_config') {
+        console.warn('sendUserNotification failed, falling back to in-app notification:', result)
+      }
+    }
+  } catch (error) {
+    console.warn('sendUserNotification fallback:', error)
+  }
+
+  return createNotification({ userId, actorId, pledgeId, type, title, body, metadata: { ...metadata, url } })
+}
+
 export async function getNotifications(userId) {
   if (!userId) return { items: [], ready: false }
   const { data, error } = await supabase
