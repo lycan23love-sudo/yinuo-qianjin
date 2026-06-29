@@ -446,15 +446,13 @@ function CalendarView({ checkins, pledge }) {
                                                                         {tab === 'log' && (
                                                                             <div>
                                                                               {canCheckin && (
-                                                                                            <div>
-                                                                                              <div style={S.todayPrompt}>
-                                                                                                              <div>
-                                                                                                                                <div style={{ fontSize:13, fontWeight:700, color:'#7A5A18' }}>📸 今日还未打卡</div>
-                                                                                                                                <div style={{ fontSize:11, color:'rgba(122,90,24,.7)', marginTop:2 }}>见证者都在等你今天的进展</div>
-                                                                                                                </div>
-                                                                                                </div>
-                                                                                              <button style={S.checkinMainButton} onClick={() => nav(`/pledge/${id}/checkin`)}>今日打卡</button>
-                                                                                            </div>
+                                                                                            <div style={S.todayPrompt}>
+                                                                                                            <div>
+                                                                                                                              <div style={{ fontSize:13, fontWeight:700, color:'#7A5A18' }}>📸 今日还未打卡</div>
+                                                                                                                              <div style={{ fontSize:11, color:'rgba(122,90,24,.7)', marginTop:2 }}>见证者都在等你今天的进展</div>
+                                                                                                              </div>
+                                                                                                            <button style={S.smBtnGold} onClick={() => nav(`/pledge/${id}/checkin`)}>去打卡</button>
+                                                                                              </div>
                                                                                         )}
                                                                               {checkedToday && pledge.status==='active' && isOwner && (
                                                                                             <div style={{ ...S.todayPrompt, background:'#E8F5EC', border:'1.5px solid #3B7A4A' }}>
@@ -751,5 +749,4 @@ function CalendarView({ checkins, pledge }) {
                                                                   diaryCard: { background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:14, padding:14, marginBottom:10 },
                                                                   dayBadge: { background:'#FDF3E0', color:'#7A5A18', fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:20 },
                                                                   btnGold: { background:'linear-gradient(135deg,#C8922A,#E8B84A)', color:'#fff', border:'none', borderRadius:12, fontWeight:700, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
-                                                                  checkinMainButton: { width:'100%', padding:14, margin:'0 0 14px', background:'linear-gradient(135deg,#C8922A,#E8B84A)', color:'#fff', border:'none', borderRadius:12, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif', boxShadow:'0 6px 18px rgba(200,146,42,.22)' },
                                                                   }
