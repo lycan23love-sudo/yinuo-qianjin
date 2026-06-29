@@ -375,12 +375,16 @@ const styles = {
     fontWeight: 900
   },
   linkButton: {
-    border: 0,
-    background: 'transparent',
-    color: '#C8922A',
+    border: '1px solid #E0D5C0',
+    borderRadius: 999,
+    background: '#FFFFFF',
+    color: '#9A6A10',
     fontSize: 13,
     fontWeight: 900,
-    padding: 4
+    padding: '8px 18px',
+    minWidth: 86,
+    boxShadow: '0 2px 8px rgba(26,18,8,.04)',
+    fontFamily: 'Noto Sans SC, sans-serif'
   },
   pledgeItem: {
     width: '100%',
