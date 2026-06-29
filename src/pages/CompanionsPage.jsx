@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
-import { getMyPledges, getPublicPledges, getPledgeDetail, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins } from '../lib/supabase'
+import { getMyPledges, getPublicPledges, getPledgeDetail, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins, createNotification } from '../lib/supabase'
 import { PLEDGE_CATEGORIES, inferPledgeCategory, inferPledgeTag } from '../lib/pledgeCategories'
 
 const TEAM_LIMIT = 5
@@ -668,6 +668,30 @@ export default function CompanionsPage() {
     }
   }
 
+  async function sendCompanionNotification(member, kind, label) {
+    if (!session?.user?.id) return nav('/auth')
+    if (!member || member.empty) return showToast('暂无其他团友可通知')
+    if (member.id === session.user.id) return showToast('不能给自己发送小队通知')
+    const title = kind === 'nudge' ? '同行团友提醒你报到' : '同行团友给了你回应'
+    const body = kind === 'nudge'
+      ? '有人在「' + (roomPledge?.title || '小队') + '」里提醒你：今天别一个人扛。'
+      : '有人在「' + (roomPledge?.title || '小队') + '」里对你说：' + label
+    try {
+      const result = await createNotification({
+        userId: member.id,
+        actorId: session.user.id,
+        pledgeId: roomPledge?.id,
+        type: kind === 'nudge' ? 'companion_nudge' : 'companion_echo',
+        title,
+        body,
+        metadata: { label, teamTitle: roomPledge?.title || '' }
+      })
+      showToast(result.delivered ? '已送达' + member.name + '的消息中心' : '消息中心通知表未启用，请先执行数据库 SQL')
+    } catch (err) {
+      showToast(err.message || '通知发送失败')
+    }
+  }
+
   const displayName = profile?.nickname || '行者'
   const recommended = useMemo(() => {
     return [...publicPledges].sort((a, b) => {
@@ -699,12 +723,12 @@ export default function CompanionsPage() {
     return (
       <TeamRoom pledge={roomPledge} loading={roomLoading} error={roomError} toast={toast} currentUserId={session?.user?.id}
         onBack={() => setRoomPledge(null)}
-        onHelp={() => showToast('求助已记录在本页；接入消息中心后才能通知团友')}
-        onNudge={(member) => showToast(member ? '已记录给' + member.name + '的提醒；当前尚未接入真实推送' : '暂无其他团友可提醒')}
+        onHelp={() => showToast('求助广播会在下一步接入团内留言；当前请先用提醒和回应')}
+        onNudge={(member) => sendCompanionNotification(member, 'nudge', '提醒报到')}
         onEncourage={(label, member) => {
           if (label === 'self') return showToast('不能给自己发送小队反馈')
           if (label === 'empty') return showToast('暂无其他团友可反馈')
-          showToast(member ? '已记录给' + member.name + '的「' + label + '」；当前尚未接入真实推送' : '反馈已记录')
+          return sendCompanionNotification(member, 'echo', label)
         }} />
     )
   }
@@ -712,7 +736,10 @@ export default function CompanionsPage() {
   return (
     <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column' }}>
       {toast && <div style={S.toast}>{toast}</div>}
-      <div style={S.topbar}><div style={S.logo}>同<em style={{ color: C.gold, fontStyle: 'normal' }}>行</em></div></div>
+      <div style={S.topbar}>
+        <div style={S.logo}>同<em style={{ color: C.gold, fontStyle: 'normal' }}>行</em></div>
+        <button style={S.messageBtn} onClick={() => nav('/notifications')}>消息</button>
+      </div>
 
       <div style={S.tabBar}>
         {[['my','我的团'],['help','互助会']].map(([key, label]) => (
@@ -809,6 +836,7 @@ export default function CompanionsPage() {
 const S = {
   topbar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'calc(14px + env(safe-area-inset-top)) 16px 12px', background: C.bg, borderBottom: '1px solid ' + C.border, flexShrink: 0 },
   logo: { fontFamily: 'Noto Serif SC,serif', fontSize: 20, fontWeight: 900, color: C.ink, letterSpacing: .5 },
+  messageBtn: { border:'1px solid ' + C.border, background:C.surf, color:C.goldD, borderRadius:999, padding:'7px 12px', fontSize:12, fontWeight:900, fontFamily:'Noto Sans SC,sans-serif' },
   tabBar: { display: 'flex', borderBottom: '1px solid ' + C.border, background: C.bg, flexShrink: 0 },
   tabBtn: { flex: 1, padding: '11px 0', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 500, color: C.muted, borderBottom: '2px solid transparent', fontFamily: 'Noto Sans SC,sans-serif' },
   tabBtnOn: { color: C.gold, borderBottom: '2px solid ' + C.gold, fontWeight: 800 },
