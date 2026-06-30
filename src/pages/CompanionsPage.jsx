@@ -54,6 +54,59 @@ function getHostName(pledge) {
   return pledge.profiles?.nickname || pledge.profiles?.avatar_emoji || '匿名行者'
 }
 
+const ENCOURAGE_LINES = ['看见你今天这一步了，别小看它。', '稳住，我们只守今天这一日。', '你已经在路上了，继续往前一点点。', '别急着证明全部，先完成眼前这一件。', '今天能回来报到，就已经很不容易。']
+
+function userTeamKey(pledge) {
+  return pledge?.user_id || pledge?.profiles?.id || pledge?.id
+}
+
+function groupPledgesByUser(pledges) {
+  const teams = new Map()
+  ;(pledges || []).forEach(pledge => {
+    const key = userTeamKey(pledge)
+    if (!key) return
+    const current = teams.get(key)
+    if (!current) {
+      teams.set(key, { ...pledge, teamPledges: [pledge] })
+      return
+    }
+    current.teamPledges.push(pledge)
+    const currentSlots = teamSlots(current)
+    const nextSlots = teamSlots(pledge)
+    if (nextSlots > currentSlots || (!current.is_public && pledge.is_public)) {
+      teams.set(key, { ...pledge, teamPledges: current.teamPledges })
+    }
+  })
+  return Array.from(teams.values())
+}
+
+function indexPledgesByUser(pledges) {
+  return (pledges || []).reduce((map, pledge) => {
+    const key = userTeamKey(pledge)
+    if (!key) return map
+    map[key] = [...(map[key] || []), pledge]
+    return map
+  }, {})
+}
+
+function aggregatePledges(pledges, fallbackPledge) {
+  const list = (pledges && pledges.length ? pledges : (fallbackPledge ? [fallbackPledge] : [])).filter(Boolean)
+  const total = list.reduce((sum, item) => sum + Math.max(item.total_days || 0, 0), 0)
+  const done = list.reduce((sum, item) => sum + (item.checkin_count || countFromRelation(item.checkins)), 0)
+  const progress = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0
+  return {
+    progress,
+    done,
+    total,
+    doneToday: list.some(checkedToday),
+    titles: list.map(item => item.title).filter(Boolean),
+  }
+}
+
+function teamHasGroup(pledge, groupKey) {
+  return (pledge.teamPledges || [pledge]).some(item => groupForPledge(item).key === groupKey)
+}
+
 function normalizedTitle(pledge) {
   return String(pledge.title || '').replace(/\s+/g, '').toLowerCase()
 }
@@ -64,17 +117,18 @@ function groupForPledge(pledge) {
 }
 
 function matchLevel(pledge, myPledges) {
-  const title = normalizedTitle(pledge)
-  if (title && myPledges.some(p => normalizedTitle(p) === title)) return 0
-  const group = groupForPledge(pledge).key
-  const tag = inferPledgeTag(pledge)
-  if (tag && myPledges.some(p => groupForPledge(p).key === group && inferPledgeTag(p) === tag)) return 1
-  if (group && myPledges.some(p => groupForPledge(p).key === group)) return 2
+  const teamPledges = pledge.teamPledges || [pledge]
+  if (teamPledges.some(teamPledge => {
+    const group = groupForPledge(teamPledge).key
+    const tag = inferPledgeTag(teamPledge)
+    return tag && myPledges.some(p => groupForPledge(p).key === group && inferPledgeTag(p) === tag)
+  })) return 1
+  if (teamPledges.some(teamPledge => myPledges.some(p => groupForPledge(p).key === groupForPledge(teamPledge).key))) return 2
   return 3
 }
 
 function groupStats(groupKey, pledges, joinedIds) {
-  const items = pledges.filter(p => groupForPledge(p).key === groupKey)
+  const items = pledges.filter(p => teamHasGroup(p, groupKey))
   return {
     teams: items.length,
     open: items.filter(p => teamSlots(p) > 0 && !joinedIds.has(p.id)).length,
@@ -141,7 +195,7 @@ function MyPledgeCard({ pledge, publishing, onRecruit, onRoom, onCheckin }) {
       <div style={S.track}><div style={{ ...S.fill, width: progress + '%' }} /></div>
 
       <div style={S.cardFoot}>
-        <span>{progress}% · {isRecruiting ? '可进入小队管理' : '发布后可被同类誓言者加入小队'}</span>
+        <span>{progress}% · {isRecruiting ? '可进入小队管理' : '发布后可被同路人加入小队'}</span>
         <div style={S.actions}>
           <button style={S.btnGhost} onClick={onRoom}>小队</button>
           <div style={{ width: 52 }} />
@@ -158,7 +212,7 @@ function PublicPledgeCard({ pledge, match, joined, joining, onOpen, onJoin }) {
   const full = slots <= 0
   const group = groupForPledge(pledge)
   const tone = joined ? 'green' : match === 0 ? 'blue' : match === 1 ? 'purple' : 'gold'
-  const label = joined ? '已加入' : match === 0 ? '同誓言' : match === 1 ? '同互助会' : '可加入'
+  const label = joined ? '已加入' : match === 1 ? '同类行动' : match === 2 ? '同互助会' : '可加入'
   return (
     <div style={S.card}>
       <div style={S.cardHead}>
@@ -214,31 +268,38 @@ function getBuddy(activeMembers, currentUserId) {
 }
 
 function buildRoomMembers(pledge) {
+  const knownByUser = pledge.knownPledgesByUser || {}
   const active = (pledge.witnesses || []).filter(item => !item.status || item.status === 'active').slice(0, TEAM_LIMIT - 1)
-  const ownerDone = checkedToday(pledge)
+  const ownerStats = aggregatePledges(pledge.teamPledges || knownByUser[pledge.user_id], pledge)
   const owner = {
     id: pledge.user_id || 'owner',
     name: getHostName(pledge),
     role: '团长',
-    progress: pct(pledge),
-    doneToday: ownerDone,
-    note: ownerDone ? '今日已守' : '今日待守',
+    progress: ownerStats.progress,
+    doneToday: ownerStats.doneToday,
+    note: ownerStats.doneToday ? '今日已守' : '今日待守',
+    statText: ownerStats.done + '/' + ownerStats.total + ' 天',
   }
-  const friends = active.map((item, index) => ({
-    id: item.user_id || item.id || 'friend-' + index,
-    name: item.profiles?.nickname || '同行者' + (index + 1),
-    role: '团友',
-    progress: pct(pledge),
-    doneToday: false,
-    note: '等待报到',
-  }))
+  const friends = active.map((item, index) => {
+    const id = item.user_id || item.id || 'friend-' + index
+    const stats = aggregatePledges(knownByUser[id], null)
+    return {
+      id,
+      name: item.profiles?.nickname || '同行者' + (index + 1),
+      role: '团友',
+      progress: stats.total ? stats.progress : Math.max(0, Math.min(100, pct(pledge) - 8 - index * 7)),
+      doneToday: stats.total ? stats.doneToday : false,
+      note: stats.total ? (stats.doneToday ? '今日已守' : '今日待守') : '已入队，等待同步打卡数据',
+      statText: stats.total ? stats.done + '/' + stats.total + ' 天' : '暂无公开誓言数据',
+    }
+  })
   const empty = Array.from({ length: Math.max(TEAM_LIMIT - 1 - friends.length, 0) }, (_, index) => ({
     id: 'empty-' + index,
     empty: true,
     name: '空位',
     role: '待加入',
     progress: 0,
-    note: '可邀请同类誓言者',
+    note: '可邀请同路人加入',
   }))
   return [owner, ...friends, ...empty].slice(0, TEAM_LIMIT)
 }
@@ -260,7 +321,7 @@ function HelpTeamCard({ pledge, joined, joining, match, onOpen, onJoin }) {
   const progress = pct(pledge)
   const slots = teamSlots(pledge)
   const full = slots <= 0
-  const label = joined ? '已在团中' : match === 0 ? '同誓言' : match === 1 ? '同类型' : '可加入'
+  const label = joined ? '已在团中' : match === 1 ? '同类行动' : match === 2 ? '同互助会' : '可加入'
   return (
     <div style={S.helpTeamCard}>
       <div style={S.helpTeamMain}>
@@ -287,10 +348,9 @@ function recommendationReason(pledge, myPledges) {
   const match = matchLevel(pledge, myPledges)
   const group = groupForPledge(pledge)
   const tag = inferPledgeTag(pledge)
-  if (match === 0) return '与你有相同誓言'
-  if (match === 1) return '同属' + group.name.replace('互助会', '') + ' · ' + tag
+  if (match === 1) return '同类行动 · ' + tag
   if (match === 2) return '同属' + group.name.replace('互助会', '')
-  return '还有空位，可先观察'
+  return '按行者推荐，可先观察'
 }
 
 function TodayTeamStatus({ featuredTeam, totalTeams, pendingCount, joinedCount, suggestedCount, onPrimary }) {
@@ -301,12 +361,12 @@ function TodayTeamStatus({ featuredTeam, totalTeams, pendingCount, joinedCount, 
   const doneCount = hasTeam ? members.filter(member => member.doneToday).length : 0
   const userDone = hasTeam ? checkedToday(pledge) : false
   const statusText = !hasTeam
-    ? '还没有小队。去互助会找到同类誓言者，让守诺不再只是一个人的事。'
+    ? '还没有小队。去互助会找到同路人，让守诺不再只是一个人的事。'
     : userDone
       ? `你已完成今日守诺。小队当前 ${doneCount}/${teamCount} 已守，可以进去给队友一个回应。`
       : `小队当前 ${doneCount}/${teamCount} 已守。先看看队友节奏，再决定今天如何跟上。`
   const feedback = !hasTeam
-    ? '找到同类目标后，这里会出现队友报到、掉队提醒和鼓励反馈。'
+    ? '找到同路目标后，这里会出现队友报到、掉队提醒和鼓励反馈。'
     : doneCount >= teamCount
       ? '今日全员已守，队伍节奏很好。'
       : doneCount > 0
@@ -470,7 +530,7 @@ function TeamMemberRow({ member, rank }) {
       <div style={S.memberAvatar}>{rank}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={S.memberName}>{member.name}<span>{member.role}</span></div>
-        <div style={S.memberHint}>{member.note} · 当前誓言进度 {member.progress}%</div>
+        <div style={S.memberHint}>{member.note} · 打卡 {member.statText || member.progress + '%'}</div>
         <div style={S.miniTrack}><div style={{ ...S.miniFill, width: member.progress + '%' }} /></div>
       </div>
       <Tag tone={member.doneToday ? 'green' : 'red'}>{member.doneToday ? '已守' : '待守'}</Tag>
@@ -507,8 +567,8 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
 
         <div style={S.roomHero}>
           <div style={S.kicker}>{group.name}</div>
-          <div style={S.roomTitle}>{pledge.title}</div>
-          <div style={S.roomMeta}>{getHostName(pledge)}发起 · 5人小队 {teamSize(pledge)}/{TEAM_LIMIT} · 还差{daysLeft(pledge)}天</div>
+          <div style={S.roomTitle}>{getHostName(pledge)}的小队</div>
+          <div style={S.roomMeta}>{getHostName(pledge)}发起 · 5人小队 {teamSize(pledge)}/{TEAM_LIMIT} · 队内追踪{(pledge.teamPledges || [pledge]).length}个誓言</div>
           <div style={S.roomStats}>
             <div><b>{doneCount}/{activeMembers.length || 1}</b><span>今日报到</span></div>
             <div><b>{progress}%</b><span>契约进度</span></div>
@@ -550,17 +610,23 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
             </div>
           </div>
           <div style={S.buddyActions}>
-            <button style={S.buddyBtn} onClick={() => buddy ? sendEcho(buddy, '我陪你') : onEncourage?.('empty')} disabled={!buddy}>我陪你</button>
+            <button style={S.buddyBtn} onClick={() => buddy ? sendEcho(buddy, ENCOURAGE_LINES[Math.floor(Math.random() * ENCOURAGE_LINES.length)]) : onEncourage?.('empty')} disabled={!buddy}>机选鼓励</button>
             <button style={S.buddyBtnDark} onClick={() => onNudge?.(buddy)} disabled={!buddy}>提醒报到</button>
           </div>
         </div>
 
-        <div style={S.sectionLabel}>队内压力</div>
+        <div style={S.sectionLabel}>队员打卡对比</div>
         <div style={S.panelCard}>
+          {activeMembers.map((member, index) => (
+            <div key={member.id} style={S.compareGraphRow}>
+              <span style={S.compareName}>{member.name}</span>
+              <div style={S.compareBar}><div style={{ ...S.compareFill, width: member.progress + '%', background: index === 0 ? C.gold : index === 1 ? C.blue : C.purple }} /></div>
+              <b style={S.compareValue}>{member.progress}%</b>
+            </div>
+          ))}
           <div style={S.compareRow}><span>今日报到率</span><b>{doneCount}/{activeMembers.length || 1}</b></div>
           <div style={S.compareRow}><span>我的位置</span><b>{checkedToday(pledge) ? '已跟上' : '待跟上'}</b></div>
-          <div style={S.compareRow}><span>团队目标</span><b>满5人后开启PK</b></div>
-          <div style={S.compareHint}>这里保留一点压力：不是排名羞辱，而是让你清楚自己是否掉队。下一步接入真实团员打卡后，会显示连续天数榜、最早报到和小队PK积分。</div>
+          <div style={S.compareHint}>小队按行者身份同行，不再要求誓言文字完全一致。对比的是每个人守诺的完成度：温暖来自回应，压力来自看见差距。</div>
         </div>
 
         <div style={S.sectionLabel}>互助动作</div>
@@ -653,14 +719,16 @@ export default function CompanionsPage() {
   }
 
   async function openRoom(pledge) {
-    setRoomPledge(pledge)
+    const knownPledgesByUser = indexPledgesByUser([...publicPledges, ...myPledges, ...(pledge.teamPledges || [pledge])])
+    setRoomPledge({ ...pledge, knownPledgesByUser })
     setRoomLoading(true)
     setRoomError('')
     try {
       const detail = await getPledgeDetail(pledge.id)
       const fallbackWitnesses = detail?.witnesses?.length ? detail.witnesses : pledge.witnesses
       const fallbackCheckins = detail?.checkins?.length ? detail.checkins : pledge.checkins
-      setRoomPledge({ ...pledge, ...(detail || {}), witnesses: fallbackWitnesses, checkins: fallbackCheckins })
+      const hostPledges = knownPledgesByUser[pledge.user_id] || pledge.teamPledges || [pledge]
+      setRoomPledge({ ...pledge, ...(detail || {}), witnesses: fallbackWitnesses, checkins: fallbackCheckins, teamPledges: hostPledges, knownPledgesByUser })
     } catch (err) {
       setRoomError(err.message || '小队加载失败')
     } finally {
@@ -694,25 +762,27 @@ export default function CompanionsPage() {
   }
 
   const displayName = profile?.nickname || '行者'
+  const publicTeams = useMemo(() => groupPledgesByUser(publicPledges), [publicPledges])
   const recommended = useMemo(() => {
-    return [...publicPledges].sort((a, b) => {
+    return [...publicTeams].sort((a, b) => {
       const am = matchLevel(a, myPledges)
       const bm = matchLevel(b, myPledges)
       if (am !== bm) return am - bm
       if (joinedIds.has(a.id) !== joinedIds.has(b.id)) return joinedIds.has(a.id) ? -1 : 1
       return teamSlots(b) - teamSlots(a)
     })
-  }, [publicPledges, myPledges, joinedIds])
+  }, [publicTeams, myPledges, joinedIds])
   const joinedTeams = recommended.filter(p => joinedIds.has(p.id))
-  const activeGroupPledges = recommended.filter(p => groupForPledge(p).key === activeGroup)
+  const myOwnedTeams = useMemo(() => groupPledgesByUser(myPledges), [myPledges])
+  const activeGroupPledges = recommended.filter(p => teamHasGroup(p, activeGroup))
   const suggestedForMy = recommended.filter(p => !joinedIds.has(p.id) && matchLevel(p, myPledges) <= 1 && teamSlots(p) > 0).slice(0, 3)
   const ownedMemberCount = myPledges.reduce((sum, p) => sum + teamSize(p), 0)
   const myTeamItemsRaw = [
-    ...myPledges.map(pledge => ({ key: 'owned-' + pledge.id, role: 'owned', pledge })),
-    ...joinedTeams.map(pledge => ({ key: 'joined-' + pledge.id, role: 'joined', pledge })),
+    ...myOwnedTeams.map(pledge => ({ key: 'owned-' + userTeamKey(pledge), role: 'owned', pledge })),
+    ...joinedTeams.map(pledge => ({ key: 'joined-' + userTeamKey(pledge), role: 'joined', pledge })),
   ]
   const myTeamItems = myTeamItemsRaw.filter(item => teamFilter === 'all' || item.role === teamFilter)
-  const allTeamCount = myPledges.length + joinedTeams.length
+  const allTeamCount = myOwnedTeams.length + joinedTeams.length
   const activeTeamItems = myTeamItems.filter(item => item.role === 'joined' || teamSize(item.pledge) > 1 || item.pledge.is_public)
   const soloTeamItems = myTeamItems.filter(item => item.role === 'owned' && teamSize(item.pledge) <= 1 && !item.pledge.is_public)
   const featuredTeam = activeTeamItems[0]
@@ -761,7 +831,7 @@ export default function CompanionsPage() {
             <div style={S.filterRowInline}>
               {[
                 ['all', '全部', allTeamCount],
-                ['owned', '我发起', myPledges.length],
+                ['owned', '我发起', myOwnedTeams.length],
                 ['joined', '我加入', joinedTeams.length],
               ].map(([key, label, count]) => (
                 <button key={key} style={{ ...S.filterPill, ...(teamFilter === key ? S.filterPillOn : {}) }} onClick={() => setTeamFilter(key)}>{label}{count}</button>
@@ -770,9 +840,9 @@ export default function CompanionsPage() {
           </div>
 
           {allTeamCount === 0 ? (
-            <EmptyState title="还没有同行小队" text="先立下一份诺言，或去互助会加入同类誓言小队。" action="立下新誓" onAction={() => nav('/new')} />
+            <EmptyState title="还没有同行小队" text="先立下一份诺言，或去互助会加入同路人小队。" action="立下新誓" onAction={() => nav('/new')} />
           ) : myTeamItems.length === 0 ? (
-            <EmptyState title="当前筛选下没有小队" text="切换到全部，或去互助会发现更多同类誓言者。" />
+            <EmptyState title="当前筛选下没有小队" text="切换到全部，或去互助会发现更多同路人。" />
           ) : (
             <>
               {featuredTeam && (
@@ -808,14 +878,14 @@ export default function CompanionsPage() {
           <div style={S.helpPillRow}>
             {SUPPORT_GROUPS.map(group => (
               <HelpGroupPill key={group.key} group={group} active={activeGroup === group.key}
-                stats={groupStats(group.key, publicPledges, joinedIds)} onClick={() => setActiveGroup(group.key)} />
+                stats={groupStats(group.key, recommended, joinedIds)} onClick={() => setActiveGroup(group.key)} />
             ))}
           </div>
 
           <div style={S.helpSectionHead}>
             <div>
               <div style={S.sectionTitle}>{SUPPORT_GROUPS.find(g => g.key === activeGroup)?.name || '互助会'}</div>
-              <div style={S.sectionHint}>{SUPPORT_GROUPS.find(g => g.key === activeGroup)?.hint || '找到同类誓言者'}</div>
+              <div style={S.sectionHint}>{SUPPORT_GROUPS.find(g => g.key === activeGroup)?.hint || '找到同路人'}</div>
             </div>
             <button style={S.btnGhost} onClick={() => setTab('my')}>我的团</button>
           </div>
@@ -968,6 +1038,11 @@ const S = {
   miniTrack: { height: 5, borderRadius: 999, background: C.soft, overflow: 'hidden', marginTop: 6 },
   miniFill: { height: '100%', borderRadius: 999, background: C.gold },
   compareRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 4px', fontSize: 13, color: C.muted, borderBottom: '1px solid ' + C.soft },
+  compareGraphRow: { display: 'grid', gridTemplateColumns: '64px 1fr 42px', alignItems: 'center', gap: 8, padding: '8px 4px' },
+  compareName: { fontSize: 12, color: C.ink, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  compareBar: { height: 8, borderRadius: 999, background: C.soft, overflow: 'hidden' },
+  compareFill: { height: '100%', borderRadius: 999 },
+  compareValue: { textAlign: 'right', fontSize: 12, color: C.goldD },
   compareHint: { fontSize: 11, color: C.hint, lineHeight: 1.7, padding: '10px 4px 2px' },
   meetingCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 18, padding: 14, marginBottom: 14, boxShadow: '0 4px 16px rgba(26,18,8,.06)' },
   meetingTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 17, fontWeight: 900, color: C.ink, marginBottom: 4 },
