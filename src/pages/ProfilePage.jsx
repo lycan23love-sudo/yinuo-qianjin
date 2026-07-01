@@ -279,7 +279,7 @@ export default function ProfilePage() {
     nav('/auth')
   }
 
-  r  return (
+    return (
     <div style={{ background:'#F3F0EA', minHeight:'100vh', paddingBottom:'calc(90px + env(safe-area-inset-bottom))' }}>
 
       {toast && (
