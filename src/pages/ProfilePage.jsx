@@ -216,7 +216,7 @@ export default function ProfilePage() {
   const { profile, session, refreshProfile } = useAuth()
   const nav = useNavigate()
 
-  const [tab, setTab]             = useState('pledges')
+  const [tab, setTab]             = useState('home')
   const [pledges, setPledges]     = useState([])
   const [ledger, setLedger]       = useState([])
   const [donations, setDonations] = useState([])
@@ -279,10 +279,9 @@ export default function ProfilePage() {
     nav('/auth')
   }
 
-  return (
-    <div style={{ background:'#FAF7F2', minHeight:'100vh', paddingBottom: 'calc(90px + env(safe-area-inset-bottom))' }}>
+  r  return (
+    <div style={{ background:'#F3F0EA', minHeight:'100vh', paddingBottom:'calc(90px + env(safe-area-inset-bottom))' }}>
 
-      {/* Toast */}
       {toast && (
         <div style={{ position:'fixed', top:60, left:'50%', transform:'translateX(-50%)',
           background: toast.type === 'error' ? '#C84040' : toast.type === 'success' ? '#3B7A4A' : 'rgba(26,18,8,.88)',
@@ -292,16 +291,10 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* 编辑弹窗 */}
       {editOpen && (
-        <EditSheet
-          profile={profile}
-          onSave={handleSaveProfile}
-          onClose={() => setEditOpen(false)}
-        />
+        <EditSheet profile={profile} onSave={handleSaveProfile} onClose={() => setEditOpen(false)} />
       )}
 
-      {/* 退出确认 */}
       {confirmOut && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:400,
           display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -309,294 +302,143 @@ export default function ProfilePage() {
             <div style={{ fontSize:16, fontWeight:700, marginBottom:8 }}>确认退出？</div>
             <div style={{ fontSize:13, color:'#9A8A70', marginBottom:20 }}>退出后需要重新登录</div>
             <div style={{ display:'flex', gap:10 }}>
-              <button onClick={() => setConfirmOut(false)}
-                style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1px solid #E0D5C0',
-                  background:'none', fontSize:14, cursor:'pointer' }}>取消</button>
-              <button onClick={handleSignOut}
-                style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none',
-                  background:'#C84040', color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer' }}>退出</button>
+              <button onClick={() => setConfirmOut(false)} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1px solid #E0D5C0', background:'none', fontSize:14, cursor:'pointer' }}>取消</button>
+              <button onClick={handleSignOut} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none', background:'#C84040', color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer' }}>退出</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 顶栏 */}
       <div style={S.topbar}>
-        <button style={S.iconBtn} onClick={() => nav(-1)}>←</button>
+        <button style={S.iconBtn} onClick={() => tab === 'home' ? nav(-1) : setTab('home')}>{tab === 'home' ? '←' : '‹'}</button>
         <div style={S.pageTitle}><span>个人</span><span style={S.pageTitleGold}>中心</span></div>
-        <button style={{ ...S.iconBtn, color:'#C84040', fontSize:13 }}
-          onClick={() => setConfirmOut(true)}>退出</button>
+        <button style={{ ...S.iconBtn, fontSize:18 }} onClick={() => setEditOpen(true)}>⚙</button>
       </div>
 
-      {/* Hero 卡片 */}
-      <div style={S.hero}>
-        <div style={{ display:'flex', alignItems:'flex-start', gap:14, marginBottom:16 }}>
-
-          {/* 头像 + 编辑按钮 */}
-          <div style={{ position:'relative', flexShrink:0 }}>
-            <div style={{ width:64, height:64, borderRadius:'50%',
-              background: avaColor(nickDisplay),
-              display:'flex', alignItems:'center', justifyContent:'center',
-              fontSize:34, boxShadow:'0 4px 16px rgba(0,0,0,.2)' }}>
-              {emojiDisplay}
-            </div>
-            <div onClick={() => setEditOpen(true)}
-              style={{ position:'absolute', bottom:0, right:0, width:22, height:22,
-                borderRadius:'50%', background:'#C8922A', border:'2px solid rgba(42,26,8,1)',
-                display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize:11, color:'#fff', cursor:'pointer' }}>✎</div>
-          </div>
-
-          {/* 昵称 + bio + 编辑按钮 */}
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-              <div style={{ fontSize:18, fontWeight:700, color:'#fff',
-                fontFamily:'Noto Serif SC,serif' }}>{nickDisplay}</div>
-              <button onClick={() => setEditOpen(true)}
-                style={{ background:'rgba(255,255,255,.15)', border:'none', borderRadius:6,
-                  padding:'2px 8px', color:'rgba(255,255,255,.65)', fontSize:11,
-                  cursor:'pointer', flexShrink:0 }}>编辑</button>
-            </div>
-            <div style={{ fontSize:12, color:'rgba(255,255,255,.55)', marginBottom: bioDisplay ? 8 : 0 }}>
-              {title.emoji} {title.title}
-              {profile?.merit_coins != null && ` · 🪙 ${profile.merit_coins.toLocaleString()}`}
-            </div>
-
-            {/* 自我介绍 */}
-            {bioDisplay ? (
-              <div style={{ fontSize:12, color:'rgba(255,255,255,.75)', lineHeight:1.6,
-                background:'rgba(255,255,255,.08)', borderRadius:8, padding:'7px 10px',
-                fontStyle:'italic' }}>
-                「{bioDisplay}」
+      {tab === 'home' ? (
+        <div style={S.mineWrap}>
+          <button style={S.profileEntry} onClick={() => setEditOpen(true)}>
+            <div style={{ width:70, height:70, borderRadius:16, background:avaColor(nickDisplay), display:'flex', alignItems:'center', justifyContent:'center', fontSize:34, flexShrink:0 }}>{emojiDisplay}</div>
+            <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                <div style={{ fontSize:24, fontWeight:900, color:'#1A1208', fontFamily:'Noto Serif SC,serif', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{nickDisplay}</div>
+                <span style={S.levelPill}>{title.emoji} {title.title}</span>
               </div>
-            ) : (
-              <div onClick={() => setEditOpen(true)}
-                style={{ fontSize:11, color:'rgba(255,255,255,.35)', cursor:'pointer',
-                  borderBottom:'1px dashed rgba(255,255,255,.2)', paddingBottom: 'calc(2px + env(safe-area-inset-bottom))',
-                  display:'inline-block' }}>
-                + 添加一句话介绍
+              <div style={{ fontSize:14, color:'#7A6A50', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>一诺ID：{(userId || session?.user?.email || '未登录').slice(0, 18)}</div>
+              <div style={{ display:'flex', gap:8, marginTop:10, flexWrap:'wrap' }}>
+                <span style={S.softPill}>🪙 {profile?.merit_coins ?? 0} 金币</span>
+                <span style={S.softPill}>守约 {profile?.success_rate ?? 0}%</span>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* 四格统计 */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:7, marginBottom:14 }}>
-          {[
-            { val: pledges.length,                 lbl:'总誓言' },
-            { val: profile?.completed_count ?? 0,  lbl:'已完成' },
-            { val: totalDays,                      lbl:'打卡天' },
-            { val: merit.toLocaleString(),         lbl:'功德值' },
-          ].map(({ val, lbl }) => (
-            <div key={lbl} style={S.statBox}>
-              <div style={{ fontSize:15, fontWeight:700, color:'#E8B84A' }}>{val}</div>
-              <div style={{ fontSize:9, color:'rgba(255,255,255,.4)', marginTop:2 }}>{lbl}</div>
             </div>
-          ))}
-        </div>
-
-        {/* 称号进度 */}
-        {title.next && (
-          <div>
-            <div style={{ display:'flex', justifyContent:'space-between',
-              fontSize:11, color:'rgba(255,255,255,.45)', marginBottom:5 }}>
-              <span>距「{getMeritTitle(title.next).title}」</span>
-              <span>{merit.toLocaleString()} / {title.next.toLocaleString()}</span>
-            </div>
-            <div style={{ background:'rgba(255,255,255,.15)', borderRadius:3, height:5, overflow:'hidden' }}>
-              <div style={{ width:`${progressPct}%`, height:'100%', borderRadius:3,
-                background:'linear-gradient(90deg,#C8922A,#E8B84A)', transition:'width .5s' }} />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Tabs */}
-      <div style={S.tabRow}>
-        {[['pledges','我的誓言'],['reminders','提醒'],['coins','金币'],['donations','捐款'],['certs','证书']].map(([k, lbl]) => (
-          <button key={k} onClick={() => setTab(k)}
-            style={{ ...S.tab, ...(tab === k ? S.tabOn : {}) }}>
-            {lbl}
+            <div style={S.chev}>›</div>
           </button>
-        ))}
-      </div>
 
-      <div style={{ padding:'0 16px' }}>
+          {bioDisplay && <div style={S.bioLine}>「{bioDisplay}」</div>}
 
-        {/* ── 我的誓言 ── */}
-        {tab === 'pledges' && (
-          <div style={{ paddingTop:12 }}>
-            {loading && <div style={S.empty}>加载中…</div>}
-            {!loading && pledges.length === 0 && (
-              <div style={{ textAlign:'center', padding:'40px 24px' }}>
-                <div style={{ fontSize:36, marginBottom:12 }}>🎯</div>
-                <div style={{ fontSize:14, color:'#9A8A70', marginBottom:16 }}>还没有立下誓言</div>
-                <button onClick={() => nav('/new')}
-                  style={{ background:'#C8922A', color:'#fff', border:'none', borderRadius:12,
-                    padding:'10px 24px', fontSize:14, fontWeight:600, cursor:'pointer' }}>
-                  立下第一个誓言
-                </button>
-              </div>
-            )}
-            {activePledges.length > 0 && (<>
-              <div style={S.secLabel}>进行中 · {activePledges.length}</div>
-              {activePledges.map(p => <PledgeRow key={p.id} p={p} nav={nav} />)}
-            </>)}
-            {cooldowns.length > 0 && (<>
-              <div style={S.secLabel}>冷静期 · {cooldowns.length}</div>
-              {cooldowns.map(p => <PledgeRow key={p.id} p={p} nav={nav} />)}
-            </>)}
-            {historyPledges.length > 0 && (<>
-              <div style={S.secLabel}>历史记录 · {historyPledges.length}</div>
-              {historyPledges.map(p => <PledgeRow key={p.id} p={p} nav={nav} />)}
-            </>)}
+          <div style={S.statStrip}>
+            <div style={S.statPlain}><b>{pledges.length}</b><span>总誓言</span></div>
+            <div style={S.statPlain}><b>{activePledges.length}</b><span>进行中</span></div>
+            <div style={S.statPlain}><b>{totalDays}</b><span>打卡天</span></div>
+            <div style={S.statPlain}><b>{merit.toLocaleString()}</b><span>功德值</span></div>
           </div>
-        )}
 
-        {/* ── 提醒设置 ── */}
-        {tab === 'reminders' && (
-          <div style={{ paddingTop:12 }}>
-            <div style={S.reminderPanel}>
-              <div style={S.reminderTitle}>全局提醒</div>
-              <div style={S.reminderDesc}>这里是所有新誓言的默认提醒。单个誓言可以在誓言详情页单独覆盖。</div>
-              <label style={S.reminderRow}>
-                <span>每日打卡提醒</span>
-                <input type="checkbox" checked={!!globalReminder.enabled} onChange={e => updateGlobalReminder({ enabled: e.target.checked })} />
-              </label>
-              <label style={S.reminderRow}>
-                <span>默认时间</span>
-                <input type="time" value={globalReminder.time || '20:30'} onChange={e => updateGlobalReminder({ time: e.target.value })} style={S.reminderTimeInput} />
-              </label>
-              <div style={{ fontSize:12, color:'#9A8A70', margin:'14px 0 8px' }}>提醒语气</div>
-              <div style={S.reminderStyleGrid}>
-                {[['gentle','温和'],['strict','严厉'],['ritual','仪式感']].map(([key, label]) => (
-                  <button key={key} onClick={() => updateGlobalReminder({ style: key })} style={{ ...S.reminderStyleBtn, ...(globalReminder.style === key ? S.reminderStyleBtnOn : {}) }}>
-                    {label}
-                  </button>
-                ))}
+          <div style={S.listGroup}>
+            <MenuRow icon="📜" label="我的誓言" value={activePledges.length + ' 个进行中'} onClick={() => setTab('pledges')} />
+            <MenuRow icon="🪙" label="我的金币" value={(profile?.merit_coins ?? 0) + ' 可用'} onClick={() => setTab('coins')} />
+            <MenuRow icon="📒" label="押注记录" value="金币流水中查看" onClick={() => setTab('coins')} />
+            <MenuRow icon="✅" label="结算记录" value="完成与失败记录" onClick={() => setTab('pledges')} last />
+          </div>
+
+          <div style={S.listGroup}>
+            <MenuRow icon="🔔" label="消息中心" value="同行提醒与反馈" onClick={() => nav('/notifications')} />
+            <MenuRow icon="⏰" label="提醒设置" value={globalReminder.enabled ? globalReminder.time : '已关闭'} onClick={() => setTab('reminders')} />
+            <MenuRow icon="🏅" label="我的证书" value={progressPct + '%'} onClick={() => setTab('certs')} />
+            <MenuRow icon="⚙" label="账号设置" value="资料与退出" onClick={() => setEditOpen(true)} last />
+          </div>
+
+          <button style={S.signOutRow} onClick={() => setConfirmOut(true)}>退出登录</button>
+        </div>
+      ) : (
+        <div style={{ padding:'0 16px' }}>
+          <div style={S.detailHead}>
+            <button style={S.detailBack} onClick={() => setTab('home')}>‹ 返回</button>
+            <div style={S.detailTitle}>{({ pledges:'我的誓言', reminders:'提醒设置', coins:'我的金币', donations:'公益记录', certs:'我的证书' })[tab]}</div>
+          </div>
+
+          {tab === 'pledges' && (
+            <div style={{ paddingTop:12 }}>
+              {loading && <div style={S.empty}>加载中…</div>}
+              {!loading && pledges.length === 0 && (
+                <div style={{ textAlign:'center', padding:'40px 24px' }}>
+                  <div style={{ fontSize:36, marginBottom:12 }}>🎯</div>
+                  <div style={{ fontSize:14, color:'#9A8A70', marginBottom:16 }}>还没有立下誓言</div>
+                  <button onClick={() => nav('/new')} style={{ background:'#C8922A', color:'#fff', border:'none', borderRadius:12, padding:'10px 24px', fontSize:14, fontWeight:600, cursor:'pointer' }}>立下第一个誓言</button>
+                </div>
+              )}
+              {activePledges.length > 0 && (<><div style={S.secLabel}>进行中 · {activePledges.length}</div>{activePledges.map(p => <PledgeRow key={p.id} p={p} nav={nav} />)}</>)}
+              {cooldowns.length > 0 && (<><div style={S.secLabel}>冷静期 · {cooldowns.length}</div>{cooldowns.map(p => <PledgeRow key={p.id} p={p} nav={nav} />)}</>)}
+              {historyPledges.length > 0 && (<><div style={S.secLabel}>历史记录 · {historyPledges.length}</div>{historyPledges.map(p => <PledgeRow key={p.id} p={p} nav={nav} />)}</>)}
+            </div>
+          )}
+
+          {tab === 'reminders' && (
+            <div style={{ paddingTop:12 }}>
+              <div style={S.reminderPanel}>
+                <div style={S.reminderTitle}>全局提醒</div>
+                <div style={S.reminderDesc}>这里是所有新誓言的默认提醒。单个誓言可以在誓言详情页单独覆盖。</div>
+                <label style={S.reminderRow}><span>每日打卡提醒</span><input type="checkbox" checked={!!globalReminder.enabled} onChange={e => updateGlobalReminder({ enabled: e.target.checked })} /></label>
+                <label style={S.reminderRow}><span>默认时间</span><input type="time" value={globalReminder.time || '20:30'} onChange={e => updateGlobalReminder({ time: e.target.value })} style={S.reminderTimeInput} /></label>
+                <div style={{ fontSize:12, color:'#9A8A70', margin:'14px 0 8px' }}>提醒语气</div>
+                <div style={S.reminderStyleGrid}>{[[ 'gentle','温和' ],[ 'strict','严厉' ],[ 'ritual','仪式感' ]].map(([key, label]) => <button key={key} onClick={() => updateGlobalReminder({ style: key })} style={{ ...S.reminderStyleBtn, ...(globalReminder.style === key ? S.reminderStyleBtnOn : {}) }}>{label}</button>)}</div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ── 金币流水 ── */}
-        {tab === 'coins' && (
-          <div style={{ paddingTop:4 }}>
-            {loading && <div style={S.empty}>加载中…</div>}
-            {!loading && ledger.length === 0 && <div style={S.empty}>暂无金币记录</div>}
-            {ledger.map(item => (
-              <div key={item.id} style={S.ledgerRow}>
-                <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0,
-                  background: item.amount > 0 ? '#E8F5EC' : '#FCEBEB',
-                  display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>
-                  {item.amount > 0 ? '🪙' : '💸'}
+          {tab === 'coins' && (
+            <div style={{ paddingTop:4 }}>
+              {loading && <div style={S.empty}>加载中…</div>}
+              {!loading && ledger.length === 0 && <div style={S.empty}>暂无金币记录</div>}
+              {ledger.map(item => (
+                <div key={item.id} style={S.ledgerRow}>
+                  <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, background: item.amount > 0 ? '#E8F5EC' : '#FCEBEB', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>{item.amount > 0 ? '🪙' : '💸'}</div>
+                  <div style={{ flex:1, minWidth:0 }}><div style={{ fontSize:13, fontWeight:500 }}>{TYPE_LABELS[item.type] ?? item.type}</div>{item.note && <div style={{ fontSize:11, color:'#9A8A70', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.note}</div>}<div style={{ fontSize:10, color:'#C0B090', marginTop:2 }}>{format(parseISO(item.created_at), 'M月d日 HH:mm')}</div></div>
+                  <div style={{ textAlign:'right', flexShrink:0 }}><div style={{ fontSize:14, fontWeight:700, color: item.amount > 0 ? '#3B7A4A' : '#C84040' }}>{item.amount > 0 ? '+' : ''}{item.amount}</div><div style={{ fontSize:10, color:'#9A8A70' }}>余额 {item.balance_after}</div></div>
                 </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:500 }}>
-                    {TYPE_LABELS[item.type] ?? item.type}
-                  </div>
-                  {item.note && (
-                    <div style={{ fontSize:11, color:'#9A8A70', marginTop:2,
-                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      {item.note}
-                    </div>
-                  )}
-                  <div style={{ fontSize:10, color:'#C0B090', marginTop:2 }}>
-                    {format(parseISO(item.created_at), 'M月d日 HH:mm')}
-                  </div>
-                </div>
-                <div style={{ textAlign:'right', flexShrink:0 }}>
-                  <div style={{ fontSize:14, fontWeight:700,
-                    color: item.amount > 0 ? '#3B7A4A' : '#C84040' }}>
-                    {item.amount > 0 ? '+' : ''}{item.amount}
-                  </div>
-                  <div style={{ fontSize:10, color:'#9A8A70' }}>余额 {item.balance_after}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
 
-        {/* ── 捐款记录 ── */}
-        {tab === 'donations' && (
-          <div style={{ paddingTop:4 }}>
-            {loading && <div style={S.empty}>加载中…</div>}
-            {!loading && donations.length === 0 && (
-              <div style={{ textAlign:'center', padding:'40px 24px' }}>
-                <div style={{ fontSize:36, marginBottom:10 }}>❤️</div>
-                <div style={{ fontSize:14, color:'#9A8A70' }}>还没有捐款记录</div>
-                <div style={{ fontSize:12, color:'#B8A88A', marginTop:6 }}>完成或失败誓言后金币会流向公益</div>
-              </div>
-            )}
-            {donations.map(d => (
-              <div key={d.id} style={S.ledgerRow}>
-                <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0,
-                  background:'#FCEBEB', display:'flex', alignItems:'center',
-                  justifyContent:'center', fontSize:16 }}>❤️</div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:500 }}>{d.org_name}</div>
-                  {d.message && (
-                    <div style={{ fontSize:11, color:'#9A8A70', marginTop:2, fontStyle:'italic',
-                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      「{d.message}」
-                    </div>
-                  )}
-                  <div style={{ fontSize:10, color:'#C0B090', marginTop:2 }}>
-                    {format(parseISO(d.created_at), 'M月d日')} ·
-                    {d.source === 'pledge_fail' ? ' 誓言捐出' : d.source === 'manual' ? ' 主动捐款' : ' 见证分配'}
-                  </div>
-                </div>
-                <div style={{ fontSize:14, fontWeight:700, color:'#C84040', flexShrink:0 }}>
-                  -{d.coins}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+          {tab === 'certs' && (
+            <div style={{ paddingTop:12 }}>
+              {[
+                { threshold:500, emoji:'🌿', name:'初级善行证书', desc:'累计功德500，可下载电子版' },
+                { threshold:2000, emoji:'🌊', name:'护法者证书', desc:'累计功德2000达成' },
+                { threshold:5000, emoji:'🔥', name:'善行者证书', desc:'累计功德5000，含机构公章' },
+                { threshold:15000, emoji:'✨', name:'功德大师证书', desc:'累计功德15000，社会公益认证' },
+                { threshold:50000, emoji:'🪷', name:'菩萨心肠证书', desc:'区块链存证 · 终身荣誉' },
+              ].map(cert => {
+                const earned = merit >= cert.threshold
+                return <div key={cert.name} style={{ ...S.certCard, opacity: earned ? 1 : .55, border: earned ? '1px solid #C8922A' : '0.5px solid #E0D5C0' }}><div style={{ fontSize:28 }}>{cert.emoji}</div><div style={{ flex:1 }}><div style={{ fontSize:14, fontWeight:600, color: earned ? '#1A1208' : '#9A8A70' }}>{cert.name}</div><div style={{ fontSize:11, color:'#9A8A70', marginTop:2 }}>{cert.desc}</div>{!earned && <div style={{ fontSize:11, color:'#C8922A', marginTop:4 }}>还差 {(cert.threshold - merit).toLocaleString()} 功德值</div>}</div>{earned ? <button style={{ background:'#E8F5EC', color:'#3B7A4A', border:'none', borderRadius:20, fontSize:11, fontWeight:600, padding:'5px 12px', cursor:'pointer' }}>下载 ⬇</button> : <div style={{ fontSize:10, color:'#B8A88A' }}>🔒 未解锁</div>}</div>
+              })}
+            </div>
+          )}
 
-        {/* ── 证书 ── */}
-        {tab === 'certs' && (
-          <div style={{ paddingTop:12 }}>
-            {[
-              { threshold:500,   emoji:'🌿', name:'初级善行证书', desc:'累计功德500，可下载电子版' },
-              { threshold:2000,  emoji:'🌊', name:'护法者证书',   desc:'累计功德2000达成' },
-              { threshold:5000,  emoji:'🔥', name:'善行者证书',   desc:'累计功德5000，含机构公章' },
-              { threshold:15000, emoji:'✨', name:'功德大师证书', desc:'累计功德15000，社会公益认证' },
-              { threshold:50000, emoji:'🪷', name:'菩萨心肠证书', desc:'区块链存证 · 终身荣誉' },
-            ].map(cert => {
-              const earned = merit >= cert.threshold
-              return (
-                <div key={cert.name} style={{ ...S.certCard,
-                  opacity: earned ? 1 : .55,
-                  border: earned ? '1px solid #C8922A' : '0.5px solid #E0D5C0' }}>
-                  <div style={{ fontSize:28 }}>{cert.emoji}</div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontSize:14, fontWeight:600, color: earned ? '#1A1208' : '#9A8A70' }}>
-                      {cert.name}
-                    </div>
-                    <div style={{ fontSize:11, color:'#9A8A70', marginTop:2 }}>{cert.desc}</div>
-                    {!earned && (
-                      <div style={{ fontSize:11, color:'#C8922A', marginTop:4 }}>
-                        还差 {(cert.threshold - merit).toLocaleString()} 功德值
-                      </div>
-                    )}
-                  </div>
-                  {earned
-                    ? <button style={{ background:'#E8F5EC', color:'#3B7A4A', border:'none',
-                        borderRadius:20, fontSize:11, fontWeight:600, padding:'5px 12px', cursor:'pointer' }}>
-                        下载 ⬇
-                      </button>
-                    : <div style={{ fontSize:10, color:'#B8A88A' }}>🔒 未解锁</div>
-                  }
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        <div style={{ height:20 }} />
-      </div>
+          <div style={{ height:20 }} />
+        </div>
+      )}
     </div>
+  )
+}
+
+
+function MenuRow({ icon, label, value, onClick, last = false }) {
+  return (
+    <button onClick={onClick} style={{ ...S.menuRow, ...(last ? { borderBottom:'none' } : {}) }}>
+      <span style={S.menuIcon}>{icon}</span>
+      <span style={S.menuLabel}>{label}</span>
+      {value && <span style={S.menuValue}>{value}</span>}
+      <span style={S.chev}>›</span>
+    </button>
   )
 }
 
@@ -678,5 +520,22 @@ const S = {
   reminderStyleGrid: { display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8 },
   reminderStyleBtn: { border:'1px solid #E0D5C0', borderRadius:999, background:'#fff', color:'#7A6A50', padding:'10px 6px', fontWeight:800 },
   reminderStyleBtnOn: { borderColor:'#C8922A', background:'#FDF3E0', color:'#7A5A18' },
+  mineWrap: { padding:'18px 0 0' },
+  profileEntry: { width:'100%', display:'flex', alignItems:'center', gap:16, padding:'30px 24px 26px', background:'#fff', border:'none', borderBottom:'1px solid #E8E1D6', fontFamily:'Noto Sans SC,sans-serif' },
+  levelPill: { border:'1px solid #E0D5C0', borderRadius:999, padding:'4px 9px', color:'#7A5A18', background:'#FFFCF5', fontSize:12, fontWeight:800, flexShrink:0 },
+  softPill: { border:'1px solid #E8E1D6', borderRadius:999, padding:'4px 10px', color:'#7A6A50', background:'#FAF7F2', fontSize:12, fontWeight:700 },
+  bioLine: { margin:'10px 18px 0', color:'#7A6A50', background:'#fff', border:'1px solid #E8E1D6', borderRadius:12, padding:'12px 14px', fontSize:13, lineHeight:1.6 },
+  statStrip: { display:'grid', gridTemplateColumns:'repeat(4,1fr)', background:'#fff', borderTop:'1px solid #E8E1D6', borderBottom:'1px solid #E8E1D6', margin:'12px 0 10px' },
+  statPlain: { textAlign:'center', padding:'14px 4px', borderRight:'1px solid #F0EAE0', display:'flex', flexDirection:'column', gap:4, color:'#7A6A50', fontSize:11 },
+  listGroup: { background:'#fff', borderTop:'1px solid #E8E1D6', borderBottom:'1px solid #E8E1D6', margin:'10px 0' },
+  menuRow: { width:'100%', display:'flex', alignItems:'center', gap:14, minHeight:58, padding:'0 18px', border:'none', borderBottom:'1px solid #F0EAE0', background:'#fff', fontFamily:'Noto Sans SC,sans-serif', textAlign:'left' },
+  menuIcon: { width:26, fontSize:21, textAlign:'center', flexShrink:0 },
+  menuLabel: { flex:1, color:'#1A1208', fontSize:16, fontWeight:800 },
+  menuValue: { color:'#9A8A70', fontSize:12, maxWidth:130, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' },
+  chev: { color:'#B8A88A', fontSize:28, lineHeight:1, flexShrink:0 },
+  signOutRow: { width:'100%', minHeight:52, margin:'16px 0 0', border:'none', borderTop:'1px solid #E8E1D6', borderBottom:'1px solid #E8E1D6', background:'#fff', color:'#C84040', fontSize:15, fontWeight:800, fontFamily:'Noto Sans SC,sans-serif' },
+  detailHead: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 0 2px' },
+  detailBack: { border:'none', background:'transparent', color:'#7A6A50', fontSize:14, fontWeight:800, padding:'8px 0' },
+  detailTitle: { fontFamily:'Noto Serif SC,serif', fontSize:20, fontWeight:900, color:'#1A1208' },
   empty:     { textAlign:'center', color:'#9A8A70', padding:32, fontSize:13 },
 }
