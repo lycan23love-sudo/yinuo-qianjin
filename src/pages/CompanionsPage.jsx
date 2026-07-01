@@ -55,6 +55,7 @@ function getHostName(pledge) {
 }
 
 const ENCOURAGE_LINES = ['看见你今天这一步了，别小看它。', '稳住，我们只守今天这一日。', '你已经在路上了，继续往前一点点。', '别急着证明全部，先完成眼前这一件。', '今天能回来报到，就已经很不容易。']
+const ENCOURAGE_CHOICES = [...ENCOURAGE_LINES, '👏 看见了', '🔥 跟上', '🌱 慢慢来', '🤝 我陪你']
 
 function userTeamKey(pledge) {
   return pledge?.user_id || pledge?.profiles?.id || pledge?.id
@@ -546,6 +547,15 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
   const progress = pct(pledge)
   const buddy = getBuddy(activeMembers, currentUserId)
   const [echoes, setEchoes] = useState({})
+  const [showNudgeBox, setShowNudgeBox] = useState(false)
+  const [showEncourageBox, setShowEncourageBox] = useState(false)
+  const [nudgeDraft, setNudgeDraft] = useState('今天还没报到，我在小队等你。')
+  function sendNudgeMessage() {
+    if (!buddy) return onEncourage?.('empty')
+    const message = nudgeDraft.trim().slice(0, 50) || '今天还没报到，我在小队等你。'
+    setShowNudgeBox(false)
+    onNudge?.(buddy, message)
+  }
   function sendEcho(member, label) {
     if (!member || member.empty) return
     if (member.id === currentUserId) return onEncourage?.('self', member)
@@ -610,9 +620,30 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
             </div>
           </div>
           <div style={S.buddyActions}>
-            <button style={S.buddyBtn} onClick={() => buddy ? sendEcho(buddy, ENCOURAGE_LINES[Math.floor(Math.random() * ENCOURAGE_LINES.length)]) : onEncourage?.('empty')} disabled={!buddy}>机选鼓励</button>
-            <button style={S.buddyBtnDark} onClick={() => onNudge?.(buddy)} disabled={!buddy}>提醒报到</button>
+            <button style={S.buddyBtn} onClick={() => buddy ? setShowEncourageBox(v => !v) : onEncourage?.('empty')} disabled={!buddy}>机选鼓励</button>
+            <button style={S.buddyBtnDark} onClick={() => buddy ? setShowNudgeBox(v => !v) : onEncourage?.('empty')} disabled={!buddy}>提醒报到</button>
           </div>
+          {showNudgeBox && (
+            <div style={S.inlinePanel}>
+              <div style={S.inlinePanelTitle}>提醒{buddy?.name || '今日搭子'}</div>
+              <textarea style={S.messageInput} maxLength={50} value={nudgeDraft} onChange={e => setNudgeDraft(e.target.value.slice(0, 50))} placeholder="写一句不超过50字的提醒" />
+              <div style={S.panelFoot}>
+                <span style={S.charCount}>{nudgeDraft.length}/50</span>
+                <div style={S.panelActions}>
+                  <button style={S.panelCancelBtn} onClick={() => setShowNudgeBox(false)}>取消</button>
+                  <button style={S.panelSendBtn} onClick={sendNudgeMessage}>发送提醒</button>
+                </div>
+              </div>
+            </div>
+          )}
+          {showEncourageBox && (
+            <div style={S.inlinePanel}>
+              <div style={S.inlinePanelTitle}>给{buddy?.name || '今日搭子'}一点回应</div>
+              <div style={S.choiceGrid}>
+                {ENCOURAGE_CHOICES.map(label => <button key={label} style={S.choiceBtn} onClick={() => { setShowEncourageBox(false); sendEcho(buddy, label) }}>{label}</button>)}
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={S.sectionLabel}>队员打卡对比</div>
@@ -627,13 +658,6 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
           <div style={S.compareRow}><span>今日报到率</span><b>{doneCount}/{activeMembers.length || 1}</b></div>
           <div style={S.compareRow}><span>我的位置</span><b>{checkedToday(pledge) ? '已跟上' : '待跟上'}</b></div>
           <div style={S.compareHint}>小队按行者身份同行，不再要求誓言文字完全一致。对比的是每个人守诺的完成度：温暖来自回应，压力来自看见差距。</div>
-        </div>
-
-        <div style={S.sectionLabel}>互助动作</div>
-        <div style={S.actionGrid}>
-          <button style={S.actionBtn} onClick={onHelp}><b>我卡住了</b><span>向团友发起求助</span></button>
-          <button style={S.actionBtn} onClick={() => onNudge?.(buddy)}><b>提醒待守</b><span>{buddy ? '提醒今日搭子' : '暂无其他团友可提醒'}</span></button>
-          <button style={S.actionBtn} onClick={() => buddy ? sendEcho(buddy, '鼓掌') : onEncourage?.('empty')}><b>送出鼓励</b><span>{buddy ? '让搭子的努力被看见' : '暂无其他团友可鼓励'}</span></button>
         </div>
       </div>
     </div>
@@ -742,7 +766,7 @@ export default function CompanionsPage() {
     if (member.id === session.user.id) return showToast('不能给自己发送小队通知')
     const title = kind === 'nudge' ? '同行团友提醒你报到' : '同行团友给了你回应'
     const body = kind === 'nudge'
-      ? '有人在「' + (roomPledge?.title || '小队') + '」里提醒你：今天别一个人扛。'
+      ? '有人在「' + (roomPledge?.title || '小队') + '」里提醒你：' + (label || '今天别一个人扛。')
       : '有人在「' + (roomPledge?.title || '小队') + '」里对你说：' + label
     try {
       const result = await sendUserNotification({
@@ -795,7 +819,7 @@ export default function CompanionsPage() {
       <TeamRoom pledge={roomPledge} loading={roomLoading} error={roomError} toast={toast} currentUserId={session?.user?.id}
         onBack={() => setRoomPledge(null)}
         onHelp={() => showToast('求助广播会在下一步接入团内留言；当前请先用提醒和回应')}
-        onNudge={(member) => sendCompanionNotification(member, 'nudge', '提醒报到')}
+        onNudge={(member, message) => sendCompanionNotification(member, 'nudge', message || '提醒报到')}
         onEncourage={(label, member) => {
           if (label === 'self') return showToast('不能给自己发送小队反馈')
           if (label === 'empty') return showToast('暂无其他团友可反馈')
@@ -1061,8 +1085,16 @@ const S = {
   buddyTitle: { fontSize: 15, fontWeight: 900, color: C.ink, marginBottom: 4 },
   buddyText: { fontSize: 12, color: C.muted, lineHeight: 1.55 },
   buddyActions: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 },
+  inlinePanel: { marginTop: 12, background: 'rgba(255,255,255,.76)', border: '1px solid ' + C.border, borderRadius: 14, padding: 12 },
+  inlinePanelTitle: { fontSize: 13, fontWeight: 900, color: C.ink, marginBottom: 8 },
+  messageInput: { width: '100%', minHeight: 72, boxSizing: 'border-box', border: '1px solid ' + C.border, borderRadius: 12, background: C.surf, color: C.ink, padding: '10px 11px', fontSize: 13, lineHeight: 1.5, resize: 'none', outline: 'none', fontFamily: 'Noto Sans SC,sans-serif' },
+  panelFoot: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 9 },
+  charCount: { fontSize: 11, color: C.hint },
+  panelActions: { display: 'flex', gap: 8 },
+  panelCancelBtn: { border: '1px solid ' + C.border, background: C.surf, color: C.muted, borderRadius: 999, padding: '7px 12px', fontSize: 12, fontWeight: 800, fontFamily: 'Noto Sans SC,sans-serif' },
+  panelSendBtn: { border: 'none', background: C.gold, color: '#fff', borderRadius: 999, padding: '7px 13px', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' },
+  choiceGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
+  choiceBtn: { border: '1px solid ' + C.border, background: C.surf, color: C.ink, borderRadius: 999, padding: '8px 9px', fontSize: 12, fontWeight: 800, fontFamily: 'Noto Sans SC,sans-serif', textAlign: 'center', cursor: 'pointer' },
   buddyBtn: { border: '1px solid ' + C.border, background: C.surf, color: C.goldD, borderRadius: 999, padding: '10px 12px', fontSize: 13, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   buddyBtnDark: { border: 'none', background: C.ink, color: '#F6D486', borderRadius: 999, padding: '10px 12px', fontSize: 13, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
-  actionGrid: { display: 'grid', gridTemplateColumns: '1fr', gap: 9, marginBottom: 12 },
-  actionBtn: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, textAlign: 'left', fontFamily: 'Noto Sans SC,sans-serif', color: C.ink, cursor: 'pointer', boxShadow: '0 2px 10px rgba(26,18,8,.04)' },
 }
