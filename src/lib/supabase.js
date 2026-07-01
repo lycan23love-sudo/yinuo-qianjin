@@ -586,6 +586,20 @@ export async function getPledgeDetail(pledgeId) {
 
 
 
+export async function getUserCompanionPledges(userId) {
+  if (!userId) return []
+  const { data, error } = await supabase
+    .from('pledges')
+    .select(`*, checkins(*)`)
+    .eq('user_id', userId)
+    .or('status.eq.active,status.eq.ongoing,status.is.null')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data || []
+}
+
+
+
 export async function getPublicPledges({ category, sort = 'created_at' } = {}) {
   let query = supabase
     .from('pledges')
