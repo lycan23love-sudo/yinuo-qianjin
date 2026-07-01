@@ -553,7 +553,6 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
   const doneCount = activeMembers.filter(item => item.doneToday).length
   const progress = pct(pledge)
   const buddy = getBuddy(activeMembers, currentUserId)
-  const [echoes, setEchoes] = useState({})
   const [showNudgeBox, setShowNudgeBox] = useState(false)
   const [showEncourageBox, setShowEncourageBox] = useState(false)
   const [nudgeDraft, setNudgeDraft] = useState('今天还没守诺，我在小队等你。')
@@ -566,7 +565,6 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
   function sendEcho(member, label) {
     if (!member || member.empty) return
     if (member.id === currentUserId) return onEncourage?.('self', member)
-    setEchoes(prev => ({ ...prev, [member.id]: label }))
     onEncourage?.(label, member)
   }
   return (
@@ -595,7 +593,7 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
 
         <div style={S.meetingCard}>
           <div style={S.meetingTitle}>今日守诺圈</div>
-          <div style={S.meetingSub}>{doneCount > 0 ? '有人已经先守住今日。给一个回应，让守诺被看见。' : '今天还没人守诺。互助会里，先行动的人会把大家拉回正轨。'}</div>
+          <div style={S.meetingSub}>{doneCount > 0 ? '有人已经先守住今日，队伍状态已更新。' : '今天还没人守诺。互助会里，先行动的人会把大家拉回正轨。'}</div>
           {members.map((member, index) => {
             const isSelf = member.id === currentUserId
             return (
@@ -604,14 +602,6 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={S.shareName}>{member.name}<span>{isSelf ? '我' : member.role}</span></div>
                 <div style={S.shareText}>{memberCheckinLine(member, index)}</div>
-                {!member.empty && !isSelf && (
-                  <div style={S.echoRow}>
-                    {['看见了', '稳住', '鼓掌', '跟上'].map(label => (
-                      <button key={label} style={{ ...S.echoBtn, ...(echoes[member.id] === label ? S.echoBtnOn : {}) }} onClick={() => sendEcho(member, label)}>{label}</button>
-                    ))}
-                  </div>
-                )}
-                {!member.empty && isSelf && <div style={S.selfHint}>这是你自己。反馈和提醒只会发给其他团友。</div>}
               </div>
               <Tag tone={member.empty ? 'gold' : member.doneToday ? 'green' : 'red'}>{member.empty ? '空位' : member.doneToday ? '今日已守' : '今日待守'}</Tag>
             </div>
@@ -1106,10 +1096,6 @@ const S = {
   shareAvatar: { width: 34, height: 34, borderRadius: '50%', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, flexShrink: 0 },
   shareName: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 900, color: C.ink },
   shareText: { fontSize: 12, color: C.muted, lineHeight: 1.55, marginTop: 4 },
-  selfHint: { marginTop: 8, fontSize: 11, color: C.hint, lineHeight: 1.45 },
-  echoRow: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 },
-  echoBtn: { border: '1px solid ' + C.border, background: '#FFFDF8', color: C.goldD, borderRadius: 999, padding: '5px 9px', fontSize: 11, fontWeight: 800, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
-  echoBtnOn: { background: C.ink, borderColor: C.ink, color: '#F6D486' },
   buddyCard: { background: '#FFF7E6', border: '1px solid #E6D3A4', borderRadius: 18, padding: 14, marginBottom: 14, boxShadow: '0 3px 12px rgba(122,90,24,.06)' },
   buddyTop: { display: 'flex', alignItems: 'center', gap: 11, marginBottom: 12 },
   buddyIcon: { width: 40, height: 40, borderRadius: '50%', background: C.ink, color: '#F6D486', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 },
