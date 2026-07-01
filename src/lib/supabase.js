@@ -4170,6 +4170,20 @@ export async function markAllNotificationsRead(userId) {
   if (error && !isMissingNotificationsTable(error)) throw error
 }
 
+export async function deleteNotification(userId, notificationId) {
+  if (!userId || !notificationId) return { deleted: false }
+  const { error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('id', notificationId)
+    .eq('user_id', userId)
+  if (error) {
+    if (isMissingNotificationsTable(error)) return { deleted: false, ready: false }
+    throw error
+  }
+  return { deleted: true, ready: true }
+}
+
 export function subscribeToNotifications(userId, onInsert) {
   if (!userId) return null
   const channel = supabase
