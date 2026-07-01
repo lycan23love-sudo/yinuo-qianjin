@@ -54,7 +54,7 @@ function getHostName(pledge) {
   return pledge.profiles?.nickname || pledge.profiles?.avatar_emoji || '匿名行者'
 }
 
-const ENCOURAGE_LINES = ['看见你今天这一步了，别小看它。', '稳住，我们只守今天这一日。', '你已经在路上了，继续往前一点点。', '别急着证明全部，先完成眼前这一件。', '今天能回来报到，就已经很不容易。']
+const ENCOURAGE_LINES = ['看见你今天这一步了，别小看它。', '稳住，我们只守今天这一日。', '你已经在路上了，继续往前一点点。', '别急着证明全部，先完成眼前这一件。', '今天能回来守诺，就已经很不容易。']
 const ENCOURAGE_CHOICES = [...ENCOURAGE_LINES, '👏 看见了', '🔥 跟上', '🌱 慢慢来', '🤝 我陪你']
 
 function userTeamKey(pledge) {
@@ -99,7 +99,7 @@ function aggregatePledges(pledges, fallbackPledge) {
     progress,
     done,
     total,
-    doneToday: list.some(checkedToday),
+    doneToday: list.length > 0 && list.every(checkedToday),
     titles: list.map(item => item.title).filter(Boolean),
   }
 }
@@ -243,22 +243,29 @@ function PublicPledgeCard({ pledge, match, joined, joining, onOpen, onJoin }) {
 }
 
 function todayKey() {
-  return new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return y + '-' + m + '-' + d
 }
 
 function checkedToday(pledge) {
   const today = todayKey()
-  return (pledge.checkins || []).some(item => item.checkin_date === today)
+  return (pledge.checkins || []).some(item => {
+    const date = item?.checkin_date || item?.created_at || item?.date
+    return typeof date === 'string' && date.slice(0, 10) === today
+  })
 }
 
 
 function memberCheckinLine(member, index) {
   if (member.empty) return '这里还空着，等一个同路人坐下。'
   if (member.doneToday) {
-    const lines = ['今天已报到：我守住了这一日。', '今日已守：先把该做的做完。', '已完成今日诺言，给后来的人留一盏灯。']
+    const lines = ['今天已守：我守住了这一日。', '今日已守：先把该做的做完。', '已完成今日诺言，给后来的人留一盏灯。']
     return lines[index % lines.length]
   }
-  const lines = ['还没报到，可能正在和拖延拉扯。', '今日待守，等一句提醒把他拉回来。', '还没出现，也许需要有人说一句：别一个人扛。']
+  const lines = ['今日待守，可能正在和拖延拉扯。', '今日待守，等一句提醒把他拉回来。', '还没出现，也许需要有人说一句：别一个人扛。']
   return lines[index % lines.length]
 }
 
@@ -367,12 +374,12 @@ function TodayTeamStatus({ featuredTeam, totalTeams, pendingCount, joinedCount, 
       ? `你已完成今日守诺。小队当前 ${doneCount}/${teamCount} 已守，可以进去给队友一个回应。`
       : `小队当前 ${doneCount}/${teamCount} 已守。先看看队友节奏，再决定今天如何跟上。`
   const feedback = !hasTeam
-    ? '找到同路目标后，这里会出现队友报到、掉队提醒和鼓励反馈。'
+    ? '找到同路目标后，这里会出现队友守诺、掉队提醒和鼓励反馈。'
     : doneCount >= teamCount
       ? '今日全员已守，队伍节奏很好。'
       : doneCount > 0
         ? '已有队友先动起来，你也不会是独行。'
-        : '今天还没人报到，等一个人先把节奏带起来。'
+        : '今天还没人守诺，等一个人先把节奏带起来。'
   return (
     <div style={S.todayStatusCard}>
       <div style={S.todayStatusHead}>
@@ -420,7 +427,7 @@ function TeamProgressCard({ item, publishing, onRecruit, onRoom }) {
     ? '今日全员已守，节奏很好'
     : doneCount > 0
       ? `${doneCount}位队友已守，队伍正在向前`
-      : '今天还没人报到，等一个人先动起来'
+      : '今天还没人守诺，等一个人先动起来'
   return (
     <div style={S.teamCardLarge}>
       <div style={S.teamCardHead}>
@@ -443,7 +450,7 @@ function TeamProgressCard({ item, publishing, onRecruit, onRoom }) {
         ))}
       </div>
 
-      <div style={S.teamFeedbackLine}>{checkedToday(pledge) ? '你今天已守，可以给还没完成的队友一点提醒。' : '你今天还未报到，小队会记录你的节奏变化。'}</div>
+      <div style={S.teamFeedbackLine}>{checkedToday(pledge) ? '你今天已守，可以给还没完成的队友一点提醒。' : '你今天还未守诺，小队会记录你的节奏变化。'}</div>
       <div style={S.teamActionsRow}>
         <button style={S.primaryTeamBtn} onClick={onRoom}>进入小队</button>
       </div>
@@ -549,10 +556,10 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
   const [echoes, setEchoes] = useState({})
   const [showNudgeBox, setShowNudgeBox] = useState(false)
   const [showEncourageBox, setShowEncourageBox] = useState(false)
-  const [nudgeDraft, setNudgeDraft] = useState('今天还没报到，我在小队等你。')
+  const [nudgeDraft, setNudgeDraft] = useState('今天还没守诺，我在小队等你。')
   function sendNudgeMessage() {
     if (!buddy) return onEncourage?.('empty')
-    const message = nudgeDraft.trim().slice(0, 50) || '今天还没报到，我在小队等你。'
+    const message = nudgeDraft.trim().slice(0, 50) || '今天还没守诺，我在小队等你。'
     setShowNudgeBox(false)
     onNudge?.(buddy, message)
   }
@@ -580,15 +587,15 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
           <div style={S.roomTitle}>{getHostName(pledge)}的小队</div>
           <div style={S.roomMeta}>{getHostName(pledge)}发起 · 5人小队 {teamSize(pledge)}/{TEAM_LIMIT} · 队内追踪{(pledge.teamPledges || [pledge]).length}个誓言</div>
           <div style={S.roomStats}>
-            <div><b>{doneCount}/{activeMembers.length || 1}</b><span>今日报到</span></div>
+            <div><b>{doneCount}/{activeMembers.length || 1}</b><span>今日已守</span></div>
             <div><b>{progress}%</b><span>契约进度</span></div>
             <div><b>{teamSlots(pledge)}</b><span>剩余席位</span></div>
           </div>
         </div>
 
         <div style={S.meetingCard}>
-          <div style={S.meetingTitle}>今日报到圈</div>
-          <div style={S.meetingSub}>{doneCount > 0 ? '有人已经先坐下报到。给一个回应，让守诺被看见。' : '今天还没人报到。互助会里，先开口的人会把大家拉回正轨。'}</div>
+          <div style={S.meetingTitle}>今日守诺圈</div>
+          <div style={S.meetingSub}>{doneCount > 0 ? '有人已经先守住今日。给一个回应，让守诺被看见。' : '今天还没人守诺。互助会里，先行动的人会把大家拉回正轨。'}</div>
           {members.map((member, index) => {
             const isSelf = member.id === currentUserId
             return (
@@ -606,7 +613,7 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
                 )}
                 {!member.empty && isSelf && <div style={S.selfHint}>这是你自己。反馈和提醒只会发给其他团友。</div>}
               </div>
-              <Tag tone={member.empty ? 'gold' : member.doneToday ? 'green' : 'red'}>{member.empty ? '空位' : member.doneToday ? '已报到' : '待报到'}</Tag>
+              <Tag tone={member.empty ? 'gold' : member.doneToday ? 'green' : 'red'}>{member.empty ? '空位' : member.doneToday ? '今日已守' : '今日待守'}</Tag>
             </div>
           )})}
         </div>
@@ -616,17 +623,17 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
             <div style={S.buddyIcon}>☕</div>
             <div style={{ flex: 1 }}>
               <div style={S.buddyTitle}>{buddy ? '今日搭子：' + buddy.name : '今日搭子：暂无其他团友'}</div>
-              <div style={S.buddyText}>{buddy ? (buddy.doneToday ? 'TA已经完成。你可以把这份节奏接过来。' : 'TA今天还没报到。轻轻提醒一句，比沉默更有力量。') : '搭子只能是其他用户。等有人加入小队后，这里才会出现真正的守诺搭子。'}</div>
+              <div style={S.buddyText}>{buddy ? (buddy.doneToday ? 'TA已经完成。你可以把这份节奏接过来。' : 'TA今天还没守诺。轻轻提醒一句，比沉默更有力量。') : '搭子只能是其他用户。等有人加入小队后，这里才会出现真正的守诺搭子。'}</div>
             </div>
           </div>
           <div style={S.buddyActions}>
             <button style={S.buddyBtn} onClick={() => buddy ? setShowEncourageBox(v => !v) : onEncourage?.('empty')} disabled={!buddy}>机选鼓励</button>
-            <button style={S.buddyBtnDark} onClick={() => buddy ? setShowNudgeBox(v => !v) : onEncourage?.('empty')} disabled={!buddy}>提醒报到</button>
+            <button style={S.buddyBtnDark} onClick={() => buddy ? setShowNudgeBox(v => !v) : onEncourage?.('empty')} disabled={!buddy}>提醒守诺</button>
           </div>
           {showNudgeBox && (
             <div style={S.inlinePanel}>
               <div style={S.inlinePanelTitle}>提醒{buddy?.name || '今日搭子'}</div>
-              <textarea style={S.messageInput} maxLength={50} value={nudgeDraft} onChange={e => setNudgeDraft(e.target.value.slice(0, 50))} placeholder="写一句不超过50字的提醒" />
+              <textarea style={S.messageInput} maxLength={50} value={nudgeDraft} onChange={e => setNudgeDraft(e.target.value.slice(0, 50))} placeholder="写一句不超过50字的守诺提醒" />
               <div style={S.panelFoot}>
                 <span style={S.charCount}>{nudgeDraft.length}/50</span>
                 <div style={S.panelActions}>
@@ -655,7 +662,7 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
               <b style={S.compareValue}>{member.progress}%</b>
             </div>
           ))}
-          <div style={S.compareRow}><span>今日报到率</span><b>{doneCount}/{activeMembers.length || 1}</b></div>
+          <div style={S.compareRow}><span>今日已守率</span><b>{doneCount}/{activeMembers.length || 1}</b></div>
           <div style={S.compareRow}><span>我的位置</span><b>{checkedToday(pledge) ? '已跟上' : '待跟上'}</b></div>
           <div style={S.compareHint}>小队按行者身份同行，不再要求誓言文字完全一致。对比的是每个人守诺的完成度：温暖来自回应，压力来自看见差距。</div>
         </div>
@@ -751,8 +758,18 @@ export default function CompanionsPage() {
       const detail = await getPledgeDetail(pledge.id)
       const fallbackWitnesses = detail?.witnesses?.length ? detail.witnesses : pledge.witnesses
       const fallbackCheckins = detail?.checkins?.length ? detail.checkins : pledge.checkins
-      const hostPledges = knownPledgesByUser[pledge.user_id] || pledge.teamPledges || [pledge]
-      setRoomPledge({ ...pledge, ...(detail || {}), witnesses: fallbackWitnesses, checkins: fallbackCheckins, teamPledges: hostPledges, knownPledgesByUser })
+      const baseHostPledges = knownPledgesByUser[pledge.user_id] || pledge.teamPledges || [pledge]
+      const hostPledges = await Promise.all(baseHostPledges.map(async item => {
+        if (item.id === pledge.id) return { ...item, ...(detail || {}), checkins: fallbackCheckins }
+        try {
+          const itemDetail = await getPledgeDetail(item.id)
+          return { ...item, ...(itemDetail || {}), checkins: itemDetail?.checkins || item.checkins }
+        } catch {
+          return item
+        }
+      }))
+      const enrichedKnownPledgesByUser = { ...knownPledgesByUser, [pledge.user_id]: hostPledges }
+      setRoomPledge({ ...pledge, ...(detail || {}), witnesses: fallbackWitnesses, checkins: fallbackCheckins, teamPledges: hostPledges, knownPledgesByUser: enrichedKnownPledgesByUser })
     } catch (err) {
       setRoomError(err.message || '小队加载失败')
     } finally {
@@ -764,7 +781,7 @@ export default function CompanionsPage() {
     if (!session?.user?.id) return nav('/auth')
     if (!member || member.empty) return showToast('暂无其他团友可通知')
     if (member.id === session.user.id) return showToast('不能给自己发送小队通知')
-    const title = kind === 'nudge' ? '同行团友提醒你报到' : '同行团友给了你回应'
+    const title = kind === 'nudge' ? '同行团友提醒你守诺' : '同行团友给了你回应'
     const body = kind === 'nudge'
       ? '有人在「' + (roomPledge?.title || '小队') + '」里提醒你：' + (label || '今天别一个人扛。')
       : '有人在「' + (roomPledge?.title || '小队') + '」里对你说：' + label
@@ -819,7 +836,7 @@ export default function CompanionsPage() {
       <TeamRoom pledge={roomPledge} loading={roomLoading} error={roomError} toast={toast} currentUserId={session?.user?.id}
         onBack={() => setRoomPledge(null)}
         onHelp={() => showToast('求助广播会在下一步接入团内留言；当前请先用提醒和回应')}
-        onNudge={(member, message) => sendCompanionNotification(member, 'nudge', message || '提醒报到')}
+        onNudge={(member, message) => sendCompanionNotification(member, 'nudge', message || '提醒守诺')}
         onEncourage={(label, member) => {
           if (label === 'self') return showToast('不能给自己发送小队反馈')
           if (label === 'empty') return showToast('暂无其他团友可反馈')
