@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
-import { getMyPledges, getPublicPledges, getPledgeDetail, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins, sendUserNotification } from '../lib/supabase'
+import { getMyPledges, getPublicPledges, getPledgeDetail, getUserCompanionPledges, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins, sendUserNotification } from '../lib/supabase'
 import { PLEDGE_CATEGORIES, inferPledgeCategory, inferPledgeTag } from '../lib/pledgeCategories'
 
 const TEAM_LIMIT = 5
@@ -768,7 +768,21 @@ export default function CompanionsPage() {
           return item
         }
       }))
-      const enrichedKnownPledgesByUser = { ...knownPledgesByUser, [pledge.user_id]: hostPledges }
+      const activeWitnesses = (fallbackWitnesses || []).filter(item => !item.status || item.status === 'active')
+      const memberUserIds = [...new Set(activeWitnesses.map(item => item.user_id).filter(Boolean))]
+      const memberEntries = await Promise.all(memberUserIds.map(async userId => {
+        try {
+          const pledges = await getUserCompanionPledges(userId)
+          return [userId, pledges]
+        } catch {
+          return [userId, knownPledgesByUser[userId] || []]
+        }
+      }))
+      const memberPledgesByUser = memberEntries.reduce((map, [userId, pledges]) => {
+        if (userId && pledges?.length) map[userId] = pledges
+        return map
+      }, {})
+      const enrichedKnownPledgesByUser = { ...knownPledgesByUser, ...memberPledgesByUser, [pledge.user_id]: hostPledges }
       setRoomPledge({ ...pledge, ...(detail || {}), witnesses: fallbackWitnesses, checkins: fallbackCheckins, teamPledges: hostPledges, knownPledgesByUser: enrichedKnownPledgesByUser })
     } catch (err) {
       setRoomError(err.message || '小队加载失败')
