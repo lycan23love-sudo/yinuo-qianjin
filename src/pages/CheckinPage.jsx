@@ -19,6 +19,13 @@ const QUICK_NOTES = [
   '完成得不完美，但我守住了承诺。'
 ]
 
+const MOOD_FEEDBACK = {
+  great:  { title:'今天很顺，记住这种手感。', body:'顺利不是理所当然，它说明你的节奏正在形成。' },
+  grind:  { title:'咬牙完成的这一天，更值得被记住。', body:'不是每一天都有热情，但你还是把该做的做完了。' },
+  steady: { title:'平稳推进，就是最可靠的力量。', body:'真正的改变往往不轰烈，只是每天稳定地多做一点。' },
+  danger: { title:'差点放弃却仍然完成，这很重要。', body:'今天的价值不在轻松，而在你没有让诺言断掉。' },
+}
+
 
 const QUOTES = [
   [1,  7,  '万事开头难，但你已经迈出了最难的一步。'],
@@ -238,6 +245,8 @@ export default function CheckinPage() {
   const streakBonus = streak >= 14 ? 30 : streak >= 7 ? 20 : 0
   const milestoneBonus = [7,14,21,28].includes(dayNum) ? 100 : 0
   const total = base + streakBonus + milestoneBonus
+  const selectedMood = MOODS.find(item => item.key === mood)
+  const feedback = MOOD_FEEDBACK[mood] || { title:'今天你没有把诺言留在嘴上。', body:'提交之后，这一笔会进入你的守诺日记。' }
 
 
   async function handleSubmit() {
@@ -254,7 +263,7 @@ export default function CheckinPage() {
       })
       setLoadStep('打卡成功！')
       refreshProfile()
-      nav('/checkin-success', { state: { result, pledge } })
+      nav('/checkin-success', { state: { result, pledge, mood, moodLabel: selectedMood?.label || '', note: note.trim() } })
     } catch (err) {
       showToast(err.message || '打卡失败，请重试', 'error')
     } finally {
@@ -416,6 +425,13 @@ export default function CheckinPage() {
         </div>
 
 
+        <div style={S.echoPreview}>
+          <div style={S.echoKicker}>守诺回响</div>
+          <div style={S.echoTitle}>{feedback.title}</div>
+          <div style={S.echoBody}>{feedback.body}</div>
+          <div style={S.echoMeta}>{selectedMood ? selectedMood.emoji + ' ' + selectedMood.label + ' · ' : ''}{note.trim() ? '你的记录会进入打卡日记' : '写一句记录，明天回看会更有力量'}</div>
+        </div>
+
         {/* 奖励预览 */}
         <div style={S.rewardBox}>
           <div style={{ fontSize:12, fontWeight:600, color:'#7A5A18', marginBottom:8 }}>
@@ -514,6 +530,11 @@ const S = {
   quickRow:{ display:'flex', gap:7, flexWrap:'wrap', marginTop:10 },
   quickBtn:{ border:'1px solid #E0D5C0', background:'#fff', color:'#7A6A50', borderRadius:999,
              padding:'6px 10px', fontSize:11, fontFamily:'Noto Sans SC,sans-serif', cursor:'pointer' },
+  echoPreview:{ background:'#FFF7E6', border:'1px solid #E6D3A4', borderRadius:14, padding:'14px 15px', marginBottom:14, boxShadow:'0 3px 12px rgba(122,90,24,.06)' },
+  echoKicker:{ fontSize:11, color:'#C8922A', fontWeight:900, letterSpacing:1.5, marginBottom:6 },
+  echoTitle:{ fontFamily:'Noto Serif SC,serif', fontSize:16, fontWeight:900, color:'#1A1208', lineHeight:1.45, marginBottom:6 },
+  echoBody:{ fontSize:13, color:'#5A4A30', lineHeight:1.7 },
+  echoMeta:{ marginTop:8, fontSize:12, color:'#7A5A18', fontWeight:800 },
   rewardBox:{ background:'#FDF3E0', borderRadius:12, padding:'12px 14px', marginBottom:16 },
   rewardItem:{ background:'#fff', borderRadius:8, padding:'7px 12px', textAlign:'center',
                border:'0.5px solid #E0D5C0' },
