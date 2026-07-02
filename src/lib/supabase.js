@@ -1227,7 +1227,9 @@ export async function submitCheckin(userId, pledgeId, { imageFile, audioFile, no
       note: finalNote,
       mood,
       coins_earned: totalCoins,
-      streak
+      streak,
+      status: 'valid',
+      proof_type: audioUrl ? (imageUrl ? 'mixed' : 'audio') : (imageUrl ? 'image' : 'text')
     })
     .select()
     .single()
@@ -2878,7 +2880,6 @@ export async function disputeCheckin(userId, checkinId, pledgeId, reason = '') {
     .update({ status: 'disputed' })
     .eq('id', checkinId)
     .eq('pledge_id', pledgeId)
-    .eq('status', 'valid')
   if (updateError) console.warn('打卡状态更新失败', updateError.message)
 
 
