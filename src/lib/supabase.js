@@ -1658,6 +1658,28 @@ export async function getPendingCharityActions(limit = 30) {
   return (data || []).map(mapCharityAction)
 }
 
+function getCharityVerdictText(status, reward) {
+  if (status === 'approved') {
+    return {
+      title: '善行已通过认定',
+      body: '你提交的公益行动已通过陪审团确认，' + Number(reward || 0) + ' 公益金币已入账。'
+    }
+  }
+  if (status === 'needs_revision') {
+    return {
+      title: '善行需要补充证明',
+      body: '陪审团认为这次公益行动还需要补充证明。补齐后可以再次提交。'
+    }
+  }
+  if (status === 'rejected') {
+    return {
+      title: '善行未通过认定',
+      body: '这次公益行动暂未通过陪审团确认。你可以换一件更清楚、更可证明的小善行重新提交。'
+    }
+  }
+  return null
+}
+
 export async function castCharityJuryVote(userId, actionId, vote) {
   if (!userId) throw new Error('请先登录')
   if (!['approve', 'reject', 'revise'].includes(vote)) throw new Error('确认选项无效')
@@ -1721,9 +1743,23 @@ export async function castCharityJuryVote(userId, actionId, vote) {
     .single()
   if (updateError) throw updateError
 
-  if (nextStatus === 'approved') {
-    await addCoins(action.user_id, Number(action.reward_coins || 0), 'reward_milestone', actionId, '善行通过陪审团确认')
+  if (nextStatus === 'approved' && Number(action.reward_coins || 0) > 0) {
+    await addCoins(action.user_id, Number(action.reward_coins || 0), 'charity_reward', actionId, '善行通过陪审团确认')
       .catch(() => null)
+  }
+
+  if (nextStatus !== 'pending') {
+    const verdict = getCharityVerdictText(nextStatus, action.reward_coins)
+    if (verdict) {
+      await createNotification({
+        userId: action.user_id,
+        actorId: userId,
+        type: 'charity',
+        title: verdict.title,
+        body: verdict.body,
+        metadata: { url: '/charity', actionId, status: nextStatus }
+      }).catch(() => null)
+    }
   }
 
   return mapCharityAction(updated)
@@ -1748,6 +1784,7 @@ function mapCharityAction(row) {
       revise: Number(row.revise_count || 0),
     },
     created_at: row.created_at,
+    decided_at: row.decided_at,
   }
 }
 
