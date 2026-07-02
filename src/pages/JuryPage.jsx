@@ -190,6 +190,10 @@ function CharityCase({ item, userId, voting, onVote }) {
   const votes = { approve: 0, reject: 0, revise: 0, ...(item.votes || {}) }
   const isOwnCase = Boolean(userId && item.applicant_id === userId)
   const canVote = Boolean(userId && !isOwnCase)
+  const leading = Math.max(votes.approve, votes.reject, votes.revise)
+  const need = Math.max(0, 2 - leading)
+  const leadText = leading === 0 ? '尚无有效确认' : need === 0 ? '已达到结论票数' : '还差 ' + need + ' 票形成结论'
+  const progress = Math.min(100, Math.round((leading / 2) * 100))
   return (
     <article style={S.card}>
       <div style={S.cardHead}>
@@ -203,16 +207,20 @@ function CharityCase({ item, userId, voting, onVote }) {
       <div style={S.proofLine}>证明：{item.proof || '未上传文件名'}</div>
       <div style={S.metaLine}>提交时间 {fmtDate(item.created_at)}</div>
       <div style={S.voteLine}>
-        <span>认可 {votes.approve}</span>
-        <span>补充 {votes.revise}</span>
-        <span>驳回 {votes.reject}</span>
+        <span>认可 {votes.approve}/2</span>
+        <span>补充 {votes.revise}/2</span>
+        <span>驳回 {votes.reject}/2</span>
+      </div>
+      <div style={S.voteProgressWrap}>
+        <div style={S.voteProgressText}>{leadText}</div>
+        <div style={S.voteTrack}><div style={{ ...S.voteFill, width: progress + '%' }} /></div>
       </div>
       {isOwnCase && <div style={S.selfNotice}>这是你提交的善行，需由其他用户确认。</div>}
       {!userId && <div style={S.selfNotice}>登录后可参与确认。</div>}
       <div style={S.actions}>
-        <button style={S.primaryBtn} disabled={!canVote || voting === item.id + 'approve'} onClick={() => onVote(item.id, 'approve')}>认可</button>
-        <button style={S.ghostBtn} disabled={!canVote || voting === item.id + 'revise'} onClick={() => onVote(item.id, 'revise')}>需补充</button>
-        <button style={S.dangerBtn} disabled={!canVote || voting === item.id + 'reject'} onClick={() => onVote(item.id, 'reject')}>驳回</button>
+        <button style={S.primaryBtn} disabled={!canVote || voting === item.id + 'approve'} onClick={() => onVote(item.id, 'approve')}>认可通过</button>
+        <button style={S.ghostBtn} disabled={!canVote || voting === item.id + 'revise'} onClick={() => onVote(item.id, 'revise')}>补充证明</button>
+        <button style={S.dangerBtn} disabled={!canVote || voting === item.id + 'reject'} onClick={() => onVote(item.id, 'reject')}>不予认定</button>
       </div>
     </article>
   )
@@ -241,6 +249,10 @@ const S = {
   proofLine: { background: '#f5efe4', borderRadius: 12, padding: '10px 12px', color: C.sub, fontSize: 14, overflowWrap: 'anywhere' },
   metaLine: { marginTop: 10, color: C.sub, fontSize: 13 },
   voteLine: { display: 'flex', gap: 14, color: C.sub, fontSize: 13, marginTop: 12 },
+  voteProgressWrap: { marginTop: 10, borderRadius: 12, background: '#f8f1e6', padding: '10px 12px' },
+  voteProgressText: { color: C.ink, fontSize: 13, fontWeight: 800, marginBottom: 8 },
+  voteTrack: { height: 7, borderRadius: 999, background: '#e7dccb', overflow: 'hidden' },
+  voteFill: { height: '100%', borderRadius: 999, background: C.gold },
   selfNotice: { marginTop: 12, background: '#f5efe4', borderRadius: 12, padding: '10px 12px', color: C.sub, fontSize: 14, lineHeight: 1.5 },
   proofImg: { width: '100%', maxHeight: 280, objectFit: 'cover', borderRadius: 14, marginTop: 12, border: '1px solid #eadfce' },
   actions: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 16 },
