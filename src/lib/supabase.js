@@ -1032,6 +1032,11 @@ export async function completePledge(pledgeId, userId, success) {
 // ============================================================
 // CHECKINS（打卡）
 // ============================================================
+function isMissingOptionalCheckinColumn(error) {
+  const msg = String(error?.message || '')
+  return error?.code === 'PGRST204' || error?.code === '42703' || msg.includes('status') || msg.includes('proof_type') || msg.includes('schema cache')
+}
+
 export async function submitCheckin(userId, pledgeId, { imageFile, audioFile, note, mood }) {
   // 1. 上传证明材料（如果有）
   let imageUrl = null
@@ -1216,23 +1221,38 @@ export async function submitCheckin(userId, pledgeId, { imageFile, audioFile, no
 
   // 3. 写打卡记录
   const finalNote = [note, audioUrl ? `语音证明：${audioUrl}` : ''].filter(Boolean).join('\n')
-  const { data: checkin, error } = await supabase
+  const baseCheckinPayload = {
+    pledge_id: pledgeId,
+    user_id: userId,
+    day_num: dayNum,
+    checkin_date: today,
+    image_url: imageUrl,
+    note: finalNote,
+    mood,
+    coins_earned: totalCoins,
+    streak
+  }
+  const reviewPayload = {
+    status: 'valid',
+    proof_type: audioUrl ? (imageUrl ? 'mixed' : 'audio') : (imageUrl ? 'image' : 'text')
+  }
+
+  let { data: checkin, error } = await supabase
     .from('checkins')
-    .insert({
-      pledge_id: pledgeId,
-      user_id: userId,
-      day_num: dayNum,
-      checkin_date: today,
-      image_url: imageUrl,
-      note: finalNote,
-      mood,
-      coins_earned: totalCoins,
-      streak,
-      status: 'valid',
-      proof_type: audioUrl ? (imageUrl ? 'mixed' : 'audio') : (imageUrl ? 'image' : 'text')
-    })
+    .insert({ ...baseCheckinPayload, ...reviewPayload })
     .select()
     .single()
+
+  if (error && isMissingOptionalCheckinColumn(error)) {
+    const retry = await supabase
+      .from('checkins')
+      .insert(baseCheckinPayload)
+      .select()
+      .single()
+    checkin = retry.data
+    error = retry.error
+  }
+
   if (error) throw error
 
   if (audioUrl) {
