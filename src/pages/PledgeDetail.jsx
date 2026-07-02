@@ -82,6 +82,19 @@ function getCheckinDisplayNote(checkin) {
     .join('\n')
     .trim()
 }
+function getCheckinEcho(checkin) {
+  if (checkin?.mood === 'great') return '这一天完成得漂亮，把这种顺手的节奏记下来，明天还可以照着走。'
+  if (checkin?.mood === 'grind') return '不是轻松完成，但你还是守住了。真正的契约感，就是在不想做时仍然做一点。'
+  if (checkin?.mood === 'danger') return '今天差点断掉，但记录还在。下一次先把动作缩小，别让难度压过诺言。'
+  if (checkin?.mood === 'steady') return '平稳推进就是最可靠的力量。一天不显眼，连续起来会很有分量。'
+  return '今天这一笔已经写进守诺日记。完成本身，就是给明天的自己留证据。'
+}
+function getCheckinStatusText(status) {
+  if (status === 'disputed') return '⚖️ 陪审中'
+  if (status === 'pending') return '⏳ 待确认'
+  if (status === 'valid') return '✓ 已验证'
+  return '✓ 可复核'
+}
 
 
 
@@ -459,36 +472,52 @@ function CalendarView({ checkins, pledge }) {
                                                                                                             <div style={{ fontSize:13, fontWeight:700, color:'#1A4A28' }}>✓ 今日已打卡！继续保持</div>
                                                                                               </div>
                                                                                         )}
+                                                                              {checkins.length > 0 && (
+                                                                                <div style={S.diarySummary}>
+                                                                                  <div>
+                                                                                    <div style={S.diarySummaryLabel}>守诺日记</div>
+                                                                                    <div style={S.diarySummaryTitle}>已写下 {checkins.length} 篇记录</div>
+                                                                                  </div>
+                                                                                  <div style={S.diarySummaryMeta}>{MOOD_LABEL[checkins[checkins.length - 1]?.mood] || '继续在路上'}</div>
+                                                                                </div>
+                                                                              )}
                                                                               {checkins.length === 0
                                                                                               ? <div style={{ textAlign:'center', color:'#9A8A70', padding:40 }}>{isOwner ? '还没有打卡记录，快去打卡吧！' : '暂无打卡记录'}</div>
-                                                                                          : [...checkins].reverse().map(c => (
+                                                                                          : [...checkins].reverse().map(c => {
+                                                                                            const audioUrl = getCheckinAudioUrl(c)
+                                                                                            const displayNote = getCheckinDisplayNote(c)
+                                                                                            const hasProof = !!(c.image_url || audioUrl)
+                                                                                            return (
                                                                                             <div key={c.id} style={S.diaryCard}>
-                                                                                                              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                                                                                                              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
                                                                                                                                   <div style={S.dayBadge}>第{c.day_num}天</div>
-                                                                                                                                  <div style={{ fontSize:11, color:'#9A8A70' }}>{format(parseISO(c.checkin_date),'M月d日')}{c.is_makeup?' · 补卡':''}</div>
-                                                                                                                {c.coins_earned > 0 && <div style={{ marginLeft:'auto', fontSize:11, color:'#C8922A', fontWeight:600 }}>+{c.coins_earned}金币</div>}
+                                                                                                                                  <div style={{ fontSize:12, color:'#8A7A62' }}>{format(parseISO(c.checkin_date),'M月d日')}{c.is_makeup?' · 补卡':''}</div>
+                                                                                                                {c.coins_earned > 0 && <div style={{ marginLeft:'auto', fontSize:12, color:'#C8922A', fontWeight:800 }}>+{c.coins_earned}金币</div>}
                                                                                                                 </div>
-                                                                                              {c.image_url && <img src={c.image_url} alt="打卡" style={{ width:'100%', borderRadius:10, maxHeight:180, objectFit:'cover', marginBottom:8 }} />}
-                                                                                              {getCheckinAudioUrl(c) && (
-                                                                                                <div style={{ background:'#FFF8E8', border:'1px solid rgba(200,146,42,.28)', borderRadius:12, padding:10, marginBottom:8 }}>
-                                                                                                  <div style={{ display:'flex', alignItems:'center', gap:7, fontSize:12, fontWeight:800, color:'#7A5A18', marginBottom:8 }}>
-                                                                                                    <span>🎧</span><span>语音证明</span>
-                                                                                                  </div>
-                                                                                                  <audio controls src={getCheckinAudioUrl(c)} preload="metadata" style={{ width:'100%', height:36 }} />
+                                                                                              <div style={S.diaryMoodRow}>
+                                                                                                <span style={S.diaryMood}>{MOOD_LABEL[c.mood] || '✍️ 已记录'}</span>
+                                                                                                <span style={{ ...S.diaryStatus, color:c.status==='valid'?'#3B7A4A':c.status==='disputed'?'#C84040':'#8A7A62', background:c.status==='valid'?'#E8F5EC':c.status==='disputed'?'#FCEBEB':'#F5F0E8' }}>{getCheckinStatusText(c.status)}</span>
+                                                                                              </div>
+                                                                                              <div style={S.diaryText}>{displayNote ? <>「{displayNote}」</> : '这一天没有留下文字，但完成本身就是记录。'}</div>
+                                                                                              {c.image_url && <img src={c.image_url} alt="打卡" style={{ width:'100%', borderRadius:12, maxHeight:220, objectFit:'cover', margin:'2px 0 10px', display:'block' }} />}
+                                                                                              {audioUrl && (
+                                                                                                <div style={S.audioBox}>
+                                                                                                  <div style={S.audioTitle}><span>🎧</span><span>语音日记</span></div>
+                                                                                                  <audio controls src={audioUrl} preload="metadata" style={{ width:'100%', height:38 }} />
                                                                                                 </div>
                                                                                               )}
-                                                                                              {getCheckinDisplayNote(c) && <div style={{ fontSize:13, lineHeight:1.7, color:'#3A2A18', borderLeft:'3px solid #C8922A', paddingLeft:10, fontStyle:'italic', marginBottom:8, whiteSpace:'pre-wrap' }}>「{getCheckinDisplayNote(c)}」</div>}
-                                                                                              {c.mood && <div style={{ fontSize:11, color:'#9A8A70' }}>{MOOD_LABEL[c.mood]||c.mood}</div>}
-                                                                                                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginTop:8 }}>
+                                                                                              <div style={S.echoBox}>
+                                                                                                <div style={S.echoLabel}>守诺回响</div>
+                                                                                                <div style={S.echoText}>{getCheckinEcho(c)}</div>
+                                                                                              </div>
+                                                                                              {hasProof && <div style={S.proofLine}>{c.image_url ? '图片证明' : ''}{c.image_url && audioUrl ? ' · ' : ''}{audioUrl ? '语音证明' : ''}</div>}
+                                                                                                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginTop:10 }}>
                                                                                                                 {!isOwner && c.status !== 'disputed' ? (
                                                                                                                   <button onClick={() => { setDisputeTarget(c.id); setDisputeReason('') }} disabled={witnessLoading}
                                                                                                                     style={{ border:'1px solid #E0D5C0', background:'#fff', color:'#7A5A18', borderRadius:20, padding:'4px 10px', fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' }}>
                                                                                                                     质疑/复核
                                                                                                                   </button>
                                                                                                                 ) : <div />}
-                                                                                                                                  <div style={{ fontSize:10, fontWeight:600, color:c.status==='valid'?'#3B7A4A':c.status==='disputed'?'#C84040':'#9A8A70', background:c.status==='valid'?'#E8F5EC':c.status==='disputed'?'#FCEBEB':'#F5F0E8', padding:'2px 8px', borderRadius:20 }}>
-                                                                                                                                    {c.status==='disputed'?'⚖️ 陪审中':c.status==='pending'?'⏳ 待确认':'✓ 可复核'}
-                                                                                                                                    </div>
                                                                                                                 </div>
                                                                                                               {disputeTarget === c.id && (
                                                                                                                 <div style={{ marginTop:10, padding:10, borderRadius:10, background:'#FDF3E0', border:'1px solid rgba(200,146,42,.35)' }}>
@@ -509,7 +538,8 @@ function CalendarView({ checkins, pledge }) {
                                                                                                                 </div>
                                                                                                               )}
                                                                                               </div>
-                                                                                          ))
+                                                                                            )
+                                                                                          })
                                                                               }
                                                                             </div>
                                                                               )}
@@ -746,7 +776,21 @@ function CalendarView({ checkins, pledge }) {
                                                                   statBox: { background:'rgba(255,255,255,.08)', borderRadius:8, padding:'8px 10px' },
                                                                   todayPrompt: { background:'#FDF3E0', border:'1.5px solid #C8922A', borderRadius:14, padding:14, marginBottom:14, display:'flex', alignItems:'center', justifyContent:'space-between' },
                                                                   smBtnGold: { background:'#C8922A', color:'#fff', border:'none', borderRadius:20, padding:'7px 14px', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif', flexShrink:0 },
-                                                                  diaryCard: { background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:14, padding:14, marginBottom:10 },
-                                                                  dayBadge: { background:'#FDF3E0', color:'#7A5A18', fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:20 },
+                                                                  diarySummary: { background:'#FFF8E8', border:'1px solid rgba(200,146,42,.28)', borderRadius:14, padding:'12px 14px', margin:'0 0 12px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:12 },
+                                                                  diarySummaryLabel: { fontSize:11, color:'#9A7A2A', fontWeight:800, marginBottom:3 },
+                                                                  diarySummaryTitle: { fontSize:15, color:'#1A1208', fontWeight:900, fontFamily:'Noto Serif SC,serif' },
+                                                                  diarySummaryMeta: { fontSize:11, color:'#7A5A18', background:'#fff', border:'1px solid rgba(200,146,42,.22)', borderRadius:20, padding:'5px 10px', whiteSpace:'nowrap', fontWeight:700 },
+                                                                  diaryCard: { background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:16, padding:14, marginBottom:12, boxShadow:'0 6px 18px rgba(26,18,8,.05)' },
+                                                                  dayBadge: { background:'#FDF3E0', color:'#7A5A18', fontSize:11, fontWeight:800, padding:'3px 9px', borderRadius:20 },
+                                                                  diaryMoodRow: { display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:8 },
+                                                                  diaryMood: { fontSize:12, color:'#7A5A18', fontWeight:800, background:'#FFF8E8', border:'1px solid rgba(200,146,42,.22)', borderRadius:20, padding:'4px 9px' },
+                                                                  diaryStatus: { fontSize:10, fontWeight:700, padding:'3px 8px', borderRadius:20, whiteSpace:'nowrap' },
+                                                                  diaryText: { fontSize:14, lineHeight:1.8, color:'#2A1A08', borderLeft:'3px solid #C8922A', paddingLeft:10, marginBottom:10, whiteSpace:'pre-wrap' },
+                                                                  audioBox: { background:'#FFF8E8', border:'1px solid rgba(200,146,42,.28)', borderRadius:12, padding:10, marginBottom:10 },
+                                                                  audioTitle: { display:'flex', alignItems:'center', gap:7, fontSize:12, fontWeight:800, color:'#7A5A18', marginBottom:8 },
+                                                                  echoBox: { background:'#FAF7EF', borderRadius:12, padding:'10px 12px', marginTop:8 },
+                                                                  echoLabel: { fontSize:11, color:'#C8922A', fontWeight:900, marginBottom:4 },
+                                                                  echoText: { fontSize:13, lineHeight:1.65, color:'#5F543F' },
+                                                                  proofLine: { fontSize:11, color:'#9A8A70', marginTop:8 },
                                                                   btnGold: { background:'linear-gradient(135deg,#C8922A,#E8B84A)', color:'#fff', border:'none', borderRadius:12, fontWeight:700, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
                                                                   }
