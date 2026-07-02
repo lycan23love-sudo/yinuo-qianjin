@@ -4274,6 +4274,21 @@ export async function savePushSubscription(userId, subscription, userAgent = '')
     enabled: true,
     updated_at: new Date().toISOString()
   }
+
+  try {
+    const { data, error } = await supabase
+      .rpc('save_push_subscription', {
+        p_endpoint: row.endpoint,
+        p_p256dh: row.p256dh,
+        p_auth: row.auth,
+        p_user_agent: row.user_agent,
+      })
+    if (!error) return { saved: true, data }
+    if (!isMissingPushTable(error) && error?.code !== 'PGRST202') throw error
+  } catch (error) {
+    if (!isMissingPushTable(error) && error?.code !== 'PGRST202') throw error
+  }
+
   const { data, error } = await supabase
     .from('push_subscriptions')
     .upsert(row, { onConflict: 'endpoint' })
@@ -4281,6 +4296,9 @@ export async function savePushSubscription(userId, subscription, userAgent = '')
     .single()
   if (error) {
     if (isMissingPushTable(error)) return { saved: false, reason: 'missing_table' }
+    if (error?.code === '42501' || String(error?.message || '').toLowerCase().includes('row-level security')) {
+      return { saved: false, reason: 'subscription_claim_blocked' }
+    }
     throw error
   }
   return { saved: true, data }
