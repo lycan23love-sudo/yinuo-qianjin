@@ -51,6 +51,22 @@ function sourceLabel(source) {
   return '公益入账'
 }
 
+function actionStatusInfo(item) {
+  const raw = item?.raw_status || item?.status
+  if (raw === 'approved' || item?.status === '已通过') {
+    return { tone: 'green', label: '已认定', title: '陪审团已确认，公益金币会进入你的账户。', next: item?.decided_at ? '认定时间 ' + formatDate(item.decided_at) : '结果已形成' }
+  }
+  if (raw === 'needs_revision' || item?.status === '需补充') {
+    return { tone: 'gold', label: '需补充', title: '陪审团需要更清楚的证明。', next: '补充图片、视频或说明后，可以再次提交。' }
+  }
+  if (raw === 'rejected' || item?.status === '未通过') {
+    return { tone: 'red', label: '未通过', title: '这次善行暂未通过认定。', next: '换一件更明确的小公益，重新留下证据。' }
+  }
+  const votes = item?.votes || {}
+  const top = Math.max(Number(votes.approve || 0), Number(votes.reject || 0), Number(votes.revise || 0))
+  return { tone: 'blue', label: '陪审中', title: '已送入陪审团，等待 2 票形成结论。', next: top > 0 ? '已有 ' + top + ' 票同向，还差 ' + Math.max(0, 2 - top) + ' 票。' : '暂未形成有效确认。' }
+}
+
 function SectionTitle({ title, action }) {
   return <div style={S.sectionHead}><div style={S.sectionTitle}>{title}</div>{action}</div>
 }
@@ -94,7 +110,13 @@ export default function CharityPage() {
       }
     }
     loadActions()
-    return () => { alive = false }
+    window.addEventListener('focus', loadActions)
+    window.addEventListener('ynq:notifications-changed', loadActions)
+    return () => {
+      alive = false
+      window.removeEventListener('focus', loadActions)
+      window.removeEventListener('ynq:notifications-changed', loadActions)
+    }
   }, [userId])
 
   const selected = ORGS.find(item => item.id === selectedOrg) || ORGS[0]
@@ -263,17 +285,25 @@ export default function CharityPage() {
             const pendingActions = actionRecords.filter(item => item.raw_status === 'pending' || item.status === '待确认')
             const approvedActions = actionRecords.filter(item => item.raw_status === 'approved' || item.status === '已通过')
             const returnedActions = actionRecords.filter(item => ['rejected','needs_revision'].includes(item.raw_status) || ['未通过','需补充'].includes(item.status))
-            const renderAction = item => (
-              <div key={item.id} style={S.actionRecord}>
-                <div style={S.recordEmoji}>🌿</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={S.recordTitle}>{item.type}</div>
-                  <div style={S.recordMeta}>{formatDate(item.created_at)} · {item.status} · 申请 {item.reward} 金币</div>
-                  <div style={S.recordMsg}>{item.text}</div>
-                  <div style={S.proofText}>证明：{item.proof}</div>
+            const renderAction = item => {
+              const info = actionStatusInfo(item)
+              return (
+                <div key={item.id} style={S.actionRecord}>
+                  <div style={S.recordEmoji}>🌿</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={S.recordTopLine}>
+                      <div style={S.recordTitle}>{item.type}</div>
+                      <span style={{ ...S.statusPill, ...(info.tone === 'green' ? S.statusGreen : info.tone === 'red' ? S.statusRed : info.tone === 'gold' ? S.statusGold : S.statusBlue) }}>{info.label}</span>
+                    </div>
+                    <div style={S.recordMeta}>{formatDate(item.created_at)} · 申请 {item.reward} 金币</div>
+                    <div style={S.recordMsg}>{item.text}</div>
+                    <div style={S.proofText}>证明：{item.proof}</div>
+                    <div style={S.actionProgress}>{info.title}</div>
+                    <div style={S.actionNext}>{info.next}</div>
+                  </div>
                 </div>
-              </div>
-            )
+              )
+            }
             return (
               <>
                 <SectionTitle title="我的善行记录" />
@@ -356,6 +386,14 @@ const S = {
   proofText: { fontSize: 10, color: C.hint, marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   recordCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: 12, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 },
   recordEmoji: { width: 36, height: 36, borderRadius: 10, background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 },
+  recordTopLine: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  statusPill: { borderRadius: 999, padding: '4px 9px', fontSize: 11, fontWeight: 900, whiteSpace: 'nowrap' },
+  statusGreen: { background: C.greenL, color: C.green },
+  statusBlue: { background: C.blueL, color: C.blue },
+  statusGold: { background: C.goldL, color: C.goldD },
+  statusRed: { background: C.redL, color: C.red },
+  actionProgress: { marginTop: 8, borderRadius: 10, background: C.soft, color: C.ink, padding: '8px 10px', fontSize: 13, lineHeight: 1.5, fontWeight: 800 },
+  actionNext: { marginTop: 6, color: C.muted, fontSize: 12, lineHeight: 1.5 },
   recordTitle: { fontSize: 14, fontWeight: 900, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   recordMeta: { fontSize: 11, color: C.muted, marginTop: 3 },
   recordMsg: { fontSize: 11, color: C.hint, marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
