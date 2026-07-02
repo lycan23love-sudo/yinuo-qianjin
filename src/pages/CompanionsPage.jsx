@@ -551,8 +551,20 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
   const members = buildRoomMembers(pledge)
   const activeMembers = members.filter(item => !item.empty)
   const doneCount = activeMembers.filter(item => item.doneToday).length
+  const pendingCount = Math.max(activeMembers.length - doneCount, 0)
   const progress = pct(pledge)
   const buddy = getBuddy(activeMembers, currentUserId)
+  const selfMember = activeMembers.find(item => item.id === currentUserId)
+  const sortedMembers = [...activeMembers].sort((a, b) => {
+    if (a.doneToday !== b.doneToday) return a.doneToday ? -1 : 1
+    return (b.progress || 0) - (a.progress || 0)
+  })
+  const topMember = sortedMembers[0]
+  const teamMood = doneCount === 0
+    ? '今天还没人先迈步。谁先守住，谁就把小队拉回正轨。'
+    : doneCount === activeMembers.length
+      ? '今天全员已守住，队伍节奏很稳。'
+      : doneCount + '位队友已经守住今日，还差' + pendingCount + '位。'
   const [showNudgeBox, setShowNudgeBox] = useState(false)
   const [showEncourageBox, setShowEncourageBox] = useState(false)
   const [nudgeDraft, setNudgeDraft] = useState('今天还没守诺，我在小队等你。')
@@ -591,30 +603,14 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
           </div>
         </div>
 
-        <div style={S.meetingCard}>
-          <div style={S.meetingTitle}>今日守诺圈</div>
-          <div style={S.meetingSub}>{doneCount > 0 ? '有人已经先守住今日，队伍状态已更新。' : '今天还没人守诺。互助会里，先行动的人会把大家拉回正轨。'}</div>
-          {members.map((member, index) => {
-            const isSelf = member.id === currentUserId
-            return (
-            <div key={member.id} style={{ ...S.shareRow, ...(member.empty ? { opacity: .58 } : {}) }}>
-              <div style={{ ...S.shareAvatar, background: member.empty ? C.soft : member.doneToday ? C.green : C.gold }}>{member.empty ? '+' : member.name.slice(0, 1)}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={S.shareName}>{member.name}<span>{isSelf ? '我' : member.role}</span></div>
-                <div style={S.shareText}>{memberCheckinLine(member, index)}</div>
-              </div>
-              <Tag tone={member.empty ? 'gold' : member.doneToday ? 'green' : 'red'}>{member.empty ? '空位' : member.doneToday ? '今日已守' : '今日待守'}</Tag>
-            </div>
-          )})}
-        </div>
-
         <div style={S.buddyCard}>
           <div style={S.buddyTop}>
             <div style={S.buddyIcon}>☕</div>
             <div style={{ flex: 1 }}>
               <div style={S.buddyTitle}>{buddy ? '今日搭子：' + buddy.name : '今日搭子：暂无其他团友'}</div>
-              <div style={S.buddyText}>{buddy ? (buddy.doneToday ? 'TA已经完成。你可以把这份节奏接过来。' : 'TA今天还没守诺。轻轻提醒一句，比沉默更有力量。') : '搭子只能是其他用户。等有人加入小队后，这里才会出现真正的守诺搭子。'}</div>
+              <div style={S.buddyText}>{buddy ? (buddy.doneToday ? 'TA已经完成。你可以给一个回应，让守诺被看见。' : 'TA今天还没守诺。轻轻提醒一句，比沉默更有力量。') : '搭子只能是其他用户。等有人加入小队后，这里才会出现真正的守诺搭子。'}</div>
             </div>
+            {buddy && <Tag tone={buddy.doneToday ? 'green' : 'red'}>{buddy.doneToday ? '已守' : '待守'}</Tag>}
           </div>
           <div style={S.buddyActions}>
             <button style={S.buddyBtn} onClick={() => buddy ? setShowEncourageBox(v => !v) : onEncourage?.('empty')} disabled={!buddy}>机选鼓励</button>
@@ -643,18 +639,41 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
           )}
         </div>
 
-        <div style={S.sectionLabel}>队员打卡对比</div>
         <div style={S.panelCard}>
-          {activeMembers.map((member, index) => (
-            <div key={member.id} style={S.compareGraphRow}>
-              <span style={S.compareName}>{member.name}</span>
-              <div style={S.compareBar}><div style={{ ...S.compareFill, width: member.progress + '%', background: index === 0 ? C.gold : index === 1 ? C.blue : C.purple }} /></div>
-              <b style={S.compareValue}>{member.progress}%</b>
+          <div style={S.meetingTitle}>队内今日节奏</div>
+          <div style={S.meetingSub}>{teamMood}</div>
+          <div style={S.compareRow}><span>我的状态</span><b>{selfMember?.doneToday ? '今日已守' : '今日待守'}</b></div>
+          <div style={S.compareRow}><span>领跑队友</span><b>{topMember ? topMember.name : '暂无'}</b></div>
+          <div style={S.compareRow}><span>小队压力</span><b>{pendingCount > 0 ? pendingCount + '人待守' : '全员跟上'}</b></div>
+          <div style={S.compareHint}>同行的压力不是催促，而是看见差距；同行的温暖不是说教，而是有人回应。</div>
+        </div>
+
+        <div style={S.sectionLabel}>队友进度对比</div>
+        <div style={S.panelCard}>
+          {sortedMembers.map((member, index) => {
+            const isSelf = member.id === currentUserId
+            return (
+              <div key={member.id} style={S.memberRow}>
+                <div style={{ ...S.memberAvatar, background: member.doneToday ? C.green : C.gold }}>{index + 1}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={S.memberName}>{member.name}<span>{isSelf ? '我' : member.role}</span></div>
+                  <div style={S.memberHint}>{memberCheckinLine(member, index)} · 完成度 {member.progress}%</div>
+                  <div style={S.miniTrack}><div style={{ ...S.miniFill, width: member.progress + '%', background: member.doneToday ? C.green : C.gold }} /></div>
+                </div>
+                <Tag tone={member.doneToday ? 'green' : 'red'}>{member.doneToday ? '已守' : '待守'}</Tag>
+              </div>
+            )
+          })}
+          {members.filter(item => item.empty).map(member => (
+            <div key={member.id} style={{ ...S.memberRow, opacity: .62 }}>
+              <div style={{ ...S.memberAvatar, background: C.soft, color: C.hint }}>+</div>
+              <div style={{ flex: 1 }}>
+                <div style={S.memberName}>{member.name}<span>{member.role}</span></div>
+                <div style={S.memberHint}>空位留给下一位同行者</div>
+              </div>
+              <Tag tone="gold">空位</Tag>
             </div>
           ))}
-          <div style={S.compareRow}><span>今日已守率</span><b>{doneCount}/{activeMembers.length || 1}</b></div>
-          <div style={S.compareRow}><span>我的位置</span><b>{checkedToday(pledge) ? '已跟上' : '待跟上'}</b></div>
-          <div style={S.compareHint}>小队按行者身份同行，不再要求誓言文字完全一致。对比的是每个人守诺的完成度：温暖来自回应，压力来自看见差距。</div>
         </div>
       </div>
     </div>
