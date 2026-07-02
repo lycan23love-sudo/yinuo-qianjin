@@ -305,7 +305,7 @@ function CalendarView({ checkins, pledge }) {
                                                                         if (!session?.user?.id) { showToast('请先登录', 'error'); return }
                                                                         if (session.user.id === pledge.user_id) { showToast('不能质疑自己的打卡', 'error'); return }
                                                                         if (checkin.status === 'disputed') { showToast('这条打卡已进入陪审团', 'info'); return }
-                                                                        const finalReason = reason.trim() || '请求陪审团复核此打卡证据'
+                                                                        const finalReason = reason.trim() || '请求陪审团判定这次打卡是否真实'
                                                                         setWitnessLoading(true)
                                                                         try {
                                                                           await disputeCheckin(session.user.id, checkin.id, pledge.id, finalReason)
@@ -480,20 +480,20 @@ function CalendarView({ checkins, pledge }) {
                                                                                               {getCheckinDisplayNote(c) && <div style={{ fontSize:13, lineHeight:1.7, color:'#3A2A18', borderLeft:'3px solid #C8922A', paddingLeft:10, fontStyle:'italic', marginBottom:8, whiteSpace:'pre-wrap' }}>「{getCheckinDisplayNote(c)}」</div>}
                                                                                               {c.mood && <div style={{ fontSize:11, color:'#9A8A70' }}>{MOOD_LABEL[c.mood]||c.mood}</div>}
                                                                                                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginTop:8 }}>
-                                                                                                                {!isOwner && c.status === 'valid' ? (
+                                                                                                                {!isOwner && c.status !== 'disputed' ? (
                                                                                                                   <button onClick={() => { setDisputeTarget(c.id); setDisputeReason('') }} disabled={witnessLoading}
                                                                                                                     style={{ border:'1px solid #E0D5C0', background:'#fff', color:'#7A5A18', borderRadius:20, padding:'4px 10px', fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' }}>
-                                                                                                                    质疑此打卡
+                                                                                                                    质疑/复核
                                                                                                                   </button>
                                                                                                                 ) : <div />}
                                                                                                                                   <div style={{ fontSize:10, fontWeight:600, color:c.status==='valid'?'#3B7A4A':c.status==='disputed'?'#C84040':'#9A8A70', background:c.status==='valid'?'#E8F5EC':c.status==='disputed'?'#FCEBEB':'#F5F0E8', padding:'2px 8px', borderRadius:20 }}>
-                                                                                                                                    {c.status==='valid'?'✓ 已验证':c.status==='disputed'?'⚖️ 已质疑':c.status==='pending'?'⏳ 审核中':c.status}
+                                                                                                                                    {c.status==='disputed'?'⚖️ 陪审中':c.status==='pending'?'⏳ 待确认':'✓ 可复核'}
                                                                                                                                     </div>
                                                                                                                 </div>
                                                                                                               {disputeTarget === c.id && (
                                                                                                                 <div style={{ marginTop:10, padding:10, borderRadius:10, background:'#FDF3E0', border:'1px solid rgba(200,146,42,.35)' }}>
                                                                                                                   <textarea value={disputeReason} onChange={e => setDisputeReason(e.target.value)}
-                                                                                                                    placeholder="写下质疑理由，例如：截图不清晰、内容与誓言不符"
+                                                                                                                    placeholder="写下复核理由，例如：证明不清晰、内容与誓言不符"
                                                                                                                     rows={2}
                                                                                                                     style={{ width:'100%', boxSizing:'border-box', border:'1px solid #E0D5C0', borderRadius:8, padding:8, fontSize:12, fontFamily:'Noto Sans SC,sans-serif', resize:'none', outline:'none' }} />
                                                                                                                   <div style={{ display:'flex', gap:8, marginTop:8 }}>
