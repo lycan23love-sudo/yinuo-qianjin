@@ -150,7 +150,7 @@ export default function JuryPage() {
       <main style={S.content}>
         <section style={S.notice}>
           <strong>陪审团确认规则</strong>
-          <p>善行与争议都交由同行确认。申请人不能确认自己的案件，2 票同向即可形成初步结论。</p>
+          <p>善行与打卡复核都交由同行确认。善行需要 2 票同向形成结论；打卡复核由陪审员根据证明判定真实或不实。</p>
           {!charityCloud && tab === 'charity' && <p style={S.warn}>当前使用本地记录；启用 Supabase 表后将自动切换为跨账号确认。</p>}
         </section>
 
@@ -170,11 +170,13 @@ export default function JuryPage() {
                     </div>
                     <span style={S.badge}>{fmtDate(dispute.created_at)}</span>
                   </div>
-                  <p style={S.desc}>{dispute.reason || '用户提交了申诉，请根据证明材料判断。'}</p>
-                  {dispute.proof_url && <img src={dispute.proof_url} alt="proof" style={S.proofImg} />}
+                  <p style={S.desc}>{dispute.reason || '用户提交了复核请求，请根据证明材料判断这次打卡是否真实。'}</p>
+                  {dispute.checkins?.image_url && <img src={dispute.checkins.image_url} alt="proof" style={S.proofImg} />}
+                  {dispute.checkins?.note && <div style={S.proofLine}>打卡说明：{dispute.checkins.note}</div>}
+                  <div style={S.metaLine}>打卡日期 {dispute.checkins?.checkin_date || '未知'} · 第 {dispute.checkins?.day_num || '-'} 天</div>
                   <div style={{ ...S.actions, gridTemplateColumns: '1fr 1fr' }}>
-                    <button style={S.primaryBtn} disabled={voting === dispute.id + 'upheld'} onClick={() => handleVote(dispute.id, 'upheld')}>支持申诉</button>
-                    <button style={S.ghostBtn} disabled={voting === dispute.id + 'overturned'} onClick={() => handleVote(dispute.id, 'overturned')}>维持原判</button>
+                    <button style={S.primaryBtn} disabled={voting === dispute.id + 'upheld'} onClick={() => handleVote(dispute.id, 'upheld')}>判定真实</button>
+                    <button style={S.dangerBtn} disabled={voting === dispute.id + 'overturned'} onClick={() => handleVote(dispute.id, 'overturned')}>判定不实</button>
                   </div>
                 </article>
               )) : <div style={S.empty}>{emptyText}</div>
