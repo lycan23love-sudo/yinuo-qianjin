@@ -21,7 +21,7 @@ function getQuote(day) {
 }
 
 
-function getCheckinEcho({ dayNum, streak, pct, totalCoins, isSettled }) {
+function getCheckinEcho({ dayNum, streak, pct, totalCoins, isSettled, mood }) {
   if (isSettled) {
     return {
       label: '守诺回响',
@@ -36,6 +36,22 @@ function getCheckinEcho({ dayNum, streak, pct, totalCoins, isSettled }) {
       title: '连续两周，习惯开始反过来扶住你。',
       body: '你已经不只是在靠意志硬撑，而是在建立一条可以重复的路。',
       next: '明天照常来，别让这条路断掉。'
+    }
+  }
+  if (mood === 'danger') {
+    return {
+      label: '守住边缘',
+      title: '差点放弃却仍然完成，这一天很硬。',
+      body: '真正改变人的，不是轻松完成的日子，而是快要滑走时你把自己拉了回来。',
+      next: '今天先别苛责自己，明天只要继续出现。'
+    }
+  }
+  if (mood === 'grind') {
+    return {
+      label: '咬牙守诺',
+      title: '你不是状态很好才完成，而是完成后才重新站稳。',
+      body: '这类打卡最有价值，因为它证明诺言不只靠情绪维持。',
+      next: '金币 +' + totalCoins + '，这一天值得记入日记。'
     }
   }
   if ([7, 14, 21, 28].includes(dayNum)) {
@@ -84,13 +100,13 @@ export default function CheckinSuccess() {
 
 
   if (!state) return null
-    const { result, pledge } = state
+    const { result, pledge, mood, moodLabel, note } = state
     const { totalCoins, streak, dayNum, settlement } = result
     const pledgeStake = pledge?.stake_coins || pledge?.stakeCoins || 0
     const isSettled = settlement?.success
     const pct = isSettled ? 100 : Math.min(100, Math.round((dayNum / (pledge?.total_days || 30)) * 100))
     const isMilestone = [7, 14, 21, 28].includes(dayNum)
-    const echo = getCheckinEcho({ dayNum, streak, pct, totalCoins, isSettled })
+    const echo = getCheckinEcho({ dayNum, streak, pct, totalCoins, isSettled, mood })
 
 
 
@@ -215,6 +231,10 @@ export default function CheckinSuccess() {
                                 <div style={{ fontSize:13, color:'#5A4A30', lineHeight:1.75 }}>{echo.body}</div>
                                 <div style={{ fontSize:12, color:'#7A5A18', fontWeight:800, marginTop:8 }}>{echo.next}</div>
                       </div>
+                      <div style={diaryEchoCard}>
+                                <div style={{ fontSize:11, color:'#7A5A18', fontWeight:900, marginBottom:6 }}>今日留下的记录</div>
+                                <div style={{ fontSize:13, color:'#5A4A30', lineHeight:1.7 }}>{moodLabel ? moodLabel + ' · ' : ''}{note ? '「' + note + '」' : '这次打卡已写入日记。哪怕没有留下文字，行动本身也已经留下痕迹。'}</div>
+                      </div>
               </div>
         
               <div style={{ width:'100%', display:'flex', flexDirection:'column', gap:10 }}>
@@ -240,6 +260,10 @@ const achCard = {
   }
   const tagGold = {
       background:'#FDF3E0', color:'#7A5A18', fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:20, flexShrink:0
+  }
+  const diaryEchoCard = {
+      background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:12,
+      padding:'12px 15px', width:'100%', boxSizing:'border-box', marginTop:8
   }
     const S = {
         btnGold: { background:'linear-gradient(135deg,#C8922A,#E8B84A)', color:'#fff', border:'none', borderRadius:12, fontWeight:700, cursor:'pointer', padding:'14px 0', fontSize:15, fontFamily:'Noto Sans SC,sans-serif', width:'100%', letterSpacing:.5 },
