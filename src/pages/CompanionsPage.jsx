@@ -2,10 +2,36 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
-import { getMyPledges, getPublicPledges, getPledgeDetail, getUserCompanionPledges, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins, sendUserNotification } from '../lib/supabase'
+import { getMyPledges, getPublicPledges, getPledgeDetail, getUserCompanionPledges, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins, sendUserNotification, savePushSubscription, getPushSubscriptionStatus } from '../lib/supabase'
 import { PLEDGE_CATEGORIES, inferPledgeCategory, inferPledgeTag } from '../lib/pledgeCategories'
 
 const TEAM_LIMIT = 5
+
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || ''
+
+function canUsePushNotifications() {
+  return typeof window !== 'undefined'
+    && 'Notification' in window
+    && 'serviceWorker' in navigator
+    && 'PushManager' in window
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i)
+  return outputArray
+}
+
+async function getServiceWorkerRegistration() {
+  if (!('serviceWorker' in navigator)) return null
+  const existing = await navigator.serviceWorker.getRegistration('/')
+  if (existing) return existing
+  await navigator.serviceWorker.register('/sw.js')
+  return navigator.serviceWorker.ready
+}
 
 const C = {
   gold: '#C8922A', goldL: '#FDF3E0', goldD: '#7A5A18', ink: '#1A1208',
@@ -546,6 +572,22 @@ function TeamMemberRow({ member, rank }) {
   )
 }
 
+
+function PushNotice({ state, busy, onEnable }) {
+  if (state.subscribed || state.checking) return null
+  const unsupported = state.reason === 'unsupported'
+  const blocked = state.permission === 'denied'
+  return (
+    <div style={S.pushNotice}>
+      <div style={S.pushCopy}>
+        <b>{blocked ? '手机提醒被系统拦截' : unsupported ? '当前浏览器不支持手机提醒' : '同行手机提醒未开启'}</b>
+        <span>{blocked ? '请在浏览器或手机设置里允许通知，否则队友提醒只能进消息中心。' : unsupported ? '手机顶部通知需要支持推送的浏览器；iPhone 需先把网页添加到主屏幕。' : '开启后，队友的提醒守诺和鼓励会尝试出现在手机通知栏。'}</span>
+      </div>
+      {!unsupported && !blocked && <button style={S.pushBtn} onClick={onEnable} disabled={busy}>{busy ? '开启中' : '开启'}</button>}
+    </div>
+  )
+}
+
 function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudge, onEncourage, onHelp }) {
   const group = groupForPledge(pledge)
   const members = buildRoomMembers(pledge)
@@ -697,6 +739,8 @@ export default function CompanionsPage() {
   const [roomPledge, setRoomPledge] = useState(null)
   const [roomLoading, setRoomLoading] = useState(false)
   const [roomError, setRoomError] = useState('')
+  const [pushState, setPushState] = useState({ checking: true, subscribed: false, permission: 'default' })
+  const [pushBusy, setPushBusy] = useState(false)
 
   function showToast(msg) {
     setToast(msg)
@@ -727,6 +771,71 @@ export default function CompanionsPage() {
   }
 
   useEffect(() => { load() }, [session?.user?.id])
+
+  useEffect(() => {
+    let alive = true
+    async function checkPush() {
+      if (!session?.user?.id) {
+        setPushState({ checking: false, subscribed: false, permission: 'default' })
+        return
+      }
+      if (!canUsePushNotifications()) {
+        setPushState({ checking: false, subscribed: false, reason: 'unsupported', permission: 'default' })
+        return
+      }
+      try {
+        const status = await getPushSubscriptionStatus(session.user.id)
+        if (!alive) return
+        setPushState({ checking: false, subscribed: !!status.subscribed, ready: status.ready, permission: Notification.permission })
+      } catch {
+        if (alive) setPushState({ checking: false, subscribed: false, reason: 'check_failed', permission: Notification.permission })
+      }
+    }
+    checkPush()
+    return () => { alive = false }
+  }, [session?.user?.id])
+
+  async function enablePushReminders() {
+    if (!session?.user?.id) return nav('/auth')
+    if (!canUsePushNotifications()) {
+      showToast('当前浏览器暂不支持手机推送；iPhone 请先添加到主屏幕')
+      return
+    }
+    if (!VAPID_PUBLIC_KEY) {
+      showToast('推送密钥还未配置，暂时只能进入消息中心')
+      return
+    }
+    setPushBusy(true)
+    try {
+      const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
+      if (permission !== 'granted') {
+        setPushState({ checking: false, subscribed: false, permission })
+        showToast('未开启通知权限，队友提醒仍会进入消息中心')
+        return
+      }
+      const registration = await getServiceWorkerRegistration()
+      if (!registration?.pushManager) throw new Error('当前浏览器没有推送能力')
+      const subscription = await registration.pushManager.getSubscription()
+        || await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        })
+      const saved = await savePushSubscription(session.user.id, subscription, navigator.userAgent || '')
+      if (!saved.saved) {
+        showToast(saved.reason === 'missing_table' ? '推送订阅表未启用，请先执行数据库 SQL' : '通知订阅保存失败')
+        setPushState({ checking: false, subscribed: false, permission })
+        return
+      }
+      setPushState({ checking: false, subscribed: true, ready: true, permission })
+      showToast('已开启同行手机提醒')
+    } catch (err) {
+      showToast(err.message || '开启手机提醒失败')
+      setPushState({ checking: false, subscribed: false, reason: 'save_failed', permission: Notification.permission })
+    } finally {
+      setPushBusy(false)
+    }
+  }
+
 
   async function handleRecruit(pledge) {
     if (!session?.user?.id) return nav('/auth')
@@ -819,7 +928,7 @@ export default function CompanionsPage() {
         metadata: { label, teamTitle: roomPledge?.title || '', url: '/companions' },
         url: '/companions'
       })
-      showToast(result.delivered ? '已送达' + member.name + (result.pushed ? '，并已尝试推送' : '的消息中心') : '消息中心通知表未启用，请先执行数据库 SQL')
+      showToast(result.delivered ? '已送达' + member.name + (result.pushed ? '，会尝试弹到手机' : '的消息中心；对方未开启手机提醒') : '消息中心通知表未启用，请先执行数据库 SQL')
     } catch (err) {
       showToast(err.message || '通知发送失败')
     }
@@ -881,6 +990,8 @@ export default function CompanionsPage() {
           <button key={key} onClick={() => setTab(key)} style={{ ...S.tabBtn, ...(tab === key ? S.tabBtnOn : {}) }}>{label}</button>
         ))}
       </div>
+
+      <PushNotice state={pushState} busy={pushBusy} onEnable={enablePushReminders} />
 
       {loading && <div style={S.stateText}>正在加载同行数据...</div>}
       {!loading && error && <div style={S.stateText}>{error}</div>}
@@ -977,6 +1088,9 @@ const S = {
   tabBtnOn: { color: C.gold, borderBottom: '2px solid ' + C.gold, fontWeight: 800 },
   scrollArea: { flex: 1, overflowY: 'auto', padding: '14px 16px' },
   stateText: { padding: '28px 16px', textAlign: 'center', color: C.muted, fontSize: 13 },
+  pushNotice: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '10px 16px 0', padding: '11px 12px', border: '1px solid #E8D4A0', borderRadius: 14, background: '#FFF9EA', boxShadow: '0 2px 10px rgba(122,90,24,.05)' },
+  pushCopy: { display: 'flex', flexDirection: 'column', gap: 3, color: C.muted, fontSize: 11, lineHeight: 1.45, minWidth: 0 },
+  pushBtn: { border: 'none', background: C.ink, color: '#F6D486', borderRadius: 999, padding: '8px 14px', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', whiteSpace: 'nowrap' },
   toast: { position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)', background: 'rgba(26,18,8,.9)', color: '#fff', padding: '9px 18px', borderRadius: 999, fontSize: 13, zIndex: 200, whiteSpace: 'nowrap' },
   kicker: { fontSize: 11, color: C.goldD, fontWeight: 900, letterSpacing: 1.5, marginBottom: 6 },
   summaryCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: 14, marginBottom: 12, boxShadow: '0 2px 10px rgba(26,18,8,.06)' },
