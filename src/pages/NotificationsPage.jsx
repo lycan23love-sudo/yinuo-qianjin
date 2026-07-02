@@ -41,8 +41,45 @@ function iconFor(type) {
   if (type === 'companion_nudge') return '⏰'
   if (type === 'companion_echo') return '👏'
   if (type === 'companion_help') return '🫱'
+  if (type === 'charity_review' || type === 'good_deed_review') return '❤️'
+  if (type === 'pledge_settlement' || type === 'pledge_reminder') return '📜'
   return '🔔'
 }
+function categoryFor(item) {
+  const type = item?.type || 'system'
+  if (type.startsWith('companion_')) return 'companion'
+  if (type.includes('charity') || type.includes('good_deed') || type.includes('jury')) return 'charity'
+  if (type.includes('pledge') || type.includes('checkin') || type.includes('settlement')) return 'pledge'
+  return 'system'
+}
+function labelFor(item) {
+  const category = categoryFor(item)
+  if (category === 'companion') return '同行'
+  if (category === 'charity') return '慈善'
+  if (category === 'pledge') return '誓言'
+  return '系统'
+}
+function targetFor(item) {
+  const meta = item?.metadata || {}
+  const raw = meta.url || meta.target || meta.path || ''
+  if (typeof raw === 'string' && raw.startsWith('/')) return raw
+  if (item?.pledge_id) return '/pledge/' + item.pledge_id
+  if (categoryFor(item) === 'companion') return '/companions'
+  if (categoryFor(item) === 'charity') return '/charity'
+  return ''
+}
+function isImportant(item) {
+  return !item?.read_at || item?.type === 'companion_nudge' || item?.type === 'pledge_reminder'
+}
+
+const FILTERS = [
+  ['all', '全部'],
+  ['unread', '未读'],
+  ['companion', '同行'],
+  ['pledge', '誓言'],
+  ['charity', '慈善'],
+  ['system', '系统'],
+]
 
 export default function NotificationsPage() {
   const { session } = useAuth()
@@ -55,6 +92,7 @@ export default function NotificationsPage() {
   const [permission, setPermission] = useState(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
   const [pushReady, setPushReady] = useState(false)
   const [pushSubscribed, setPushSubscribed] = useState(false)
+  const [filter, setFilter] = useState('all')
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 2200) }
 
@@ -86,6 +124,12 @@ export default function NotificationsPage() {
   }, [userId, ready])
 
   const unread = useMemo(() => items.filter(item => !item.read_at).length, [items])
+  const important = useMemo(() => items.filter(isImportant).length, [items])
+  const filteredItems = useMemo(() => {
+    if (filter === 'all') return items
+    if (filter === 'unread') return items.filter(item => !item.read_at)
+    return items.filter(item => categoryFor(item) === filter)
+  }, [items, filter])
 
   async function requestPush() {
     if (typeof Notification === 'undefined') return showToast('当前浏览器不支持系统通知')
@@ -95,11 +139,22 @@ export default function NotificationsPage() {
   }
 
   async function markOne(item) {
-    if (!item || item.read_at) return
+    if (!item || item.read_at) return item
+    const readAt = new Date().toISOString()
     if (ready) await markNotificationRead(userId, item.id)
-    const next = items.map(x => x.id === item.id ? { ...x, read_at: new Date().toISOString() } : x)
+    const next = items.map(x => x.id === item.id ? { ...x, read_at: readAt } : x)
     setItems(next)
     if (!ready) writeLocal(userId, next)
+    window.dispatchEvent(new CustomEvent('ynq:notifications-changed'))
+    return { ...item, read_at: readAt }
+  }
+
+  async function openItem(item) {
+    if (!item) return
+    const nextItem = item.read_at ? item : await markOne(item)
+    const target = targetFor(nextItem || item)
+    if (target) return nav(target)
+    showToast('已标记为已读')
   }
 
   async function markAll() {
@@ -154,15 +209,21 @@ export default function NotificationsPage() {
           <button style={S.pushBtn} onClick={requestPush}>{permission === 'granted' ? '已开启' : '开启通知'}</button>
         </div>
 
-        <div style={S.summary}><b>{unread}</b><span>条未读消息</span></div>
-        {loading ? <div style={S.empty}>正在读取消息...</div> : items.length === 0 ? <div style={S.empty}>暂时没有消息。等同行给你鼓励或提醒时，会出现在这里。</div> : items.map(item => (
-          <div key={item.id} style={{ ...S.item, ...(item.read_at ? {} : S.itemUnread) }}>
-            <button style={S.itemMain} onClick={() => markOne(item)}>
+        <div style={S.summary}><b>{unread}</b><span>条未读消息</span><em>{important}条需要处理</em></div>
+        <div style={S.filterRow}>
+          {FILTERS.map(([key, label]) => {
+            const count = key === 'all' ? items.length : key === 'unread' ? unread : items.filter(item => categoryFor(item) === key).length
+            return <button key={key} style={{ ...S.filterChip, ...(filter === key ? S.filterChipOn : {}) }} onClick={() => setFilter(key)}>{label}{count > 0 ? ' ' + count : ''}</button>
+          })}
+        </div>
+        {loading ? <div style={S.empty}>正在读取消息...</div> : filteredItems.length === 0 ? <div style={S.empty}>{items.length === 0 ? '暂时没有消息。等同行给你鼓励或提醒时，会出现在这里。' : '这个分类下暂时没有消息。'}</div> : filteredItems.map(item => (
+          <div key={item.id} style={{ ...S.item, ...(item.read_at ? {} : S.itemUnread), ...(isImportant(item) ? S.itemImportant : {}) }}>
+            <button style={S.itemMain} onClick={() => openItem(item)}>
               <div style={S.itemIcon}>{iconFor(item.type)}</div>
               <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
-                <div style={S.itemTitle}>{item.title || '一条消息'}</div>
+                <div style={S.itemLine}><span style={S.itemTitle}>{item.title || '一条消息'}</span><span style={S.typePill}>{labelFor(item)}</span></div>
                 <div style={S.itemBody}>{item.body || ''}</div>
-                <div style={S.itemTime}>{fmtTime(item.created_at)}{item.read_at ? ' · 已读' : ' · 未读'}</div>
+                <div style={S.itemTime}>{fmtTime(item.created_at)}{item.read_at ? ' · 已读' : ' · 未读'}{targetFor(item) ? ' · 点击前往' : ''}</div>
               </div>
             </button>
             <button style={S.itemDelete} onClick={() => deleteOne(item)}>删除</button>
