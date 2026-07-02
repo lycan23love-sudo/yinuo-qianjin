@@ -128,6 +128,15 @@ function getHomeFeedback({ pledge, progress, checkedToday, daysLeft }) {
   }
 }
 
+function getDashboardBrief({ loading, activeCount, completedToday, unfinishedCount }) {
+  if (loading) return { title: '正在校准今日契约', body: '稍等一下，正在取回你的守诺进度。' }
+  if (!activeCount) return { title: '今天从第一份誓言开始', body: '写下一件能重复的小事，首页会每天替你守着这份契约。' }
+  if (unfinishedCount === 0) return { title: '今日已全部守住', body: '你今天没有把诺言留到明天。可以安心收工，也可以回看日记。' }
+  if (completedToday > 0) return { title: '已经守住一部分', body: '还差 ' + unfinishedCount + ' 个诺言。先完成最容易开始的那个。' }
+  return { title: '今日还未开局', body: '不要等状态变好。先交出今天第一笔证明，节奏就会回来。' }
+}
+
+
 
 
 
@@ -213,6 +222,108 @@ const styles = {
     fontSize: 12,
     fontWeight: 700,
     whiteSpace: 'nowrap'
+  },
+  dashboardCard: {
+    border: '1px solid #E0D5C0',
+    borderRadius: 14,
+    background: '#FFFFFF',
+    padding: 14,
+    boxShadow: '0 2px 10px rgba(26,18,8,.05)',
+    marginBottom: 14
+  },
+  dashboardHeader: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 10
+  },
+  dashboardTitle: {
+    margin: 0,
+    fontFamily: 'Noto Serif SC, serif',
+    fontSize: 18,
+    lineHeight: 1.35,
+    fontWeight: 900
+  },
+  dashboardSub: {
+    margin: '5px 0 0',
+    color: '#7A6A50',
+    fontSize: 12,
+    lineHeight: 1.6
+  },
+  queueList: {
+    display: 'grid',
+    gap: 9
+  },
+  queueItem: {
+    width: '100%',
+    border: '1px solid #EDE6D8',
+    borderRadius: 12,
+    background: '#FFFCF6',
+    padding: 11,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    textAlign: 'left'
+  },
+  queueIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    background: '#F5E8C9',
+    color: '#9A6A10',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 900,
+    flexShrink: 0
+  },
+  queueMain: {
+    flex: 1,
+    minWidth: 0
+  },
+  queueTitle: {
+    color: '#1A1208',
+    fontSize: 13,
+    fontWeight: 900,
+    lineHeight: 1.35,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  },
+  queueMeta: {
+    marginTop: 4,
+    color: '#7A6A50',
+    fontSize: 11,
+    lineHeight: 1.35
+  },
+  queueAction: {
+    border: 0,
+    borderRadius: 999,
+    background: '#1A1208',
+    color: '#F6D486',
+    padding: '8px 13px',
+    fontSize: 12,
+    fontWeight: 900,
+    flexShrink: 0
+  },
+  donePill: {
+    borderRadius: 999,
+    background: '#E7F6EC',
+    color: '#2F7A4D',
+    padding: '7px 11px',
+    fontSize: 12,
+    fontWeight: 900,
+    flexShrink: 0
+  },
+  allDoneCard: {
+    borderRadius: 12,
+    background: '#EAF6EF',
+    color: '#2F6F49',
+    padding: '12px 13px',
+    fontSize: 13,
+    fontWeight: 800,
+    lineHeight: 1.6
   },
   stats: {
     display: 'grid',
@@ -360,6 +471,24 @@ const styles = {
     marginTop: 7,
     color: '#7A5A18',
     fontSize: 12,
+    fontWeight: 800
+  },
+  reminderStrip: {
+    marginTop: 11,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    color: '#5A4A30',
+    fontSize: 13
+  },
+  reminderButton: {
+    border: 0,
+    borderRadius: 999,
+    background: '#F2EEE6',
+    color: '#7A6A50',
+    padding: '4px 8px',
+    fontSize: 11,
     fontWeight: 800
   },
   actionRow: {
@@ -597,11 +726,15 @@ export default function HomePage() {
 
   const activePledges = pledges.filter(p => !p.status || p.status === 'active' || p.status === 'ongoing')
   const unfinishedToday = activePledges.filter(p => !checkedMap[p.id])
-  const todayPledge = [...(unfinishedToday.length ? unfinishedToday : activePledges)].sort((a, b) => {
+  const todayQueue = [...activePledges].sort((a, b) => {
+    const aChecked = checkedMap[a.id] ? 1 : 0
+    const bChecked = checkedMap[b.id] ? 1 : 0
+    if (aChecked !== bChecked) return aChecked - bChecked
     const aLeft = daysLeft(a) ?? 9999
     const bLeft = daysLeft(b) ?? 9999
     return aLeft - bLeft
-  })[0]
+  })
+  const todayPledge = (unfinishedToday.length ? todayQueue.find(p => !checkedMap[p.id]) : todayQueue[0])
 
 
 
@@ -617,6 +750,12 @@ export default function HomePage() {
   const mainDaysLeft = daysLeft(todayPledge)
   const homeFeedback = getHomeFeedback({ pledge: todayPledge, progress: mainProgress, checkedToday: mainChecked, daysLeft: mainDaysLeft })
   const mainReminder = todayPledge ? getReminderForPledge(userId, todayPledge.id) : readReminderStore(userId).global
+  const dashboardBrief = getDashboardBrief({
+    loading,
+    activeCount: activePledges.length,
+    completedToday,
+    unfinishedCount: Math.max(activePledges.length - completedToday, 0)
+  })
 
 
 
@@ -670,6 +809,48 @@ export default function HomePage() {
           <div style={styles.statValue}>{keepRate}%</div>
           <div style={styles.statLabel}>总守约率</div>
         </div>
+      </section>
+
+
+
+
+      <section style={styles.dashboardCard}>
+        <div style={styles.dashboardHeader}>
+          <div>
+            <h2 style={styles.dashboardTitle}>{dashboardBrief.title}</h2>
+            <p style={styles.dashboardSub}>{dashboardBrief.body}</p>
+          </div>
+          <button onClick={() => nav('/new')} style={styles.linkButton}>立新誓</button>
+        </div>
+        {activePledges.length ? (
+          unfinishedToday.length ? (
+            <div style={styles.queueList}>
+              {todayQueue.slice(0, 4).map(pledge => {
+                const progress = progressOf(pledge)
+                const checked = checkedMap[pledge.id]
+                const left = daysLeft(pledge)
+                return (
+                  <button
+                    key={pledge.id}
+                    onClick={() => nav(checked ? '/pledge/' + pledge.id : '/pledge/' + pledge.id + '/checkin')}
+                    style={styles.queueItem}
+                  >
+                    <div style={styles.queueIcon}>{checked ? '✓' : '守'}</div>
+                    <div style={styles.queueMain}>
+                      <div style={styles.queueTitle}>{pledgeTitle(pledge)}</div>
+                      <div style={styles.queueMeta}>{progress.done}/{progress.total} 天 · {left === null ? '持续守诺' : left === 0 ? '今日到期' : '还剩 ' + left + ' 天'}</div>
+                    </div>
+                    {checked ? <span style={styles.donePill}>已守</span> : <span style={styles.queueAction}>打卡</span>}
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div style={styles.allDoneCard}>✓ 今日全部完成。你已经把今天的诺言守住了，明天再继续。</div>
+          )
+        ) : (
+          <div style={styles.empty}>暂无进行中的诺言。先立下一件每天能守住的小事。</div>
+        )}
       </section>
 
 
@@ -739,7 +920,7 @@ export default function HomePage() {
       <section style={styles.panel}>
         <div style={styles.panelHeader}>
           <h3 style={styles.panelTitle}>我的誓言</h3>
-          <button onClick={() => nav('/new')} style={styles.linkButton}>立新誓</button>
+          <button onClick={() => nav('/new')} style={styles.linkButton}>继续立誓</button>
         </div>
         {activePledges.length ? (
           <div>
