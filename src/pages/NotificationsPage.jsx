@@ -113,15 +113,26 @@ export default function NotificationsPage() {
   async function deleteOne(item) {
     if (!item?.id) return
     if (!window.confirm('删除这条消息？')) return
+
+    const now = new Date().toISOString()
     const next = items.filter(x => x.id !== item.id)
     setItems(next)
     writeDeleted(userId, [item.id, ...readDeleted(userId)])
+    window.dispatchEvent(new CustomEvent('ynq:notifications-changed'))
+
     if (!ready) writeLocal(userId, next)
     try {
-      if (ready) await deleteNotification(userId, item.id)
+      if (ready) {
+        await markNotificationRead(userId, item.id)
+        await deleteNotification(userId, item.id)
+      } else if (!item.read_at) {
+        writeLocal(userId, items.map(x => x.id === item.id ? { ...x, read_at: now } : x))
+      }
       showToast('消息已删除')
     } catch (err) {
       showToast('已从本机消息中心移除')
+    } finally {
+      window.dispatchEvent(new CustomEvent('ynq:notifications-changed'))
     }
   }
 
