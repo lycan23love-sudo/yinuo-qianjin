@@ -4255,8 +4255,11 @@ export function subscribeToNotifications(userId, onInsert) {
 // PUSH SUBSCRIPTIONS（浏览器推送订阅）
 // ============================================================
 function isMissingPushTable(error) {
-  const msg = String(error?.message || '')
-  return error?.code === '42P01' || error?.code === 'PGRST205' || msg.includes('push_subscriptions') || msg.includes('schema cache')
+  const msg = String(error?.message || '').toLowerCase()
+  return error?.code === '42P01'
+    || error?.code === 'PGRST205'
+    || msg.includes('schema cache')
+    || msg.includes('could not find the table')
 }
 
 export async function savePushSubscription(userId, subscription, userAgent = '') {
