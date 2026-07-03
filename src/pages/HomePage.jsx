@@ -493,22 +493,58 @@ const styles = {
     fontWeight: 800
   },
   reminderStrip: {
-    marginTop: 11,
+    width: '100%',
+    marginTop: 12,
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 10,
-    color: '#5A4A30',
-    fontSize: 13
+    border: '1px solid rgba(200,146,42,.28)',
+    borderRadius: 14,
+    background: '#FFF8E8',
+    padding: '10px 12px',
+    textAlign: 'left',
+    cursor: 'pointer',
+    fontFamily: 'Noto Sans SC,sans-serif'
+  },
+  reminderIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: '50%',
+    background: '#1A1208',
+    color: '#F6D486',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 15,
+    flexShrink: 0
+  },
+  reminderTextWrap: {
+    flex: 1,
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2
+  },
+  reminderLabel: {
+    color: '#9A7A2A',
+    fontSize: 11,
+    fontWeight: 900
+  },
+  reminderTime: {
+    color: '#1A1208',
+    fontSize: 17,
+    fontWeight: 900,
+    lineHeight: 1.2
   },
   reminderButton: {
-    border: 0,
+    border: '1px solid rgba(200,146,42,.28)',
     borderRadius: 999,
-    background: '#F2EEE6',
-    color: '#7A6A50',
-    padding: '4px 8px',
-    fontSize: 11,
-    fontWeight: 800
+    background: '#fff',
+    color: '#7A5A18',
+    padding: '7px 10px',
+    fontSize: 12,
+    fontWeight: 900,
+    whiteSpace: 'nowrap'
   },
   actionRow: {
     display: 'flex',
@@ -885,10 +921,14 @@ export default function HomePage() {
               <div style={styles.feedbackBody}>{homeFeedback.body}</div>
               <div style={styles.feedbackNext}>{homeFeedback.next}</div>
             </div>
-            <div style={styles.reminderStrip}>
-              <span>{reminderLabel(mainReminder)}</span>
-              <button onClick={() => nav('/pledge/' + todayPledge.id + '?tab=settings')} style={styles.reminderButton}>修改</button>
-            </div>
+            <button onClick={() => nav('/pledge/' + todayPledge.id + '?tab=settings')} style={styles.reminderStrip}>
+              <span style={styles.reminderIcon}>⏰</span>
+              <span style={styles.reminderTextWrap}>
+                <span style={styles.reminderLabel}>守诺提醒</span>
+                <span style={styles.reminderTime}>{mainReminder?.enabled ? (mainReminder.time || DEFAULT_REMINDER.time) : '已关闭'}</span>
+              </span>
+              <span style={styles.reminderButton}>修改 ›</span>
+            </button>
             <div style={styles.actionRow}>
               <div style={styles.muted}>
                 {mainDaysLeft === null ? '持续守诺中' : mainDaysLeft === 0 ? '今日到期' : '还剩 ' + mainDaysLeft + ' 天'}
