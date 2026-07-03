@@ -947,6 +947,17 @@ export default function CompanionsPage() {
   const joinedTeams = recommended.filter(p => joinedIds.has(p.id))
   const myOwnedTeams = useMemo(() => groupPledgesByUser(myPledges), [myPledges])
   const activeGroupPledges = recommended.filter(p => teamHasGroup(p, activeGroup))
+  const activeSupportGroup = SUPPORT_GROUPS.find(g => g.key === activeGroup) || SUPPORT_GROUPS[0]
+  const activeGroupOpenTeams = activeGroupPledges.filter(p => !joinedIds.has(p.id) && teamSlots(p) > 0)
+  const activeGroupJoinedTeams = activeGroupPledges.filter(p => joinedIds.has(p.id))
+  function handleAutoMatchActiveGroup() {
+    const target = [...activeGroupOpenTeams].sort((a, b) => matchLevel(a, myPledges) - matchLevel(b, myPledges) || teamSlots(b) - teamSlots(a))[0]
+    if (!target) {
+      showToast('这个互助会暂时没有可加入小队，可以先发布自己的招募')
+      return
+    }
+    handleJoin(target)
+  }
   const suggestedForMy = recommended.filter(p => !joinedIds.has(p.id) && matchLevel(p, myPledges) <= 1 && teamSlots(p) > 0).slice(0, 3)
   const ownedMemberCount = myPledges.reduce((sum, p) => sum + teamSize(p), 0)
   const myTeamItemsRaw = [
@@ -1044,30 +1055,49 @@ export default function CompanionsPage() {
           )}
 
           <div style={S.companionDivider} />
-          <div style={S.helpSectionHead}>
-            <div>
-              <div style={S.sectionTitle}>互助会</div>
-              <div style={S.sectionHint}>按誓言类型找同路人，加入后会进入“我的小队”。</div>
-            </div>
+          <div style={S.helpHubIntro}>
+            <div style={S.kicker}>互助会</div>
+            <div style={S.helpHeroTitle}>按处境找到同路人</div>
+            <div style={S.helpHeroText}>互助会只负责发现和匹配；加入后，真正的陪伴、提醒和竞争会进入“我的小队”。</div>
           </div>
-          <div style={S.helpPillRow}>
+
+          <div style={S.groupGrid}>
             {SUPPORT_GROUPS.map(group => (
-              <HelpGroupPill key={group.key} group={group} active={activeGroup === group.key}
+              <SupportGroupCard key={group.key} group={group} active={activeGroup === group.key}
                 stats={groupStats(group.key, recommended, joinedIds)} onClick={() => setActiveGroup(group.key)} />
             ))}
           </div>
 
+          <div style={S.matchPanel}>
+            <div style={S.matchHead}>
+              <div>
+                <div style={S.sectionTitle}>{activeSupportGroup?.name || '互助会'}</div>
+                <div style={S.sectionHint}>{activeSupportGroup?.hint || '找到同路人'}</div>
+              </div>
+              <div style={S.matchEmoji}>{activeSupportGroup?.emoji}</div>
+            </div>
+            <div style={S.matchStats}>
+              <div style={S.matchStatBox}><b>{activeGroupOpenTeams.length}</b><span>可匹配</span></div>
+              <div style={S.matchStatBox}><b>{activeGroupJoinedTeams.length}</b><span>已加入</span></div>
+              <div style={S.matchStatBox}><b>{activeGroupPledges.length}</b><span>公开小队</span></div>
+            </div>
+            <div style={S.matchActions}>
+              <button style={S.btnGoldWide} onClick={handleAutoMatchActiveGroup} disabled={!activeGroupOpenTeams.length || !!joiningId}>自动匹配小队</button>
+              <button style={S.btnGhostWide} onClick={() => showToast('发起招募请先在“我的小队”里选择自己的誓言发布')}>发起招募</button>
+            </div>
+          </div>
+
           <div style={S.helpSectionHead}>
             <div>
-              <div style={S.sectionTitle}>{SUPPORT_GROUPS.find(g => g.key === activeGroup)?.name || '互助会'}</div>
-              <div style={S.sectionHint}>{SUPPORT_GROUPS.find(g => g.key === activeGroup)?.hint || '找到同路人'}</div>
+              <div style={S.sectionTitle}>公开招募</div>
+              <div style={S.sectionHint}>这里只展示少量入口；完整互动进入小队后发生。</div>
             </div>
           </div>
 
           {activeGroupPledges.length === 0 ? (
             <EmptyState title="这个互助会暂时没有公开小队" text="把自己的相关誓言发布招募，就能成为这里的第一个小队。" />
           ) : (
-            activeGroupPledges.slice(0, 4).map(pledge => (
+            activeGroupPledges.slice(0, 2).map(pledge => (
               <HelpTeamCard key={pledge.id} pledge={pledge} joined={joinedIds.has(pledge.id)} joining={joiningId === pledge.id}
                 match={matchLevel(pledge, myPledges)} onOpen={() => openRoom(pledge)} onJoin={() => handleJoin(pledge)} />
             ))
@@ -1116,6 +1146,15 @@ const S = {
 
 
   companionDivider: { height: 1, background: C.border, margin: '16px 0 14px' },
+  helpHubIntro: { background: '#FFF9EA', border: '1px solid #E8D4A0', borderRadius: 16, padding: 14, marginBottom: 12, boxShadow: '0 3px 12px rgba(122,90,24,.05)' },
+  matchPanel: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 16, padding: 14, margin: '12px 0 12px', boxShadow: '0 3px 12px rgba(26,18,8,.05)' },
+  matchHead: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
+  matchEmoji: { width: 42, height: 42, borderRadius: '50%', background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 },
+  matchStats: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 },
+  matchStatBox: { background: '#FAF7F2', border: '1px solid #EDE6D8', borderRadius: 12, padding: '9px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: C.muted, fontSize: 10 },
+  matchActions: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 },
+  btnGoldWide: { border: 'none', background: C.gold, color: '#fff', borderRadius: 999, padding: '10px 8px', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' },
+  btnGhostWide: { border: '1px solid ' + C.border, background: C.surf, color: C.goldD, borderRadius: 999, padding: '10px 8px', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' },
 
   helpHero: { background: '#FFF9EA', border: '1px solid #E8D4A0', borderRadius: 16, padding: 14, marginBottom: 12, boxShadow: '0 3px 12px rgba(122,90,24,.05)' },
   helpHeroTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 18, fontWeight: 900, color: C.ink, marginBottom: 5 },
