@@ -185,16 +185,12 @@ function EmptyState({ title, text, action, onAction }) {
 }
 
 function SupportGroupCard({ group, active, stats, onClick }) {
+  const shortName = group.name.replace('互助会', '')
   return (
-    <button style={{ ...S.groupCard, ...(active ? S.groupCardOn : {}) }} onClick={onClick}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={S.groupEmoji}>{group.emoji}</div>
-        <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-          <div style={S.groupName}>{group.name}</div>
-          <div style={S.groupHint}>{group.hint}</div>
-        </div>
-      </div>
-      <div style={S.groupMeta}>{stats.teams}个小队 · {stats.open}个可加入 · {stats.joined}个已加入</div>
+    <button style={{ ...S.groupPill, ...(active ? S.groupPillOn : {}) }} onClick={onClick}>
+      <span style={S.groupPillEmoji}>{group.emoji}</span>
+      <span style={S.groupPillName}>{shortName}</span>
+      <span style={S.groupPillMeta}>{stats.open}可加</span>
     </button>
   )
 }
@@ -1135,13 +1131,12 @@ const S = {
   filterChip: { border: '1px solid ' + C.border, background: C.surf, color: C.muted, borderRadius: 999, padding: '8px 8px', fontSize: 12, fontWeight: 800, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   filterChipOn: { background: C.ink, borderColor: C.ink, color: '#fff' },
   recommendPanel: { marginTop: 14, paddingTop: 2 },
-  groupGrid: { display: 'grid', gap: 9, marginBottom: 14 },
-  groupCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 12, padding: 12, textAlign: 'left', fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer', boxShadow: '0 2px 8px rgba(26,18,8,.04)' },
-  groupCardOn: { borderColor: C.gold, background: '#FFFCF5' },
-  groupEmoji: { width: 34, height: 34, borderRadius: '50%', background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 },
-  groupName: { fontSize: 14, fontWeight: 900, color: C.ink, marginBottom: 3 },
-  groupHint: { fontSize: 11, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  groupMeta: { marginTop: 8, fontSize: 11, color: C.goldD, fontWeight: 800 },
+  groupGrid: { display: 'flex', gap: 8, margin: '0 -16px 12px', padding: '0 16px 2px', overflowX: 'auto', scrollbarWidth: 'none' },
+  groupPill: { flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 6, border: '1px solid ' + C.border, background: C.surf, color: C.muted, borderRadius: 999, padding: '7px 10px', fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer', boxShadow: '0 2px 8px rgba(26,18,8,.04)' },
+  groupPillOn: { borderColor: C.gold, background: C.ink, color: '#F6D486' },
+  groupPillEmoji: { width: 22, height: 22, borderRadius: '50%', background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 },
+  groupPillName: { fontSize: 12, fontWeight: 900, whiteSpace: 'nowrap' },
+  groupPillMeta: { fontSize: 10, fontWeight: 800, opacity: .78, whiteSpace: 'nowrap' },
   card: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: 14, marginBottom: 10, boxShadow: '0 2px 10px rgba(26,18,8,.06)' },
 
 
