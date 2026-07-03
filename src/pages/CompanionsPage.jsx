@@ -391,12 +391,12 @@ function TodayTeamStatus({ featuredTeam, totalTeams, pendingCount, joinedCount, 
   const doneCount = hasTeam ? members.filter(member => member.doneToday).length : 0
   const userDone = hasTeam ? checkedToday(pledge) : false
   const statusText = !hasTeam
-    ? '还没有小队。去互助会找到同路人，让守诺不再只是一个人的事。'
+    ? '去互助会找到同路人，让守诺不再只是一个人的事。'
     : userDone
-      ? `你已完成今日守诺。小队当前 ${doneCount}/${teamCount} 已守，可以进去给队友一个回应。`
-      : `小队当前 ${doneCount}/${teamCount} 已守。先看看队友节奏，再决定今天如何跟上。`
+      ? `你已完成今日守诺，小队当前 ${doneCount}/${teamCount} 已守。`
+      : `小队当前 ${doneCount}/${teamCount} 已守，进去看看谁需要一句回应。`
   const feedback = !hasTeam
-    ? '找到同路目标后，这里会出现队友守诺、掉队提醒和鼓励反馈。'
+    ? '找到同路目标后，这里会出现队友反馈。'
     : doneCount >= teamCount
       ? '今日全员已守，队伍节奏很好。'
       : doneCount > 0
@@ -409,17 +409,14 @@ function TodayTeamStatus({ featuredTeam, totalTeams, pendingCount, joinedCount, 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={S.todayTitle}>今日同行反馈</div>
           <div style={S.todayText}>{statusText}</div>
-          <div style={S.todayFeedback}>{feedback}</div>
         </div>
+        <button style={S.primaryTeamBtnSmall} onClick={onPrimary}>{hasTeam ? '进入小队' : '发现小队'}</button>
       </div>
-      <div style={S.todayStats}>
-        <div style={S.todayStatBox}><b style={S.todayStatNum}>{totalTeams}</b><span style={S.todayStatLabel}>我的小队</span></div>
-        <div style={S.todayStatBox}><b style={S.todayStatNum}>{pendingCount}</b><span style={S.todayStatLabel}>待回应</span></div>
-        <div style={S.todayStatBox}><b style={S.todayStatNum}>{joinedCount}</b><span style={S.todayStatLabel}>已加入</span></div>
-        <div style={S.todayStatBox}><b style={S.todayStatNum}>{suggestedCount}</b><span style={S.todayStatLabel}>可加入</span></div>
-      </div>
-      <div style={S.todayActions}>
-        <button style={S.primaryTeamBtn} onClick={onPrimary}>{hasTeam ? '进入小队' : '发现小队'}</button>
+      <div style={S.todayFeedback}>{feedback}</div>
+      <div style={S.todayMetaRow}>
+        <span>{totalTeams} 个小队</span>
+        <span>{pendingCount} 条待回应</span>
+        <span>{suggestedCount} 个可加入</span>
       </div>
     </div>
   )
@@ -1050,11 +1047,9 @@ export default function CompanionsPage() {
             </div>
           )}
 
-          <div style={S.companionDivider} />
           <div style={S.helpHubIntro}>
             <div style={S.kicker}>互助会</div>
             <div style={S.helpHeroTitle}>按处境找到同路人</div>
-            <div style={S.helpHeroText}>互助会只负责发现和匹配；加入后，真正的陪伴、提醒和竞争会进入“我的小队”。</div>
           </div>
 
           <div style={S.groupGrid}>
@@ -1077,9 +1072,8 @@ export default function CompanionsPage() {
               <div style={S.matchStatBox}><b>{activeGroupJoinedTeams.length}</b><span>已加入</span></div>
               <div style={S.matchStatBox}><b>{activeGroupPledges.length}</b><span>公开小队</span></div>
             </div>
-            <div style={S.matchActions}>
+            <div style={S.matchActionsCompact}>
               <button style={S.btnGoldWide} onClick={handleAutoMatchActiveGroup} disabled={!activeGroupOpenTeams.length || !!joiningId}>自动匹配小队</button>
-              <button style={S.btnGhostWide} onClick={() => showToast('发起招募请先在“我的小队”里选择自己的誓言发布')}>发起招募</button>
             </div>
           </div>
 
@@ -1141,18 +1135,19 @@ const S = {
 
 
   companionDivider: { height: 1, background: C.border, margin: '16px 0 14px' },
-  helpHubIntro: { background: '#FFF9EA', border: '1px solid #E8D4A0', borderRadius: 16, padding: 14, marginBottom: 12, boxShadow: '0 3px 12px rgba(122,90,24,.05)' },
+  helpHubIntro: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, borderTop: '1px solid ' + C.border, padding: '13px 0 8px', marginTop: 4, marginBottom: 6 },
   matchPanel: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 16, padding: 14, margin: '12px 0 12px', boxShadow: '0 3px 12px rgba(26,18,8,.05)' },
   matchHead: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
   matchEmoji: { width: 42, height: 42, borderRadius: '50%', background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 },
   matchStats: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 },
   matchStatBox: { background: '#FAF7F2', border: '1px solid #EDE6D8', borderRadius: 12, padding: '9px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: C.muted, fontSize: 10 },
   matchActions: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 },
+  matchActionsCompact: { display: 'grid', gridTemplateColumns: '1fr', gap: 9 },
   btnGoldWide: { border: 'none', background: C.gold, color: '#fff', borderRadius: 999, padding: '10px 8px', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' },
   btnGhostWide: { border: '1px solid ' + C.border, background: C.surf, color: C.goldD, borderRadius: 999, padding: '10px 8px', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' },
 
   helpHero: { background: '#FFF9EA', border: '1px solid #E8D4A0', borderRadius: 16, padding: 14, marginBottom: 12, boxShadow: '0 3px 12px rgba(122,90,24,.05)' },
-  helpHeroTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 18, fontWeight: 900, color: C.ink, marginBottom: 5 },
+  helpHeroTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 16, fontWeight: 900, color: C.ink, marginBottom: 0 },
   helpHeroText: { fontSize: 12, color: C.muted, lineHeight: 1.65 },
   helpPillRow: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, padding: '0 0 10px', marginBottom: 4 },
   helpPill: { minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, border: '1px solid ' + C.border, background: C.surf, borderRadius: 12, padding: '7px 8px', textAlign: 'left', fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer', overflow: 'hidden' },
@@ -1169,16 +1164,17 @@ const S = {
   helpTeamTrack: { height: 5, borderRadius: 999, background: C.soft, overflow: 'hidden', marginBottom: 9 },
   helpTeamFill: { height: '100%', borderRadius: 999, background: C.gold },
   helpTeamFoot: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: 11, color: C.muted },
-  todayStatusCard: { background: '#FFF7E6', border: '1px solid #E6D3A4', borderRadius: 18, padding: 15, marginBottom: 14, boxShadow: '0 3px 12px rgba(122,90,24,.06)' },
-  todayStatusHead: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 },
-  todayIcon: { width: 42, height: 42, borderRadius: '50%', background: C.ink, color: '#F6D486', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 900, flexShrink: 0 },
-  todayTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 17, fontWeight: 900, color: C.ink, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  todayText: { fontSize: 12, color: C.muted, lineHeight: 1.55 },
-  todayFeedback: { marginTop: 8, fontSize: 12, color: C.goldD, lineHeight: 1.5, fontWeight: 800 },
-  todayStats: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 7, marginBottom: 12 },
-  todayStatBox: { background: 'rgba(255,255,255,.68)', border: '1px solid rgba(224,213,192,.72)', borderRadius: 12, padding: '8px 4px', textAlign: 'center' },
-  todayStatNum: { display: 'block', fontSize: 17, lineHeight: 1, fontWeight: 900, color: C.ink, marginBottom: 5 },
-  todayStatLabel: { display: 'block', fontSize: 10, color: C.muted, whiteSpace: 'nowrap' },
+  todayStatusCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 16, padding: 14, marginBottom: 12, boxShadow: '0 2px 10px rgba(26,18,8,.05)' },
+  todayStatusHead: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9 },
+  todayIcon: { width: 36, height: 36, borderRadius: '50%', background: C.ink, color: '#F6D486', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 900, flexShrink: 0 },
+  todayTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 16, fontWeight: 900, color: C.ink, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  todayText: { fontSize: 12, color: C.muted, lineHeight: 1.5 },
+  todayFeedback: { background: C.goldL, border: '1px solid rgba(200,146,42,.22)', borderRadius: 12, padding: '9px 10px', fontSize: 12, color: C.goldD, lineHeight: 1.45, fontWeight: 800 },
+  todayMetaRow: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10, color: C.hint, fontSize: 11, fontWeight: 700 },
+  todayStats: { display: 'none' },
+  todayStatBox: {},
+  todayStatNum: {},
+  todayStatLabel: {},
   todayActions: { display: 'grid', gridTemplateColumns: '1fr', gap: 8 },
   promptCard: { width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: '#FFF7E6', border: '1px solid #E6D3A4', borderRadius: 18, padding: '15px 14px', marginBottom: 18, boxShadow: '0 3px 12px rgba(122,90,24,.06)', fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   promptIcon: { width: 42, height: 42, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 },
@@ -1204,6 +1200,7 @@ const S = {
   teamFeedbackLine: { marginTop: 10, fontSize: 12, color: C.muted, lineHeight: 1.55, background: C.goldL, borderRadius: 10, padding: '8px 10px' },
   teamActionsRow: { display: 'grid', gridTemplateColumns: '1fr', gap: 12 },
   primaryTeamBtn: { border: 'none', background: C.gold, color: '#fff', borderRadius: 999, padding: '12px 14px', fontSize: 15, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
+  primaryTeamBtnSmall: { border: 'none', background: C.ink, color: '#F6D486', borderRadius: 999, padding: '8px 12px', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 },
   secondaryTeamBtn: { border: '1px solid ' + C.border, background: C.surf, color: C.muted, borderRadius: 999, padding: '11px 14px', fontSize: 15, fontWeight: 800, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   soloCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 18, padding: 16, marginBottom: 14, boxShadow: '0 3px 14px rgba(26,18,8,.05)' },
   soloHint: { background: C.soft, color: C.hint, borderRadius: 10, padding: '11px 12px', fontSize: 13, margin: '4px 0 14px', lineHeight: 1.5 },
