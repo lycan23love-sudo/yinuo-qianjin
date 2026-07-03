@@ -725,7 +725,6 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
 export default function CompanionsPage() {
   const { session, profile } = useAuth()
   const nav = useNavigate()
-  const [tab, setTab] = useState('my')
   const [teamFilter, setTeamFilter] = useState('all')
   const [activeGroup, setActiveGroup] = useState('study')
   const [myPledges, setMyPledges] = useState([])
@@ -985,24 +984,22 @@ export default function CompanionsPage() {
         <button style={S.messageBtn} onClick={() => nav('/notifications')}>消息</button>
       </div>
 
-      <div style={S.tabBar}>
-        {[['my','我的团'],['help','互助会']].map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} style={{ ...S.tabBtn, ...(tab === key ? S.tabBtnOn : {}) }}>{label}</button>
-        ))}
-      </div>
 
       <PushNotice state={pushState} busy={pushBusy} onEnable={enablePushReminders} />
 
       {loading && <div style={S.stateText}>正在加载同行数据...</div>}
       {!loading && error && <div style={S.stateText}>{error}</div>}
 
-      {!loading && !error && tab === 'my' && (
+      {!loading && !error && (
         <div style={S.scrollArea}>
           <TodayTeamStatus featuredTeam={featuredTeam} totalTeams={allTeamCount} pendingCount={pendingTodayCount} joinedCount={joinedTeams.length} suggestedCount={suggestedOpenCount}
-            onPrimary={() => featuredTeam ? openRoom(featuredTeam.pledge) : setTab('help')} />
+            onPrimary={() => featuredTeam ? openRoom(featuredTeam.pledge) : showToast('先从下方互助会加入一个小队')} />
 
           <div style={S.sectionHeadProto}>
-            <div style={S.sectionTitle}>我的团</div>
+            <div>
+              <div style={S.sectionTitle}>我的小队</div>
+              <div style={S.sectionHint}>先看自己的同行节奏，再去互助会找新队友。</div>
+            </div>
             <div style={S.filterRowInline}>
               {[
                 ['all', '全部', allTeamCount],
@@ -1015,9 +1012,9 @@ export default function CompanionsPage() {
           </div>
 
           {allTeamCount === 0 ? (
-            <EmptyState title="还没有同行小队" text="先立下一份诺言，或去互助会加入同路人小队。" action="立下新誓" onAction={() => nav('/new')} />
+            <EmptyState title="还没有同行小队" text="先立下一份诺言，或从下方互助会加入一个同路人小队。" action="立下新誓" onAction={() => nav('/new')} />
           ) : myTeamItems.length === 0 ? (
-            <EmptyState title="当前筛选下没有小队" text="切换到全部，或去互助会发现更多同路人。" />
+            <EmptyState title="当前筛选下没有小队" text="切换到全部，或在下方互助会加入新的同行小队。" />
           ) : (
             <>
               {featuredTeam && (
@@ -1039,17 +1036,20 @@ export default function CompanionsPage() {
 
           {suggestedForMy.length > 0 && (
             <div style={S.recommendBlock}>
-              <div style={S.recommendTitle}>推荐加入</div>
+              <div style={S.recommendTitle}>适合你的新小队</div>
               {suggestedForMy.slice(0, 2).map(pledge => (
                 <JoinRecommendationCard key={pledge.id} pledge={pledge} joining={joiningId === pledge.id} reason={recommendationReason(pledge, myPledges)} onJoin={() => handleJoin(pledge)} />
               ))}
             </div>
           )}
-        </div>
-      )}
 
-      {!loading && !error && tab === 'help' && (
-        <div style={S.scrollArea}>
+          <div style={S.companionDivider} />
+          <div style={S.helpSectionHead}>
+            <div>
+              <div style={S.sectionTitle}>互助会</div>
+              <div style={S.sectionHint}>按誓言类型找同路人，加入后会进入“我的小队”。</div>
+            </div>
+          </div>
           <div style={S.helpPillRow}>
             {SUPPORT_GROUPS.map(group => (
               <HelpGroupPill key={group.key} group={group} active={activeGroup === group.key}
@@ -1062,13 +1062,12 @@ export default function CompanionsPage() {
               <div style={S.sectionTitle}>{SUPPORT_GROUPS.find(g => g.key === activeGroup)?.name || '互助会'}</div>
               <div style={S.sectionHint}>{SUPPORT_GROUPS.find(g => g.key === activeGroup)?.hint || '找到同路人'}</div>
             </div>
-            <button style={S.btnGhost} onClick={() => setTab('my')}>我的团</button>
           </div>
 
           {activeGroupPledges.length === 0 ? (
             <EmptyState title="这个互助会暂时没有公开小队" text="把自己的相关誓言发布招募，就能成为这里的第一个小队。" />
           ) : (
-            activeGroupPledges.slice(0, 6).map(pledge => (
+            activeGroupPledges.slice(0, 4).map(pledge => (
               <HelpTeamCard key={pledge.id} pledge={pledge} joined={joinedIds.has(pledge.id)} joining={joiningId === pledge.id}
                 match={matchLevel(pledge, myPledges)} onOpen={() => openRoom(pledge)} onJoin={() => handleJoin(pledge)} />
             ))
@@ -1116,6 +1115,8 @@ const S = {
   card: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 14, padding: 14, marginBottom: 10, boxShadow: '0 2px 10px rgba(26,18,8,.06)' },
 
 
+  companionDivider: { height: 1, background: C.border, margin: '16px 0 14px' },
+
   helpHero: { background: '#FFF9EA', border: '1px solid #E8D4A0', borderRadius: 16, padding: 14, marginBottom: 12, boxShadow: '0 3px 12px rgba(122,90,24,.05)' },
   helpHeroTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 18, fontWeight: 900, color: C.ink, marginBottom: 5 },
   helpHeroText: { fontSize: 12, color: C.muted, lineHeight: 1.65 },
@@ -1150,8 +1151,8 @@ const S = {
   promptTitle: { fontSize: 16, fontWeight: 900, color: C.ink, marginBottom: 4 },
   promptText: { fontSize: 13, color: C.muted },
   promptArrow: { fontSize: 26, color: C.hint, flexShrink: 0 },
-  sectionHeadProto: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, margin: '2px 0 12px' },
-  filterRowInline: { display: 'flex', gap: 6, flexShrink: 0 },
+  sectionHeadProto: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, margin: '2px 0 12px' },
+  filterRowInline: { display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: 190 },
   filterPill: { border: '1px solid ' + C.border, background: C.surf, color: C.muted, borderRadius: 999, padding: '6px 9px', fontSize: 11, fontWeight: 800, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   filterPillOn: { background: C.ink, color: '#fff', borderColor: C.ink },
   teamCardLarge: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 18, padding: 16, marginBottom: 14, boxShadow: '0 4px 18px rgba(26,18,8,.07)' },
