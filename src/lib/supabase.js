@@ -876,12 +876,12 @@ async function settleWitnessPool(pledge, success) {
 
   const charityCoins = Math.max(0, witnessTotal - paid)
   if (charityCoins > 0) {
-    await supabase.from('donations').insert({
-      user_id: pledge.user_id,
+    await recordDonationLedger({
+      userId: pledge.user_id,
       coins: charityCoins,
-      org_name: pledge.charity_target,
+      orgName: pledge.charity_target,
       source: 'witness_pool',
-      ref_id: pledge.id,
+      refId: pledge.id,
       message: `誓言「${pledge.title}」见证池结余进入公益`,
     })
   }
@@ -977,12 +977,12 @@ export async function completePledge(pledgeId, userId, success) {
     await updateProfile(userId, { completed_count: newCount, quota_limit: newLimit })
   } else {
     // 失败：发起者押注进入公益
-    await supabase.from('donations').insert({
-      user_id: userId,
+    await recordDonationLedger({
+      userId,
       coins: pledge.stake_coins,
-      org_name: pledge.charity_target,
+      orgName: pledge.charity_target,
       source: 'pledge_fail',
-      ref_id: pledgeId,
+      refId: pledgeId,
       message: `誓言「${pledge.title}」未完成，押注捐出`,
     })
   }
@@ -1503,14 +1503,56 @@ export async function hasCheckedInToday(pledgeId) {
 // ============================================================
 // COIN LEDGER（金币流水）
 // ============================================================
+const COIN_FLOW_TEXT = {
+  stake: { from: '用户余额', to: '誓言押注池' },
+  stake_refund: { from: '誓言押注池', to: '用户余额' },
+  checkin: { from: '守诺奖励池', to: '用户余额' },
+  reward_streak: { from: '连续守诺奖励池', to: '用户余额' },
+  reward_milestone: { from: '里程碑奖励池', to: '用户余额' },
+  witness_stake: { from: '用户余额', to: '见证押注池' },
+  witness_earn: { from: '见证押注池', to: '用户余额' },
+  index_bet: { from: '用户余额', to: '指数交易池' },
+  blind_bet: { from: '用户余额', to: '盲盒结缘池' },
+  bounty: { from: '用户余额', to: '悬赏令池' },
+  donate: { from: '用户余额', to: '公益项目' },
+  charity_reward: { from: '善行奖励池', to: '用户余额' },
+}
+
+function buildCoinNote(type, note) {
+  const flow = COIN_FLOW_TEXT[type]
+  const parts = []
+  const hasExplicitFlow = String(note || '').includes('来源：') || String(note || '').includes('去向：')
+  if (note) parts.push(note)
+  if (flow && !hasExplicitFlow) parts.push('来源：' + flow.from + '；去向：' + flow.to)
+  return parts.join(' · ')
+}
+
 export async function addCoins(userId, amount, type, refId = null, note = null) {
+  const value = Number(amount)
+  if (!userId) throw new Error('缺少用户，无法记录金币流水')
+  if (!Number.isFinite(value) || value === 0) throw new Error('金币流水金额无效')
+
   const { data, error } = await supabase.rpc('add_coins', {
     p_user_id: userId,
-    p_amount: amount,
+    p_amount: value,
     p_type: type,
     p_ref_id: refId,
-    p_note: note
+    p_note: buildCoinNote(type, note)
   })
+  if (error) throw error
+  return data
+}
+
+async function recordDonationLedger({ userId, coins, orgName, source, refId = null, message }) {
+  const amount = Number(coins || 0)
+  if (!userId) throw new Error('缺少用户，无法记录公益去向')
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error('公益金币金额无效')
+  const finalMessage = [message, '来源：金币账本；去向：' + (orgName || '公益项目')].filter(Boolean).join(' · ')
+  const { data, error } = await supabase
+    .from('donations')
+    .insert({ user_id: userId, coins: amount, org_name: orgName, source, ref_id: refId, message: finalMessage })
+    .select()
+    .single()
   if (error) throw error
   return data
 }
@@ -1606,12 +1648,13 @@ export async function donate(userId, { coins, orgName, message }) {
 
   await addCoins(userId, -amount, 'donate', null, '捐款给' + orgName)
 
-  const { data, error } = await supabase
-    .from('donations')
-    .insert({ user_id: userId, coins: amount, org_name: orgName, source: 'manual', message })
-    .select()
-    .single()
-  if (error) throw error
+  const data = await recordDonationLedger({
+    userId,
+    coins: amount,
+    orgName,
+    source: 'manual',
+    message
+  })
 
   await supabase
     .from('profiles')
@@ -1958,79 +2001,7 @@ export async function addWitness(userId, pledgeId, type, stakeCoins = 100) {
   const profile = await getProfile(userId)
   if (profile.merit_coins < stakeCoins) throw new Error('金币不足，无法押注')
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  await supabase
-    .from('profiles')
-    .update({ merit_coins: profile.merit_coins - stakeCoins, updated_at: new Date().toISOString() })
-    .eq('id', userId)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // 2. 写 coin_ledger
-  await supabase.from('coin_ledger').insert({
-    user_id: userId, amount: -stakeCoins, type: 'stake',
-    ref_id: pledgeId, note: `见证押注：${type === 'trust' ? '支持' : '质疑'}`,
-    balance_after: profile.merit_coins - stakeCoins,
-  })
+  await addCoins(userId, -stakeCoins, 'stake', pledgeId, `见证押注：${type === 'trust' ? '支持' : '质疑'} · 来源：用户余额；去向：见证押注池`)
 
 
 
@@ -2550,81 +2521,8 @@ export async function placeIndexBet(userId, indexCode, direction, amount) {
   // 2. 获取当前赔率
   const fund = await getIndexFund(indexCode)
   const odds = direction === 'believe' ? fund.bull_odds : fund.bear_odds
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // 3. 扣金币
-  await supabase
-    .from('profiles')
-    .update({ merit_coins: profile.merit_coins - amount, updated_at: new Date().toISOString() })
-    .eq('id', userId)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // 4. 写 coin_ledger
-  await supabase.from('coin_ledger').insert({
-    user_id: userId, amount: -amount, type: 'stake',
-    note: `指数下注：${indexCode} ${direction === 'believe' ? '看多' : '看空'}`,
-    balance_after: profile.merit_coins - amount,
-  })
+  // 3. 扣金币并写统一流水
+  await addCoins(userId, -amount, 'stake', indexCode, `指数下注：${indexCode} ${direction === 'believe' ? '看多' : '看空'} · 来源：用户余额；去向：指数交易池`)
 
 
 
@@ -3341,81 +3239,8 @@ export async function placeBlindBet(userId, totalAmount) {
   const splits = coldPledges.slice(0, count).map(p => ({
     pledge_id: p.id, amount: perAmount, title: p.title,
   }))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // 1. 扣金币
-  await supabase
-    .from('profiles')
-    .update({ merit_coins: profile.merit_coins - totalAmount, updated_at: new Date().toISOString() })
-    .eq('id', userId)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // 2. 写金币流水
-  await supabase.from('coin_ledger').insert({
-    user_id: userId, amount: -totalAmount, type: 'stake',
-    note: `盲盒结缘 · 机选${count}个誓言`,
-    balance_after: profile.merit_coins - totalAmount,
-  })
+  // 1. 扣金币并写统一流水
+  await addCoins(userId, -totalAmount, 'stake', null, `盲盒结缘：机选${count}个誓言 · 来源：用户余额；去向：盲盒结缘池`)
 
 
 
@@ -3719,80 +3544,8 @@ export async function setBounty(userId, pledgeId, amount) {
 
   const profile = await getProfile(userId)
   if (profile.merit_coins < amount) throw new Error('金币不足')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // 扣金币
-  await supabase.from('profiles').update({
-    merit_coins: profile.merit_coins - amount, updated_at: new Date().toISOString(),
-  }).eq('id', userId)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // 写金币流水
-  await supabase.from('coin_ledger').insert({
-    user_id: userId, amount: -amount, type: 'stake',
-    ref_id: pledgeId, note: '悬赏令广告费',
-    balance_after: profile.merit_coins - amount,
-  })
+  // 扣金币并写统一流水
+  await addCoins(userId, -amount, 'stake', pledgeId, '悬赏令广告费 · 来源：用户余额；去向：悬赏令池')
 
 
 
