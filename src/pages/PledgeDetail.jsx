@@ -546,16 +546,25 @@ function CalendarView({ checkins, pledge }) {
                                                                         {tab === 'calendar' && <CalendarView checkins={checkins} pledge={pledge} />}
                                                                         {tab === 'settings' && (
                                                                           <div style={S.settingsCard}>
-                                                                            <div style={S.settingsTitle}>誓言提醒</div>
-                                                                            <div style={S.settingsDesc}>只管理这一个誓言。首页会显示这里的提醒时间。</div>
-                                                                            <label style={S.switchRow}>
-                                                                              <span>每日打卡提醒</span>
-                                                                              <input type="checkbox" checked={!!reminder.enabled} onChange={e => updateReminder({ enabled: e.target.checked })} />
-                                                                            </label>
-                                                                            <label style={S.formRow}>
-                                                                              <span>提醒时间</span>
+                                                                            <div style={S.settingsHead}>
+                                                                              <div>
+                                                                                <div style={S.settingsTitle}>誓言提醒</div>
+                                                                                <div style={S.settingsDesc}>只管理这一个誓言。首页也会同步显示这个时间。</div>
+                                                                              </div>
+                                                                              <label style={{ ...S.reminderSwitch, ...(reminder.enabled ? S.reminderSwitchOn : {}) }}>
+                                                                                <input type="checkbox" checked={!!reminder.enabled} onChange={e => updateReminder({ enabled: e.target.checked })} style={S.hiddenCheck} />
+                                                                                {reminder.enabled ? '已开启' : '已关闭'}
+                                                                              </label>
+                                                                            </div>
+                                                                            <label style={S.timePanel}>
+                                                                              <span style={S.timeIcon}>⏰</span>
+                                                                              <span style={S.timeCopy}>
+                                                                                <span style={S.timeLabel}>每日提醒时间</span>
+                                                                                <span style={S.timeValue}>{reminder.enabled ? (reminder.time || '20:30') : '关闭中'}</span>
+                                                                              </span>
                                                                               <input type="time" value={reminder.time || '20:30'} onChange={e => updateReminder({ time: e.target.value })} style={S.timeInput} />
                                                                             </label>
+                                                                            <div style={S.styleTitle}>提醒语气</div>
                                                                             <div style={S.styleGrid}>
                                                                               {[['gentle','温和'],['strict','严厉'],['ritual','仪式感']].map(([key, label]) => (
                                                                                 <button key={key} onClick={() => updateReminder({ style: key })} style={{ ...S.styleBtn, ...(reminder.style === key ? S.styleBtnOn : {}) }}>
@@ -793,4 +802,21 @@ function CalendarView({ checkins, pledge }) {
                                                                   echoText: { fontSize:13, lineHeight:1.65, color:'#5F543F' },
                                                                   proofLine: { fontSize:11, color:'#9A8A70', marginTop:8 },
                                                                   btnGold: { background:'linear-gradient(135deg,#C8922A,#E8B84A)', color:'#fff', border:'none', borderRadius:12, fontWeight:700, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
+                                                                  settingsCard: { background:'#fff', border:'1px solid #E0D5C0', borderRadius:18, padding:16, margin:'16px 0', boxShadow:'0 6px 20px rgba(26,18,8,.05)' },
+                                                                  settingsHead: { display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, marginBottom:14 },
+                                                                  settingsTitle: { fontSize:20, fontWeight:900, color:'#1A1208', fontFamily:'Noto Serif SC,serif', marginBottom:4 },
+                                                                  settingsDesc: { fontSize:12, lineHeight:1.6, color:'#7A6A50' },
+                                                                  reminderSwitch: { flexShrink:0, border:'1px solid #E0D5C0', borderRadius:999, background:'#FAF7F2', color:'#7A6A50', padding:'7px 11px', fontSize:12, fontWeight:900, cursor:'pointer' },
+                                                                  reminderSwitchOn: { background:'#1A1208', borderColor:'#1A1208', color:'#F6D486' },
+                                                                  hiddenCheck: { position:'absolute', opacity:0, pointerEvents:'none' },
+                                                                  timePanel: { display:'flex', alignItems:'center', gap:12, border:'1px solid rgba(200,146,42,.32)', borderRadius:16, background:'#FFF8E8', padding:12, marginBottom:14, cursor:'pointer' },
+                                                                  timeIcon: { width:38, height:38, borderRadius:'50%', background:'#1A1208', color:'#F6D486', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, flexShrink:0 },
+                                                                  timeCopy: { flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:3 },
+                                                                  timeLabel: { fontSize:11, color:'#9A7A2A', fontWeight:900 },
+                                                                  timeValue: { fontSize:24, lineHeight:1.1, color:'#1A1208', fontWeight:900, letterSpacing:.2 },
+                                                                  timeInput: { width:92, border:'1px solid rgba(200,146,42,.38)', borderRadius:999, background:'#fff', color:'#1A1208', padding:'9px 8px', fontSize:14, fontWeight:800, fontFamily:'Noto Sans SC,sans-serif' },
+                                                                  styleTitle: { fontSize:12, color:'#9A7A2A', fontWeight:900, margin:'2px 0 8px' },
+                                                                  styleGrid: { display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8 },
+                                                                  styleBtn: { border:'1px solid #E0D5C0', borderRadius:999, background:'#fff', color:'#7A6A50', padding:'9px 0', fontSize:12, fontWeight:900, fontFamily:'Noto Sans SC,sans-serif' },
+                                                                  styleBtnOn: { background:'#1A1208', borderColor:'#1A1208', color:'#F6D486' },
                                                                   }
