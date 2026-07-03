@@ -128,6 +128,14 @@ function getHomeFeedback({ pledge, progress, checkedToday, daysLeft }) {
   }
 }
 
+const MAX_ACTIVE_PLEDGES = 3
+const COMPLETION_RATE_TARGET = 90
+
+function getNewPledgeLimitCopy(activeCount) {
+  if (activeCount < MAX_ACTIVE_PLEDGES) return ''
+  return '同时守太多诺，容易散。先完成一个，再开启下一份。'
+}
+
 function getDashboardBrief({ loading, activeCount, completedToday, unfinishedCount }) {
   if (loading) return { title: '正在校准今日契约', body: '稍等一下，正在取回你的守诺进度。' }
   if (!activeCount) return { title: '今天从第一份誓言开始', body: '写下一件能重复的小事，首页会每天替你守着这份契约。' }
@@ -555,6 +563,21 @@ const styles = {
     boxShadow: '0 2px 8px rgba(26,18,8,.04)',
     fontFamily: 'Noto Sans SC, sans-serif'
   },
+  linkButtonDisabled: {
+    color: '#B8AA91',
+    background: '#F5F0E8',
+    boxShadow: 'none'
+  },
+  ruleHint: {
+    margin: '-4px 0 12px',
+    color: '#8A7A62',
+    background: '#FFF8E8',
+    border: '1px solid rgba(200,146,42,.22)',
+    borderRadius: 12,
+    padding: '9px 11px',
+    fontSize: 11,
+    lineHeight: 1.55
+  },
   pledgeItem: {
     width: '100%',
     border: '1px solid #EDE6D8',
@@ -756,6 +779,15 @@ export default function HomePage() {
     completedToday,
     unfinishedCount: Math.max(activePledges.length - completedToday, 0)
   })
+  const canCreateNewPledge = activePledges.length < MAX_ACTIVE_PLEDGES
+  const pledgeLimitCopy = getNewPledgeLimitCopy(activePledges.length)
+  function handleCreatePledge() {
+    if (!canCreateNewPledge) {
+      window.alert(pledgeLimitCopy)
+      return
+    }
+    nav('/new')
+  }
 
 
 
@@ -820,7 +852,6 @@ export default function HomePage() {
             <h2 style={styles.dashboardTitle}>{dashboardBrief.title}</h2>
             <p style={styles.dashboardSub}>{dashboardBrief.body}</p>
           </div>
-          <button onClick={() => nav('/new')} style={styles.linkButton}>立新誓</button>
         </div>
         {activePledges.length ? (
           unfinishedToday.length ? (
@@ -909,7 +940,7 @@ export default function HomePage() {
               <div style={styles.feedbackBody}>{homeFeedback.body}</div>
               <div style={styles.feedbackNext}>{homeFeedback.next}</div>
             </div>
-            <button onClick={() => nav('/new')} style={styles.fullButton}>立下第一个誓言</button>
+            <button onClick={handleCreatePledge} style={styles.fullButton}>立下第一个誓言</button>
           </>
         )}
       </main>
@@ -920,8 +951,17 @@ export default function HomePage() {
       <section style={styles.panel}>
         <div style={styles.panelHeader}>
           <h3 style={styles.panelTitle}>我的誓言</h3>
-          <button onClick={() => nav('/new')} style={styles.linkButton}>继续立誓</button>
+          {activePledges.length > 0 && (
+            <button
+              onClick={handleCreatePledge}
+              aria-disabled={!canCreateNewPledge}
+              style={{ ...styles.linkButton, ...(!canCreateNewPledge ? styles.linkButtonDisabled : {}) }}
+            >
+              {canCreateNewPledge ? '立新誓' : '已满3誓'}
+            </button>
+          )}
         </div>
+        <div style={styles.ruleHint}>进行中的誓言最多 {MAX_ACTIVE_PLEDGES} 个；到期后守诺率达到 {COMPLETION_RATE_TARGET}% 即视为完成。</div>
         {activePledges.length ? (
           <div>
             {activePledges.slice(0, 3).map(pledge => {
