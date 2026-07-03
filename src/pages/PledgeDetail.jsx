@@ -486,58 +486,61 @@ function CalendarView({ checkins, pledge }) {
                                                                                           : [...checkins].reverse().map(c => {
                                                                                             const audioUrl = getCheckinAudioUrl(c)
                                                                                             const displayNote = getCheckinDisplayNote(c)
-                                                                                            const hasProof = !!(c.image_url || audioUrl)
+                                                                                            const proofTags = [c.image_url ? '图片证明' : '', audioUrl ? '语音证明' : ''].filter(Boolean)
                                                                                             return (
                                                                                             <div key={c.id} style={S.diaryCard}>
-                                                                                                              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-                                                                                                                                  <div style={S.dayBadge}>第{c.day_num}天</div>
-                                                                                                                                  <div style={{ fontSize:12, color:'#8A7A62' }}>{format(parseISO(c.checkin_date),'M月d日')}{c.is_makeup?' · 补卡':''}</div>
-                                                                                                                {c.coins_earned > 0 && <div style={{ marginLeft:'auto', fontSize:12, color:'#C8922A', fontWeight:800 }}>+{c.coins_earned}金币</div>}
-                                                                                                                </div>
+                                                                                              <div style={S.diaryHeader}>
+                                                                                                <div>
+                                                                                                  <div style={S.dayBadge}>第{c.day_num}天</div>
+                                                                                                  <div style={S.diaryDate}>{format(parseISO(c.checkin_date),'M月d日')}{c.is_makeup?' · 补卡':''}</div>
+                                                                                                </div>
+                                                                                                <div style={S.diaryReward}>{c.coins_earned > 0 ? '+' + c.coins_earned + '金币' : '已记录'}</div>
+                                                                                              </div>
                                                                                               <div style={S.diaryMoodRow}>
                                                                                                 <span style={S.diaryMood}>{MOOD_LABEL[c.mood] || '✍️ 已记录'}</span>
                                                                                                 <span style={{ ...S.diaryStatus, color:c.status==='valid'?'#3B7A4A':c.status==='disputed'?'#C84040':'#8A7A62', background:c.status==='valid'?'#E8F5EC':c.status==='disputed'?'#FCEBEB':'#F5F0E8' }}>{getCheckinStatusText(c.status)}</span>
                                                                                               </div>
                                                                                               <div style={S.diaryText}>{displayNote ? <>「{displayNote}」</> : '这一天没有留下文字，但完成本身就是记录。'}</div>
-                                                                                              {c.image_url && <img src={c.image_url} alt="打卡" style={{ width:'100%', borderRadius:12, maxHeight:220, objectFit:'cover', margin:'2px 0 10px', display:'block' }} />}
+                                                                                              {c.image_url && <img src={c.image_url} alt="打卡" style={S.diaryImage} />}
                                                                                               {audioUrl && (
                                                                                                 <div style={S.audioBox}>
                                                                                                   <div style={S.audioTitle}><span>🎧</span><span>语音日记</span></div>
-                                                                                                  <audio controls src={audioUrl} preload="metadata" style={{ width:'100%', height:38 }} />
+                                                                                                  <audio controls src={audioUrl} preload="metadata" style={S.audioPlayer} />
                                                                                                 </div>
                                                                                               )}
                                                                                               <div style={S.echoBox}>
-                                                                                                <div style={S.echoLabel}>守诺回响</div>
+                                                                                                <div style={S.echoLabel}>今日回响</div>
                                                                                                 <div style={S.echoText}>{getCheckinEcho(c)}</div>
                                                                                               </div>
-                                                                                              {hasProof && <div style={S.proofLine}>{c.image_url ? '图片证明' : ''}{c.image_url && audioUrl ? ' · ' : ''}{audioUrl ? '语音证明' : ''}</div>}
-                                                                                                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginTop:10 }}>
-                                                                                                                {!isOwner && c.status !== 'disputed' ? (
-                                                                                                                  <button onClick={() => { setDisputeTarget(c.id); setDisputeReason('') }} disabled={witnessLoading}
-                                                                                                                    style={{ border:'1px solid #E0D5C0', background:'#fff', color:'#7A5A18', borderRadius:20, padding:'4px 10px', fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' }}>
-                                                                                                                    质疑/复核
-                                                                                                                  </button>
-                                                                                                                ) : <div />}
-                                                                                                                </div>
-                                                                                                              {disputeTarget === c.id && (
-                                                                                                                <div style={{ marginTop:10, padding:10, borderRadius:10, background:'#FDF3E0', border:'1px solid rgba(200,146,42,.35)' }}>
-                                                                                                                  <textarea value={disputeReason} onChange={e => setDisputeReason(e.target.value)}
-                                                                                                                    placeholder="写下复核理由，例如：证明不清晰、内容与誓言不符"
-                                                                                                                    rows={2}
-                                                                                                                    style={{ width:'100%', boxSizing:'border-box', border:'1px solid #E0D5C0', borderRadius:8, padding:8, fontSize:12, fontFamily:'Noto Sans SC,sans-serif', resize:'none', outline:'none' }} />
-                                                                                                                  <div style={{ display:'flex', gap:8, marginTop:8 }}>
-                                                                                                                    <button onClick={() => handleDispute(c, disputeReason)} disabled={witnessLoading}
-                                                                                                                      style={{ flex:1, border:'none', borderRadius:8, background:'#C84040', color:'#fff', padding:'8px 0', fontSize:12, fontWeight:700, fontFamily:'Noto Sans SC,sans-serif' }}>
-                                                                                                                      提交质疑
-                                                                                                                    </button>
-                                                                                                                    <button onClick={() => setDisputeTarget(null)}
-                                                                                                                      style={{ flex:1, border:'1px solid #E0D5C0', borderRadius:8, background:'#fff', color:'#7A5A18', padding:'8px 0', fontSize:12, fontWeight:600, fontFamily:'Noto Sans SC,sans-serif' }}>
-                                                                                                                      取消
-                                                                                                                    </button>
-                                                                                                                  </div>
-                                                                                                                </div>
-                                                                                                              )}
+                                                                                              {proofTags.length > 0 && (
+                                                                                                <div style={S.proofTags}>
+                                                                                                  {proofTags.map(tag => <span key={tag} style={S.proofTag}>{tag}</span>)}
+                                                                                                </div>
+                                                                                              )}
+                                                                                              <div style={S.diaryFoot}>
+                                                                                                {!isOwner && c.status !== 'disputed' ? (
+                                                                                                  <button onClick={() => { setDisputeTarget(c.id); setDisputeReason('') }} disabled={witnessLoading} style={S.disputeBtn}>
+                                                                                                    质疑/复核
+                                                                                                  </button>
+                                                                                                ) : <div />}
                                                                                               </div>
+                                                                                              {disputeTarget === c.id && (
+                                                                                                <div style={S.disputePanel}>
+                                                                                                  <textarea value={disputeReason} onChange={e => setDisputeReason(e.target.value)}
+                                                                                                    placeholder="写下复核理由，例如：证明不清晰、内容与誓言不符"
+                                                                                                    rows={2}
+                                                                                                    style={S.disputeInput} />
+                                                                                                  <div style={S.disputeActions}>
+                                                                                                    <button onClick={() => handleDispute(c, disputeReason)} disabled={witnessLoading} style={S.disputeSubmit}>
+                                                                                                      提交质疑
+                                                                                                    </button>
+                                                                                                    <button onClick={() => setDisputeTarget(null)} style={S.disputeCancel}>
+                                                                                                      取消
+                                                                                                    </button>
+                                                                                                  </div>
+                                                                                                </div>
+                                                                                              )}
+                                                                                            </div>
                                                                                             )
                                                                                           })
                                                                               }
@@ -789,18 +792,32 @@ function CalendarView({ checkins, pledge }) {
                                                                   diarySummaryLabel: { fontSize:11, color:'#9A7A2A', fontWeight:800, marginBottom:3 },
                                                                   diarySummaryTitle: { fontSize:15, color:'#1A1208', fontWeight:900, fontFamily:'Noto Serif SC,serif' },
                                                                   diarySummaryMeta: { fontSize:11, color:'#7A5A18', background:'#fff', border:'1px solid rgba(200,146,42,.22)', borderRadius:20, padding:'5px 10px', whiteSpace:'nowrap', fontWeight:700 },
-                                                                  diaryCard: { background:'#fff', border:'0.5px solid #E0D5C0', borderRadius:16, padding:14, marginBottom:12, boxShadow:'0 6px 18px rgba(26,18,8,.05)' },
-                                                                  dayBadge: { background:'#FDF3E0', color:'#7A5A18', fontSize:11, fontWeight:800, padding:'3px 9px', borderRadius:20 },
-                                                                  diaryMoodRow: { display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:8 },
-                                                                  diaryMood: { fontSize:12, color:'#7A5A18', fontWeight:800, background:'#FFF8E8', border:'1px solid rgba(200,146,42,.22)', borderRadius:20, padding:'4px 9px' },
-                                                                  diaryStatus: { fontSize:10, fontWeight:700, padding:'3px 8px', borderRadius:20, whiteSpace:'nowrap' },
-                                                                  diaryText: { fontSize:14, lineHeight:1.8, color:'#2A1A08', borderLeft:'3px solid #C8922A', paddingLeft:10, marginBottom:10, whiteSpace:'pre-wrap' },
-                                                                  audioBox: { background:'#FFF8E8', border:'1px solid rgba(200,146,42,.28)', borderRadius:12, padding:10, marginBottom:10 },
-                                                                  audioTitle: { display:'flex', alignItems:'center', gap:7, fontSize:12, fontWeight:800, color:'#7A5A18', marginBottom:8 },
-                                                                  echoBox: { background:'#FAF7EF', borderRadius:12, padding:'10px 12px', marginTop:8 },
-                                                                  echoLabel: { fontSize:11, color:'#C8922A', fontWeight:900, marginBottom:4 },
-                                                                  echoText: { fontSize:13, lineHeight:1.65, color:'#5F543F' },
+                                                                  diaryCard: { background:'#fff', border:'1px solid #E0D5C0', borderRadius:18, padding:14, marginBottom:13, boxShadow:'0 5px 18px rgba(26,18,8,.045)' },
+                                                                  diaryHeader: { display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10, marginBottom:10 },
+                                                                  dayBadge: { display:'inline-flex', background:'#FDF3E0', color:'#7A5A18', fontSize:11, fontWeight:900, padding:'4px 10px', borderRadius:20, marginBottom:5 },
+                                                                  diaryDate: { fontSize:12, color:'#8A7A62', fontWeight:700 },
+                                                                  diaryReward: { flexShrink:0, background:'#FFF8E8', border:'1px solid rgba(200,146,42,.22)', borderRadius:999, color:'#C8922A', fontSize:12, fontWeight:900, padding:'5px 9px' },
+                                                                  diaryMoodRow: { display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:9 },
+                                                                  diaryMood: { fontSize:12, color:'#7A5A18', fontWeight:900, background:'#FFF8E8', border:'1px solid rgba(200,146,42,.22)', borderRadius:20, padding:'5px 10px' },
+                                                                  diaryStatus: { fontSize:10, fontWeight:800, padding:'4px 8px', borderRadius:20, whiteSpace:'nowrap' },
+                                                                  diaryText: { fontSize:15, lineHeight:1.85, color:'#2A1A08', borderLeft:'3px solid #C8922A', paddingLeft:11, margin:'2px 0 11px', whiteSpace:'pre-wrap', fontFamily:'Noto Serif SC,serif', fontWeight:700 },
+                                                                  diaryImage: { width:'100%', borderRadius:14, maxHeight:260, objectFit:'cover', margin:'2px 0 11px', display:'block', border:'1px solid rgba(224,213,192,.7)' },
+                                                                  audioBox: { background:'#FFF8E8', border:'1px solid rgba(200,146,42,.28)', borderRadius:14, padding:11, marginBottom:11 },
+                                                                  audioTitle: { display:'flex', alignItems:'center', gap:7, fontSize:12, fontWeight:900, color:'#7A5A18', marginBottom:8 },
+                                                                  audioPlayer: { width:'100%', height:38, display:'block' },
+                                                                  echoBox: { background:'#FAF7EF', border:'1px solid rgba(224,213,192,.7)', borderRadius:14, padding:'11px 12px', marginTop:8 },
+                                                                  echoLabel: { fontSize:11, color:'#C8922A', fontWeight:900, marginBottom:5 },
+                                                                  echoText: { fontSize:13, lineHeight:1.7, color:'#5F543F' },
                                                                   proofLine: { fontSize:11, color:'#9A8A70', marginTop:8 },
+                                                                  proofTags: { display:'flex', flexWrap:'wrap', gap:6, marginTop:9 },
+                                                                  proofTag: { border:'1px solid rgba(200,146,42,.25)', background:'#FFF8E8', color:'#7A5A18', borderRadius:999, padding:'4px 8px', fontSize:11, fontWeight:800 },
+                                                                  diaryFoot: { display:'flex', justifyContent:'flex-end', alignItems:'center', minHeight:8, marginTop:4 },
+                                                                  disputeBtn: { border:'1px solid #E0D5C0', background:'#fff', color:'#7A5A18', borderRadius:20, padding:'5px 10px', fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
+                                                                  disputePanel: { marginTop:10, padding:10, borderRadius:12, background:'#FDF3E0', border:'1px solid rgba(200,146,42,.35)' },
+                                                                  disputeInput: { width:'100%', boxSizing:'border-box', border:'1px solid #E0D5C0', borderRadius:10, padding:9, fontSize:12, fontFamily:'Noto Sans SC,sans-serif', resize:'none', outline:'none' },
+                                                                  disputeActions: { display:'flex', gap:8, marginTop:8 },
+                                                                  disputeSubmit: { flex:1, border:'none', borderRadius:10, background:'#C84040', color:'#fff', padding:'8px 0', fontSize:12, fontWeight:800, fontFamily:'Noto Sans SC,sans-serif' },
+                                                                  disputeCancel: { flex:1, border:'1px solid #E0D5C0', borderRadius:10, background:'#fff', color:'#7A5A18', padding:'8px 0', fontSize:12, fontWeight:700, fontFamily:'Noto Sans SC,sans-serif' },
                                                                   btnGold: { background:'linear-gradient(135deg,#C8922A,#E8B84A)', color:'#fff', border:'none', borderRadius:12, fontWeight:700, cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
                                                                   settingsCard: { background:'#fff', border:'1px solid #E0D5C0', borderRadius:18, padding:16, margin:'16px 0', boxShadow:'0 6px 20px rgba(26,18,8,.05)' },
                                                                   settingsHead: { display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, marginBottom:14 },
