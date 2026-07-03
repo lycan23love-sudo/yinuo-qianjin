@@ -259,6 +259,17 @@ const styles = {
     fontSize: 12,
     lineHeight: 1.6
   },
+  statusHint: {
+    marginTop: 2,
+    borderRadius: 12,
+    background: '#FFF8E8',
+    border: '1px solid rgba(200,146,42,.22)',
+    color: '#7A5A18',
+    padding: '9px 11px',
+    fontSize: 12,
+    lineHeight: 1.55,
+    fontWeight: 700
+  },
   queueList: {
     display: 'grid',
     gap: 9
@@ -846,47 +857,6 @@ export default function HomePage() {
 
 
 
-      <section style={styles.dashboardCard}>
-        <div style={styles.dashboardHeader}>
-          <div>
-            <h2 style={styles.dashboardTitle}>{dashboardBrief.title}</h2>
-            <p style={styles.dashboardSub}>{dashboardBrief.body}</p>
-          </div>
-        </div>
-        {activePledges.length ? (
-          unfinishedToday.length ? (
-            <div style={styles.queueList}>
-              {todayQueue.slice(0, 4).map(pledge => {
-                const progress = progressOf(pledge)
-                const checked = checkedMap[pledge.id]
-                const left = daysLeft(pledge)
-                return (
-                  <button
-                    key={pledge.id}
-                    onClick={() => nav(checked ? '/pledge/' + pledge.id : '/pledge/' + pledge.id + '/checkin')}
-                    style={styles.queueItem}
-                  >
-                    <div style={styles.queueIcon}>{checked ? '✓' : '守'}</div>
-                    <div style={styles.queueMain}>
-                      <div style={styles.queueTitle}>{pledgeTitle(pledge)}</div>
-                      <div style={styles.queueMeta}>{progress.done}/{progress.total} 天 · {left === null ? '持续守诺' : left === 0 ? '今日到期' : '还剩 ' + left + ' 天'}</div>
-                    </div>
-                    {checked ? <span style={styles.donePill}>已守</span> : <span style={styles.queueAction}>打卡</span>}
-                  </button>
-                )
-              })}
-            </div>
-          ) : (
-            <div style={styles.allDoneCard}>✓ 今日全部完成。你已经把今天的诺言守住了，明天再继续。</div>
-          )
-        ) : (
-          <div style={styles.empty}>暂无进行中的诺言。先立下一件每天能守住的小事。</div>
-        )}
-      </section>
-
-
-
-
       <main style={styles.scrollCard}>
         <div style={styles.scrollLineTop} />
         <div style={styles.scrollLineBottom} />
@@ -944,6 +914,27 @@ export default function HomePage() {
           </>
         )}
       </main>
+
+
+
+
+      <section style={styles.dashboardCard}>
+        <div style={styles.dashboardHeader}>
+          <div>
+            <h2 style={styles.dashboardTitle}>{dashboardBrief.title}</h2>
+            <p style={styles.dashboardSub}>{dashboardBrief.body}</p>
+          </div>
+        </div>
+        {activePledges.length > 0 && unfinishedToday.length > 0 && (
+          <div style={styles.statusHint}>今日还剩 {unfinishedToday.length} 个诺言待守，主行动已放在上方“今日诺言”。</div>
+        )}
+        {activePledges.length > 0 && unfinishedToday.length === 0 && (
+          <div style={styles.allDoneCard}>✓ 今日全部完成。你已经把今天的诺言守住了，明天再继续。</div>
+        )}
+        {!activePledges.length && (
+          <div style={styles.empty}>暂无进行中的诺言。先立下一件每天能守住的小事。</div>
+        )}
+      </section>
 
 
 
