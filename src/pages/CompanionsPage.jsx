@@ -407,15 +407,14 @@ function TodayTeamStatus({ featuredTeam, totalTeams, pendingCount, joinedCount, 
       <div style={S.todayStatusHead}>
         <div style={S.todayIcon}>{userDone ? '✓' : hasTeam ? '!' : '+'}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={S.todayTitle}>今日同行反馈</div>
+          <div style={S.todayTitle}>今日小队概览</div>
           <div style={S.todayText}>{statusText}</div>
         </div>
         <button style={S.primaryTeamBtnSmall} onClick={onPrimary}>{hasTeam ? '进入小队' : '发现小队'}</button>
       </div>
-      <div style={S.todayFeedback}>{feedback}</div>
       <div style={S.todayMetaRow}>
+        <span>{feedback}</span>
         <span>{totalTeams} 个小队</span>
-        <span>{pendingCount} 条待回应</span>
         <span>{suggestedCount} 个可加入</span>
       </div>
     </div>
@@ -469,7 +468,6 @@ function TeamProgressCard({ item, publishing, onRecruit, onRoom }) {
         ))}
       </div>
 
-      <div style={S.teamFeedbackLine}>{checkedToday(pledge) ? '你今天已守，可以给还没完成的队友一点提醒。' : '你今天还未守诺，小队会记录你的节奏变化。'}</div>
       <div style={S.teamActionsRow}>
         <button style={S.primaryTeamBtn} onClick={onRoom}>进入小队</button>
       </div>
@@ -1002,7 +1000,7 @@ export default function CompanionsPage() {
           <div style={S.sectionHeadProto}>
             <div>
               <div style={S.sectionTitle}>我的小队</div>
-              <div style={S.sectionHint}>先看自己的同行节奏，再去互助会找新队友。</div>
+              <div style={S.sectionHint}>小队负责长期陪伴、反馈和进度对比。</div>
             </div>
             <div style={S.filterRowInline}>
               {[
@@ -1049,7 +1047,7 @@ export default function CompanionsPage() {
 
           <div style={S.helpHubIntro}>
             <div style={S.kicker}>互助会</div>
-            <div style={S.helpHeroTitle}>按处境找到同路人</div>
+            <div style={S.helpHeroTitle}>互助会是临时入口</div>
           </div>
 
           <div style={S.groupGrid}>
@@ -1135,8 +1133,8 @@ const S = {
 
 
   companionDivider: { height: 1, background: C.border, margin: '16px 0 14px' },
-  helpHubIntro: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, borderTop: '1px solid ' + C.border, padding: '13px 0 8px', marginTop: 4, marginBottom: 6 },
-  matchPanel: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 16, padding: 14, margin: '12px 0 12px', boxShadow: '0 3px 12px rgba(26,18,8,.05)' },
+  helpHubIntro: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, borderTop: '1px solid ' + C.border, padding: '12px 0 6px', marginTop: 2, marginBottom: 4 },
+  matchPanel: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 16, padding: 12, margin: '10px 0 12px', boxShadow: '0 3px 12px rgba(26,18,8,.045)' },
   matchHead: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
   matchEmoji: { width: 42, height: 42, borderRadius: '50%', background: C.goldL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 },
   matchStats: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 },
@@ -1164,13 +1162,13 @@ const S = {
   helpTeamTrack: { height: 5, borderRadius: 999, background: C.soft, overflow: 'hidden', marginBottom: 9 },
   helpTeamFill: { height: '100%', borderRadius: 999, background: C.gold },
   helpTeamFoot: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: 11, color: C.muted },
-  todayStatusCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 16, padding: 14, marginBottom: 12, boxShadow: '0 2px 10px rgba(26,18,8,.05)' },
-  todayStatusHead: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9 },
+  todayStatusCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 16, padding: 13, marginBottom: 10, boxShadow: '0 2px 10px rgba(26,18,8,.045)' },
+  todayStatusHead: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 },
   todayIcon: { width: 36, height: 36, borderRadius: '50%', background: C.ink, color: '#F6D486', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 900, flexShrink: 0 },
   todayTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 16, fontWeight: 900, color: C.ink, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   todayText: { fontSize: 12, color: C.muted, lineHeight: 1.5 },
-  todayFeedback: { background: C.goldL, border: '1px solid rgba(200,146,42,.22)', borderRadius: 12, padding: '9px 10px', fontSize: 12, color: C.goldD, lineHeight: 1.45, fontWeight: 800 },
-  todayMetaRow: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10, color: C.hint, fontSize: 11, fontWeight: 700 },
+  todayFeedback: { display: 'none' },
+  todayMetaRow: { display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 2, color: C.hint, fontSize: 11, fontWeight: 700, lineHeight: 1.45 },
   todayStats: { display: 'none' },
   todayStatBox: {},
   todayStatNum: {},
@@ -1197,7 +1195,7 @@ const S = {
   memberBarFill: { height: '100%', borderRadius: 999 },
   memberDay: { textAlign: 'right', fontSize: 12, color: C.muted, fontWeight: 800 },
   checkMark: { width: 24, height: 24, borderRadius: 6, background: C.greenL, color: C.green, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 900 },
-  teamFeedbackLine: { marginTop: 10, fontSize: 12, color: C.muted, lineHeight: 1.55, background: C.goldL, borderRadius: 10, padding: '8px 10px' },
+  teamFeedbackLine: { display: 'none' },
   teamActionsRow: { display: 'grid', gridTemplateColumns: '1fr', gap: 12 },
   primaryTeamBtn: { border: 'none', background: C.gold, color: '#fff', borderRadius: 999, padding: '12px 14px', fontSize: 15, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   primaryTeamBtnSmall: { border: 'none', background: C.ink, color: '#F6D486', borderRadius: 999, padding: '8px 12px', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 },
