@@ -377,58 +377,90 @@ const styles = {
   scrollCard: {
     position: 'relative',
     overflow: 'hidden',
-    border: '1px solid #E0D5C0',
-    borderRadius: 14,
-    background: '#FFFFFF',
-    padding: 16,
-    boxShadow: '0 2px 10px rgba(26,18,8,.06)',
-    marginBottom: 14
+    border: '1px solid rgba(200,146,42,.35)',
+    borderRadius: 24,
+    background: 'linear-gradient(135deg, #2A1708 0%, #4A2C12 58%, #5A3517 100%)',
+    color: '#FFF8E8',
+    padding: 22,
+    boxShadow: '0 16px 34px rgba(26,18,8,.18)',
+    marginBottom: 16
   },
-  scrollLineTop: {
-    display: 'none'
+  contractWatermark: {
+    position: 'absolute',
+    right: -8,
+    top: -24,
+    fontFamily: 'Noto Serif SC, serif',
+    fontSize: 82,
+    fontWeight: 900,
+    color: 'rgba(255,248,232,.07)',
+    letterSpacing: 4,
+    pointerEvents: 'none'
   },
-  scrollLineBottom: {
-    display: 'none'
+  contractTopLine: {
+    position: 'relative',
+    zIndex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10
   },
+  contractStatus: {
+    borderRadius: 999,
+    background: 'rgba(246,212,134,.13)',
+    color: '#F6D486',
+    border: '1px solid rgba(246,212,134,.22)',
+    padding: '5px 10px',
+    fontSize: 12,
+    fontWeight: 900,
+    whiteSpace: 'nowrap'
+  },
+  scrollLineTop: { display: 'none' },
+  scrollLineBottom: { display: 'none' },
   eyebrow: {
     margin: 0,
-    color: '#C8922A',
-    fontSize: 11,
-    fontWeight: 800,
+    color: '#F6D486',
+    fontSize: 12,
+    fontWeight: 900,
     letterSpacing: 1.5
   },
   pledgeName: {
-    margin: '7px 0 0',
-    maxWidth: '80%',
+    position: 'relative',
+    zIndex: 1,
+    margin: '11px 0 0',
+    maxWidth: '82%',
     fontFamily: 'Noto Serif SC, serif',
-    fontSize: 20,
+    fontSize: 22,
     lineHeight: 1.35,
-    fontWeight: 900
+    fontWeight: 900,
+    color: '#FFFFFF'
   },
   bodyText: {
+    position: 'relative',
+    zIndex: 1,
     maxWidth: '100%',
-    margin: '12px 0 0',
-    color: '#7A6A50',
+    margin: '14px 0 0',
+    color: 'rgba(255,248,232,.78)',
     fontSize: 13,
     lineHeight: 1.7
   },
   seal: {
     position: 'absolute',
-    right: 14,
-    top: 18,
-    width: 54,
-    height: 54,
-    borderRadius: 4,
-    border: '2px solid rgba(176,36,24,.72)',
-    background: 'rgba(176,36,24,.08)',
-    color: '#9B1F16',
+    right: 18,
+    top: 52,
+    width: 58,
+    height: 58,
+    borderRadius: 6,
+    border: '2px solid rgba(205,74,58,.78)',
+    background: 'rgba(205,74,58,.1)',
+    color: '#F2A09A',
     transform: 'rotate(-8deg)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     fontFamily: 'Noto Serif SC, serif',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
+    zIndex: 1
   },
   sealChar: {
     fontSize: 18,
@@ -441,111 +473,126 @@ const styles = {
     fontWeight: 900,
     letterSpacing: 1
   },
+  contractMeta: {
+    position: 'relative',
+    zIndex: 1,
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '6px 10px',
+    marginTop: 10,
+    color: 'rgba(255,248,232,.68)',
+    fontSize: 12,
+    lineHeight: 1.55
+  },
   progressMeta: {
     display: 'flex',
     justifyContent: 'space-between',
     marginTop: 14,
     marginBottom: 7,
     fontSize: 12,
-    color: '#7A6A50'
+    color: 'rgba(255,248,232,.72)'
   },
   progressTrack: {
-    height: 7,
+    position: 'relative',
+    zIndex: 1,
+    height: 8,
     borderRadius: 999,
-    background: '#EDE6D8',
-    overflow: 'hidden'
+    background: 'rgba(255,248,232,.22)',
+    overflow: 'hidden',
+    marginTop: 16
   },
   progressFill: {
     height: '100%',
     borderRadius: 999,
-    background: '#C8922A'
+    background: 'linear-gradient(90deg, #D39A24, #F6D486)'
   },
-  feedbackCard: {
-    marginTop: 12,
-    border: '1px solid #E8D4A0',
-    borderRadius: 12,
-    background: '#FDF3E0',
-    padding: '11px 12px'
+  contractProgressRow: {
+    position: 'relative',
+    zIndex: 1,
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 13
   },
-  feedbackLabel: {
-    color: '#7A5A18',
-    fontSize: 10,
+  contractDay: {
+    color: '#F6D486',
+    fontSize: 17,
     fontWeight: 900,
-    letterSpacing: 1.2,
-    marginBottom: 5
+    fontFamily: 'Noto Serif SC, serif'
   },
-  feedbackTitle: {
-    color: '#1A1208',
-    fontSize: 14,
+  contractSub: {
+    marginTop: 5,
+    color: 'rgba(255,248,232,.66)',
+    fontSize: 12,
+    lineHeight: 1.45
+  },
+  contractRemain: {
+    color: 'rgba(255,248,232,.76)',
+    fontSize: 12,
     fontWeight: 800,
-    lineHeight: 1.4,
-    marginBottom: 5
+    whiteSpace: 'nowrap',
+    marginTop: 3
   },
-  feedbackBody: {
-    color: '#5A4A30',
-    fontSize: 12,
-    lineHeight: 1.65
-  },
-  feedbackNext: {
-    marginTop: 7,
-    color: '#7A5A18',
-    fontSize: 12,
-    fontWeight: 800
-  },
-  reminderStrip: {
-    width: '100%',
-    marginTop: 12,
+  contractFoot: {
+    position: 'relative',
+    zIndex: 1,
     display: 'flex',
     alignItems: 'center',
-    gap: 10,
-    border: '1px solid rgba(200,146,42,.28)',
-    borderRadius: 14,
-    background: '#FFF8E8',
-    padding: '10px 12px',
-    textAlign: 'left',
-    cursor: 'pointer',
-    fontFamily: 'Noto Sans SC,sans-serif'
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 18
   },
-  reminderIcon: {
-    width: 34,
-    height: 34,
+  witnessRow: {
+    display: 'flex',
+    alignItems: 'center',
+    minWidth: 0
+  },
+  witnessDot: {
+    width: 28,
+    height: 28,
     borderRadius: '50%',
-    background: '#1A1208',
-    color: '#F6D486',
+    background: '#2F7A4D',
+    color: '#FFFFFF',
+    border: '2px solid rgba(255,248,232,.9)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: 15,
-    flexShrink: 0
-  },
-  reminderTextWrap: {
-    flex: 1,
-    minWidth: 0,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2
-  },
-  reminderLabel: {
-    color: '#9A7A2A',
-    fontSize: 11,
-    fontWeight: 900
-  },
-  reminderTime: {
-    color: '#1A1208',
-    fontSize: 17,
-    fontWeight: 900,
-    lineHeight: 1.2
-  },
-  reminderButton: {
-    border: '1px solid rgba(200,146,42,.28)',
-    borderRadius: 999,
-    background: '#fff',
-    color: '#7A5A18',
-    padding: '7px 10px',
     fontSize: 12,
     fontWeight: 900,
+    marginRight: -5
+  },
+  witnessDotAlt: {
+    width: 28,
+    height: 28,
+    borderRadius: '50%',
+    background: '#3F5F9A',
+    color: '#FFFFFF',
+    border: '2px solid rgba(255,248,232,.9)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 12,
+    fontWeight: 900,
+    marginRight: 8
+  },
+  witnessText: {
+    color: 'rgba(255,248,232,.78)',
+    fontSize: 12,
+    fontWeight: 800,
     whiteSpace: 'nowrap'
   },
+  feedbackCard: { display: 'none' },
+  feedbackLabel: {},
+  feedbackTitle: {},
+  feedbackBody: {},
+  feedbackNext: {},
+  reminderStrip: { display: 'none' },
+  reminderIcon: {},
+  reminderTextWrap: {},
+  reminderLabel: {},
+  reminderTime: {},
+  reminderButton: {},
   actionRow: {
     display: 'flex',
     alignItems: 'center',
@@ -554,29 +601,36 @@ const styles = {
     marginTop: 14
   },
   muted: {
-    color: '#7A6A50',
+    color: 'rgba(255,248,232,.72)',
     fontSize: 13
   },
   primaryButton: {
     border: 0,
     borderRadius: 999,
-    background: '#1A1208',
-    color: '#F6D486',
-    padding: '10px 18px',
+    background: '#FFF8E8',
+    color: '#7A4A10',
+    padding: '11px 18px',
     fontSize: 13,
     fontWeight: 900,
-    boxShadow: '0 4px 12px rgba(26,18,8,.14)'
+    boxShadow: '0 8px 18px rgba(0,0,0,.18)',
+    whiteSpace: 'nowrap'
+  },
+  primaryButtonDone: {
+    background: 'rgba(255,248,232,.14)',
+    color: '#F6D486',
+    border: '1px solid rgba(246,212,134,.28)',
+    boxShadow: 'none'
   },
   fullButton: {
     width: '100%',
     border: 0,
-    borderRadius: 12,
-    background: '#1A1208',
-    color: '#F6D486',
+    borderRadius: 999,
+    background: '#FFF8E8',
+    color: '#7A4A10',
     padding: '13px 16px',
     fontSize: 14,
     fontWeight: 900,
-    marginTop: 14
+    marginTop: 16
   },
   panel: {
     border: '1px solid #E0D5C0',
@@ -894,87 +948,54 @@ export default function HomePage() {
 
 
       <main style={styles.scrollCard}>
-        <div style={styles.scrollLineTop} />
-        <div style={styles.scrollLineBottom} />
-        <p style={styles.eyebrow}>今日诺言</p>
+        <div style={styles.contractWatermark}>守诺</div>
+        <div style={styles.contractTopLine}>
+          <p style={styles.eyebrow}>今日诺言</p>
+          {todayPledge && <span style={styles.contractStatus}>{mainChecked ? '今日已守' : '今日待守'}</span>}
+        </div>
         <h2 style={styles.pledgeName}>
           {loading ? '正在展开契约...' : todayPledge ? pledgeTitle(todayPledge) : '写下你的第一份军令状'}
         </h2>
         {todayPledge && <Seal profile={profile} />}
 
-
-
-
         {todayPledge ? (
           <>
-            <p style={styles.bodyText}>这是一份已经盖印的诺言。今天只需要完成下一次证明，让契约继续有效。</p>
-            <div style={styles.progressMeta}>
-              <span>第 {mainProgress.done} / {mainProgress.total} 天</span>
-              <span>{mainProgress.percent}%</span>
+            <div style={styles.contractMeta}>
+              <span>{todayPledge.type || todayPledge.period || '每日誓言'}</span>
+              <span>押注 {todayPledge.stake_coins || todayPledge.stake_amount || todayPledge.stake || 0} 金币</span>
+              <span>{mainReminder?.enabled ? '提醒 ' + (mainReminder.time || DEFAULT_REMINDER.time) : '提醒已关闭'}</span>
             </div>
             <div style={styles.progressTrack}>
               <div style={{ ...styles.progressFill, width: mainProgress.percent + '%' }} />
             </div>
-            <div style={styles.feedbackCard}>
-              <div style={styles.feedbackLabel}>{homeFeedback.label}</div>
-              <div style={styles.feedbackTitle}>{homeFeedback.title}</div>
-              <div style={styles.feedbackBody}>{homeFeedback.body}</div>
-              <div style={styles.feedbackNext}>{homeFeedback.next}</div>
+            <div style={styles.contractProgressRow}>
+              <div>
+                <div style={styles.contractDay}>第 {mainProgress.done} / {mainProgress.total} 天</div>
+                <div style={styles.contractSub}>{mainChecked ? '今天已经守住，继续保持节奏。' : '今天还差一次证明，让契约继续有效。'}</div>
+              </div>
+              <div style={styles.contractRemain}>{mainDaysLeft === null ? '持续中' : mainDaysLeft === 0 ? '今日到期' : '还剩 ' + mainDaysLeft + ' 天'}</div>
             </div>
-            <button onClick={() => nav('/pledge/' + todayPledge.id + '?tab=settings')} style={styles.reminderStrip}>
-              <span style={styles.reminderIcon}>⏰</span>
-              <span style={styles.reminderTextWrap}>
-                <span style={styles.reminderLabel}>守诺提醒</span>
-                <span style={styles.reminderTime}>{mainReminder?.enabled ? (mainReminder.time || DEFAULT_REMINDER.time) : '已关闭'}</span>
-              </span>
-              <span style={styles.reminderButton}>修改 ›</span>
-            </button>
-            <div style={styles.actionRow}>
-              <div style={styles.muted}>
-                {mainDaysLeft === null ? '持续守诺中' : mainDaysLeft === 0 ? '今日到期' : '还剩 ' + mainDaysLeft + ' 天'}
+            <div style={styles.contractFoot}>
+              <div style={styles.witnessRow}>
+                <span style={styles.witnessDot}>我</span>
+                <span style={styles.witnessDotAlt}>诺</span>
+                <span style={styles.witnessText}>{mainProgress.percent}% 完成度</span>
               </div>
               <button
                 onClick={() => nav(mainChecked ? '/pledge/' + todayPledge.id : '/pledge/' + todayPledge.id + '/checkin')}
-                style={styles.primaryButton}
+                style={{ ...styles.primaryButton, ...(mainChecked ? styles.primaryButtonDone : {}) }}
               >
-                {mainChecked ? '查看记录' : '去打卡'}
+                {mainChecked ? '查看记录' : '今日打卡'}
               </button>
             </div>
           </>
         ) : (
           <>
             <p style={styles.bodyText}>第一份诺言不用复杂，写清楚你每天要守住的一件事，再亲手盖下守诺印。</p>
-            <div style={styles.feedbackCard}>
-              <div style={styles.feedbackLabel}>{homeFeedback.label}</div>
-              <div style={styles.feedbackTitle}>{homeFeedback.title}</div>
-              <div style={styles.feedbackBody}>{homeFeedback.body}</div>
-              <div style={styles.feedbackNext}>{homeFeedback.next}</div>
-            </div>
             <button onClick={handleCreatePledge} style={styles.fullButton}>立下第一个誓言</button>
           </>
         )}
       </main>
-
-
-
-
-      <section style={styles.dashboardCard}>
-        <div style={styles.dashboardHeader}>
-          <div>
-            <h2 style={styles.dashboardTitle}>{dashboardBrief.title}</h2>
-            <p style={styles.dashboardSub}>{dashboardBrief.body}</p>
-          </div>
-        </div>
-        {activePledges.length > 0 && unfinishedToday.length > 0 && (
-          <div style={styles.statusHint}>今日还剩 {unfinishedToday.length} 个诺言待守，主行动已放在上方“今日诺言”。</div>
-        )}
-        {activePledges.length > 0 && unfinishedToday.length === 0 && (
-          <div style={styles.allDoneCard}>✓ 今日全部完成。你已经把今天的诺言守住了，明天再继续。</div>
-        )}
-        {!activePledges.length && (
-          <div style={styles.empty}>暂无进行中的诺言。先立下一件每天能守住的小事。</div>
-        )}
-      </section>
 
 
 
