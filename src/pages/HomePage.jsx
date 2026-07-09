@@ -1,4 +1,5 @@
 // src/pages/HomePage.jsx
+// deployment: refresh home contract dashboard 2026-07-09
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
