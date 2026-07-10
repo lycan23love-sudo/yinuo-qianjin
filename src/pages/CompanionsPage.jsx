@@ -575,7 +575,7 @@ function PushNotice({ state, busy, onEnable }) {
     <div style={S.pushNotice}>
       <div style={S.pushCopy}>
         <b>{blocked ? '手机提醒被系统拦截' : unsupported ? '当前浏览器不支持手机提醒' : '同行手机提醒未开启'}</b>
-        <span>{blocked ? '请在浏览器或手机设置里允许通知，否则队友提醒只能进消息中心。' : unsupported ? '手机顶部通知需要支持推送的浏览器；iPhone 需先把网页添加到主屏幕。' : '开启后，队友的提醒落印和鼓励会尝试出现在手机通知栏。'}</span>
+        <span>{blocked ? '请在浏览器或手机设置里允许通知，否则队友提醒只能进消息中心。' : unsupported ? '手机顶部通知需要支持推送的浏览器；iPhone 需先把网页添加到主屏幕。' : '开启后，队友的陪他完成和鼓励会尝试出现在手机通知栏。'}</span>
       </div>
       {!unsupported && !blocked && <button style={S.pushBtn} onClick={onEnable} disabled={busy}>{busy ? '开启中' : '开启'}</button>}
     </div>
@@ -644,13 +644,13 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
             <div style={S.buddyIcon}>☕</div>
             <div style={{ flex: 1 }}>
               <div style={S.buddyTitle}>{buddy ? '今日留笺：' + buddy.name : '今日留笺：暂无其他团友'}</div>
-              <div style={S.buddyText}>{buddy ? (buddy.doneToday ? 'TA已经落印。你可以递一句回应，让守诺被看见。' : 'TA今天还没落印。轻轻留一笺，比沉默更有力量。') : '留笺对象只能是其他用户。等有人加入小队后，这里才会出现真正的同行。'}</div>
+              <div style={S.buddyText}>{buddy ? (buddy.doneToday ? 'TA已经落印。你可以留笺回应，让守诺被看见。' : 'TA今天还没落印。轻轻留一笺，比沉默更有力量。') : '留笺对象只能是其他用户。等有人加入小队后，这里才会出现真正的同行。'}</div>
             </div>
             {buddy && <Tag tone={buddy.doneToday ? 'green' : 'red'}>{buddy.doneToday ? '已落印' : '待落印'}</Tag>}
           </div>
           <div style={S.buddyActions}>
-            <button style={S.buddyBtn} onClick={() => buddy ? setShowEncourageBox(v => !v) : onEncourage?.('empty')} disabled={!buddy}>递一句</button>
-            <button style={S.buddyBtnDark} onClick={() => buddy ? setShowNudgeBox(v => !v) : onEncourage?.('empty')} disabled={!buddy}>提醒落印</button>
+            <button style={S.buddyBtn} onClick={() => buddy ? setShowEncourageBox(v => !v) : onEncourage?.('empty')} disabled={!buddy}>留笺</button>
+            <button style={S.buddyBtnDark} onClick={() => buddy ? setShowNudgeBox(v => !v) : onEncourage?.('empty')} disabled={!buddy}>陪他完成</button>
           </div>
           {showNudgeBox && (
             <div style={S.inlinePanel}>
@@ -713,6 +713,141 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
           ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+
+function TodayActionPage({ featuredTeam, currentUserId, onOpenTeam, onCheckin, onSendNote, onFindCompanion, nav }) {
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [note, setNote] = useState('')
+  const [needOpen, setNeedOpen] = useState(false)
+  const [need, setNeed] = useState('陪我专注 15 分钟')
+  const [repairOpen, setRepairOpen] = useState(false)
+
+  const pledge = featuredTeam?.pledge
+  const members = pledge ? buildRoomMembers(pledge).filter(member => !member.empty) : []
+  const me = members.find(member => member.id === currentUserId)
+  const doneCount = members.filter(member => member.doneToday).length
+  const teamSizeNow = Math.max(members.length, pledge ? teamSize(pledge) : 0, 1)
+  const selfDone = pledge ? checkedToday(pledge) : false
+  const isRepairing = pledge && ['failed', 'broken', 'expired'].includes(String(pledge.status || '').toLowerCase())
+  const target = members.find(member => member.id !== currentUserId && !member.doneToday) || members.find(member => member.id !== currentUserId)
+  const progress = pledge ? pct(pledge) : 0
+  const leadPercent = Math.min(86, Math.max(18, Math.round(progress * .7 + doneCount * 9)))
+  const peopleAhead = Math.max(1, Math.round((100 - leadPercent) / 5))
+  const sealsComplete = doneCount >= Math.min(TEAM_LIMIT, teamSizeNow) && teamSizeNow > 1
+  const primaryLabel = isRepairing ? '修诺' : selfDone ? '留笺给同行' : '去践诺'
+  const teammateName = target?.name || '同行者'
+  const noteOptions = ['我先做到了，你也来。', '今天别拼状态，先开始。', '我刚刚也卡住了。', '明天我陪你一起修。']
+  const needOptions = ['陪我专注 15 分钟', '我不知道怎么继续', '陪我完成一次修诺', '给我一次外部监督']
+
+  async function submitNote() {
+    const text = note.trim()
+    if (!target) return
+    await onSendNote(target, text || '我先做到了，你也来。')
+    setNote('')
+    setComposerOpen(false)
+  }
+
+  function primaryAction() {
+    if (!pledge) return nav('/new')
+    if (isRepairing) return setRepairOpen(value => !value)
+    if (selfDone) return setComposerOpen(value => !value)
+    onCheckin(pledge)
+  }
+
+  return (
+    <div style={S.actionPage}>
+      {!pledge ? (
+        <div style={S.actionEmpty}>
+          <div style={S.actionEyebrow}>同行从一份誓言开始</div>
+          <div style={S.actionEmptyTitle}>先写下今天愿意守住的事</div>
+          <div style={S.actionEmptyText}>当你有了正在践行的诺言，才会遇见愿意同行的人。</div>
+          <button style={S.actionPrimary} onClick={() => nav('/new')}>立下一誓</button>
+        </div>
+      ) : (
+        <>
+          <section style={S.coPracticeHero}>
+            <div style={S.coPracticeTop}>
+              <div>
+                <div style={S.actionEyebrow}>今日共践</div>
+                <div style={S.coPracticeCount}>{doneCount}<span> / {teamSizeNow} 人已落印</span></div>
+              </div>
+              <div style={{ ...S.sealBadge, ...(sealsComplete ? S.sealBadgeFull : {}) }}>{sealsComplete ? '五印齐成' : '共践中'}</div>
+            </div>
+
+            <div style={S.coPracticeQuote}>
+              <span style={S.quoteMark}>“</span>
+              {selfDone ? '你已落印，留一句话让同行者知道你在。' : (doneCount ? teammateName + ' 已先一步落印。今天，你也值得把这一印落下。' : '今天还没有人先落印。你可以成为把队伍带回正轨的人。')}
+            </div>
+
+            <button style={S.coPracticeMainAction} onClick={primaryAction}>{primaryLabel}</button>
+
+            <button style={S.sealRow} onClick={() => onOpenTeam(pledge)} aria-label="查看同行小队">
+              {members.slice(0, TEAM_LIMIT).map(member => (
+                <span key={member.id} style={{ ...S.memberSeal, ...(member.doneToday ? S.memberSealDone : {}), ...(member.id === currentUserId ? S.memberSealSelf : {}) }}>
+                  {member.name?.slice(0, 1) || '行'}
+                </span>
+              ))}
+              {Array.from({ length: Math.max(0, TEAM_LIMIT - members.length) }).map((_, index) => <span key={'empty-' + index} style={S.memberSealEmpty}>○</span>)}
+              <span style={S.teamLink}>查看同行小队 ›</span>
+            </button>
+
+            {composerOpen && (
+              <div style={S.noteComposer}>
+                <div style={S.noteComposerTitle}>留笺给 {teammateName}</div>
+                <div style={S.quickNotes}>
+                  {noteOptions.map(option => <button key={option} style={S.quickNote} onClick={() => setNote(option)}>{option}</button>)}
+                </div>
+                <textarea value={note} maxLength={50} onChange={event => setNote(event.target.value)} placeholder="写一句给同行者的话，50 字以内" style={S.noteInput} />
+                <div style={S.composerFoot}>
+                  <span>{note.length}/50</span>
+                  <button style={S.noteSendBtn} onClick={submitNote}>落笺发送</button>
+                </div>
+              </div>
+            )}
+
+            {repairOpen && (
+              <div style={S.repairPanel}>
+                <div style={S.repairTitle}>今日未能落印，但仍可修诺</div>
+                <div style={S.repairText}>选一件此刻能兑现的补救行动，让同行者看见你没有离场。</div>
+                <div style={S.repairChoices}>
+                  <button style={S.repairChoice} onClick={() => { setRepairOpen(false); setComposerOpen(true); setNote('我会在明早 7:30 补做，欢迎陪我完成。') }}>明早补做</button>
+                  <button style={S.repairChoice} onClick={() => { setRepairOpen(false); setNeedOpen(true); setNeed('陪我完成一次修诺') }}>现在陪修</button>
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section style={S.referenceLine}>
+            <div>
+              <div style={S.referenceTitle}>同诺行列</div>
+              <div style={S.referenceMain}>你领先 {leadPercent}% 的同诺者</div>
+              <div style={S.referenceHint}>今天已有 {peopleAhead} 人走在你前面</div>
+            </div>
+            <button style={S.referenceLink} onClick={() => onOpenTeam(pledge)}>看队伍 ›</button>
+          </section>
+
+          <section style={S.findCompanion}>
+            <button style={S.findCompanionHeader} onClick={() => setNeedOpen(value => !value)}>
+              <span>
+                <span style={S.findCompanionTitle}>求同行</span>
+                <span style={S.findCompanionHint}>卡住时，找一个人陪你把下一步做完。</span>
+              </span>
+              <span style={S.findCompanionArrow}>{needOpen ? '⌃' : '›'}</span>
+            </button>
+            {needOpen && (
+              <div style={S.needBody}>
+                <div style={S.needOptions}>
+                  {needOptions.map(option => <button key={option} style={{ ...S.needOption, ...(need === option ? S.needOptionOn : {}) }} onClick={() => setNeed(option)}>{option}</button>)}
+                </div>
+                <button style={S.needSubmit} onClick={() => onFindCompanion(need)}>查看可同行的小队</button>
+              </div>
+            )}
+          </section>
+        </>
+      )}
     </div>
   )
 }
@@ -971,128 +1106,31 @@ export default function CompanionsPage() {
 
   if (roomPledge) {
     return (
-      <TeamRoom pledge={roomPledge} loading={roomLoading} error={roomError} toast={toast} currentUserId={session?.user?.id}
-        onBack={() => setRoomPledge(null)}
-        onHelp={() => showToast('求助广播会在下一步接入团内留言；当前请先用提醒和回应')}
-        onNudge={(member, message) => sendCompanionNotification(member, 'nudge', message || '提醒落印')}
-        onEncourage={(label, member) => {
-          if (label === 'self') return showToast('不能给自己发送小队反馈')
-          if (label === 'empty') return showToast('暂无其他团友可反馈')
-          return sendCompanionNotification(member, 'echo', label)
-        }} />
-    )
-  }
-
-  return (
     <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column' }}>
       {toast && <div style={S.toast}>{toast}</div>}
       <div style={S.topbar}>
         <div style={S.logo}>同<em style={{ color: C.gold, fontStyle: 'normal' }}>行</em></div>
-        <button style={S.messageBtn} onClick={() => nav('/notifications')}>消息</button>
+        <div style={{ width: 52 }} />
       </div>
 
-
-      <PushNotice state={pushState} busy={pushBusy} onEnable={enablePushReminders} />
-
-      {loading && <div style={S.stateText}>正在加载同行数据...</div>}
+      {loading && <div style={S.stateText}>正在加载今日共践...</div>}
       {!loading && error && <div style={S.stateText}>{error}</div>}
 
       {!loading && !error && (
-        <div style={S.scrollArea}>
-          <div style={S.viewTabs} role="tablist" aria-label="同行视图">
-            <button role="tab" aria-selected={companionView === 'teams'} style={{ ...S.viewTab, ...(companionView === 'teams' ? S.viewTabOn : {}) }} onClick={() => setCompanionView('teams')}>我的同践</button>
-            <button role="tab" aria-selected={companionView === 'match'} style={{ ...S.viewTab, ...(companionView === 'match' ? S.viewTabOn : {}) }} onClick={() => setCompanionView('match')}>求同行</button>
-          </div>
-
-          {companionView === 'teams' ? (
-            <>
-              <TodayTeamStatus featuredTeam={featuredTeam} totalTeams={allTeamCount} pendingCount={pendingTodayCount} joinedCount={joinedTeams.length}
-                onPrimary={() => featuredTeam ? openRoom(featuredTeam.pledge) : setCompanionView('match')} />
-
-              <div style={S.sectionHeadProto}>
-                <div>
-                  <div style={S.sectionTitle}>今日共践</div>
-                  <div style={S.sectionHint}>先把今天这一笔落下；其余小队收在下方，不再与求同行混在一起。</div>
-                </div>
-              </div>
-
-              {allTeamCount === 0 ? (
-                <EmptyState title="还没有同践小队" text="去求同行看看合适的小队，也可以先立下一份诺言。" action="去求同行" onAction={() => setCompanionView('match')} />
-              ) : (
-                <>
-                  {featuredTeam && (
-                    <TeamProgressCard item={featuredTeam} publishing={publishingId === featuredTeam.pledge.id}
-                      onRecruit={() => handleRecruit(featuredTeam.pledge)} onRoom={() => openRoom(featuredTeam.pledge)} />
-                  )}
-
-                  {visibleOtherTeams.length > 0 && <div style={S.compactListLabel}>其他同践</div>}
-                  {visibleOtherTeams.map(item => (
-                    item.role === 'owned' && teamSize(item.pledge) <= 1 && !item.pledge.is_public ? (
-                      <SoloRecruitCard key={item.key} item={item} publishing={publishingId === item.pledge.id}
-                        onRecruit={() => handleRecruit(item.pledge)} onRoom={() => openRoom(item.pledge)} />
-                    ) : (
-                      <TeamListItem key={item.key} item={item} publishing={publishingId === item.pledge.id}
-                        onRecruit={() => handleRecruit(item.pledge)} onRoom={() => openRoom(item.pledge)} />
-                    )
-                  ))}
-
-                  {otherTeamItems.length > 2 && (
-                    <button style={S.expandTeamsBtn} onClick={() => setShowAllTeams(value => !value)}>
-                      {showAllTeams ? '收起其他小队' : '展开其余 ' + otherTeamItems.length + ' 支小队'}
-                    </button>
-                  )}
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              <div style={S.helpHero}>
-                <div style={S.kicker}>临时互助</div>
-                <div style={S.helpHeroTitle}>求同行</div>
-                <div style={S.helpHeroText}>选择你此刻最需要的支持。这里只提供发现与加入，不展示已加入的小队。</div>
-              </div>
-
-              <div style={S.groupGrid}>
-                {SUPPORT_GROUPS.map(group => (
-                  <button key={group.key} style={{ ...S.groupPill, ...(activeGroup === group.key ? S.groupPillOn : {}) }} onClick={() => setActiveGroup(group.key)}>
-                    <span style={S.groupPillEmoji}>{group.emoji}</span>
-                    <span style={S.groupPillName}>{group.name.replace('互助会', '')}</span>
-                  </button>
-                ))}
-              </div>
-
-              <div style={S.matchPanel}>
-                <div style={S.matchHead}>
-                  <div>
-                    <div style={S.sectionTitle}>{activeSupportGroup?.name || '互助会'}</div>
-                    <div style={S.sectionHint}>{activeSupportGroup?.hint || '找到同路人，一起把今天完成。'}</div>
-                  </div>
-                  <div style={S.matchEmoji}>{activeSupportGroup?.emoji}</div>
-                </div>
-
-                <button style={S.btnGoldWide} onClick={handleAutoMatchActiveGroup} disabled={!activeGroupOpenTeams.length || !!joiningId}>查看合适小队</button>
-
-                <div style={S.matchDivider} />
-                <div style={S.matchListHead}>
-                  <div>
-                    <div style={S.matchListTitle}>可加入的小队</div>
-                    <div style={S.matchListHint}>每次只给两支候选小队，先看清氛围，再决定是否同行。</div>
-                  </div>
-                  <span>{activeGroupOpenTeams.length} 支</span>
-                </div>
-
-                {activeGroupOpenTeams.length === 0 ? (
-                  <div style={S.matchEmpty}>这里暂时没有可加入的小队。你可以先发布自己的同践招募。</div>
-                ) : (
-                  activeGroupOpenTeams.slice(0, 2).map(pledge => (
-                    <HelpTeamCard key={pledge.id} pledge={pledge} joined={false} joining={joiningId === pledge.id}
-                      match={matchLevel(pledge, myPledges)} onOpen={() => openRoom(pledge)} onJoin={() => handleJoin(pledge)} />
-                  ))
-                )}
-              </div>
-            </>
-          )}
-        </div>
+        <TodayActionPage
+          featuredTeam={featuredTeam}
+          currentUserId={session?.user?.id}
+          nav={nav}
+          onOpenTeam={openRoom}
+          onCheckin={pledge => nav('/pledge/' + pledge.id + '/checkin')}
+          onSendNote={(member, text) => sendCompanionNotification(member, 'echo', text)}
+          onFindCompanion={need => {
+            const target = recommended.find(item => !joinedIds.has(item.id) && teamSlots(item) > 0)
+            if (!target) return showToast('暂时没有可响应的小队，晚些再来看看。')
+            showToast('已按“' + need + '”为你筛出可同行的小队')
+            openRoom(target)
+          }}
+        />
       )}
     </div>
   )
@@ -1110,6 +1148,55 @@ const S = {
   tabBtnOn: { color: C.gold, borderBottom: '2px solid ' + C.gold, fontWeight: 800 },
   scrollArea: { flex: 1, overflowY: 'auto', padding: '14px 16px' },
   stateText: { padding: '28px 16px', textAlign: 'center', color: C.muted, fontSize: 13 },
+
+  actionPage: { flex: 1, overflowY: 'auto', padding: '18px 16px 28px' },
+  actionEmpty: { marginTop: 34, padding: '30px 22px', border: '1px solid ' + C.border, borderRadius: 18, background: C.surf, textAlign: 'center', boxShadow: '0 8px 24px rgba(34,22,8,.05)' },
+  actionEmptyTitle: { marginTop: 8, color: C.ink, fontFamily: 'Noto Serif SC,serif', fontSize: 24, fontWeight: 900 },
+  actionEmptyText: { margin: '11px 0 22px', color: C.muted, fontSize: 13, lineHeight: 1.7 },
+  actionPrimary: { border: 'none', borderRadius: 999, background: C.ink, color: '#F6D486', padding: '12px 25px', fontSize: 14, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' },
+  coPracticeHero: { padding: 18, borderRadius: 18, background: 'linear-gradient(135deg,#211308 0%,#573214 100%)', color: '#FFF8E9', boxShadow: '0 10px 26px rgba(51,28,8,.16)' },
+  coPracticeTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  actionEyebrow: { color: C.gold, fontSize: 12, fontWeight: 900, letterSpacing: 1.2 },
+  coPracticeCount: { marginTop: 7, color: '#FFF9EB', fontFamily: 'Noto Serif SC,serif', fontSize: 27, fontWeight: 900 },
+  sealBadge: { border: '1px solid rgba(240,192,89,.45)', background: 'rgba(207,151,39,.22)', color: '#F7D875', borderRadius: 999, padding: '7px 10px', fontSize: 11, fontWeight: 900, whiteSpace: 'nowrap' },
+  sealBadgeFull: { background: 'rgba(76,152,96,.3)', borderColor: 'rgba(164,222,167,.5)', color: '#D7F0D4' },
+  coPracticeQuote: { margin: '17px 0 15px', minHeight: 44, padding: '10px 0 0', borderTop: '1px solid rgba(255,245,218,.16)', color: '#E7D3B0', fontSize: 14, lineHeight: 1.6 },
+  quoteMark: { color: C.gold, fontSize: 21, fontFamily: 'Noto Serif SC,serif', marginRight: 4 },
+  coPracticeMainAction: { width: '100%', border: '1px solid #E9BA51', borderRadius: 999, padding: '12px 14px', background: '#F5D377', color: '#32200C', fontSize: 15, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.55)' },
+  sealRow: { width: '100%', marginTop: 16, padding: 0, display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: '#F9E5B6', fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer', textAlign: 'left' },
+  memberSeal: { width: 29, height: 29, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: '1px solid rgba(255,241,204,.35)', background: 'rgba(255,255,255,.10)', color: '#E5CFA1', fontSize: 12, fontWeight: 900, flexShrink: 0 },
+  memberSealDone: { background: '#D9A62C', borderColor: '#F4D778', color: '#392108' },
+  memberSealSelf: { boxShadow: '0 0 0 2px rgba(255,244,215,.28)' },
+  memberSealEmpty: { width: 29, height: 29, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: '1px dashed rgba(255,241,204,.28)', color: 'rgba(255,240,210,.45)', fontSize: 12, flexShrink: 0 },
+  teamLink: { marginLeft: 5, color: '#F8E2AE', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' },
+  noteComposer: { marginTop: 14, padding: 13, borderRadius: 12, background: 'rgba(255,250,238,.96)', color: C.ink },
+  noteComposerTitle: { fontSize: 13, fontWeight: 900, marginBottom: 9 },
+  quickNotes: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 9 },
+  quickNote: { border: '1px solid ' + C.border, borderRadius: 999, background: '#FFF', color: C.goldD, padding: '6px 8px', fontSize: 11, fontWeight: 700, fontFamily: 'Noto Sans SC,sans-serif' },
+  noteInput: { width: '100%', minHeight: 58, resize: 'none', boxSizing: 'border-box', border: '1px solid ' + C.border, borderRadius: 9, padding: 9, outline: 'none', color: C.ink, background: '#FFFDF8', fontSize: 12, fontFamily: 'Noto Sans SC,sans-serif' },
+  composerFoot: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, color: C.muted, fontSize: 11 },
+  noteSendBtn: { border: 'none', borderRadius: 999, background: C.ink, color: '#F4D778', padding: '7px 12px', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' },
+  repairPanel: { marginTop: 14, padding: 13, borderRadius: 12, background: 'rgba(255,248,225,.96)', border: '1px solid rgba(231,195,108,.55)', color: C.ink },
+  repairTitle: { fontSize: 14, fontWeight: 900 },
+  repairText: { marginTop: 5, color: C.muted, fontSize: 12, lineHeight: 1.55 },
+  repairChoices: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 11 },
+  repairChoice: { border: '1px solid ' + C.border, borderRadius: 9, background: '#FFFDF8', color: C.goldD, padding: '9px 7px', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' },
+  referenceLine: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 3px 18px', borderBottom: '1px solid ' + C.border },
+  referenceTitle: { color: C.goldD, fontSize: 12, fontWeight: 900, letterSpacing: 1 },
+  referenceMain: { marginTop: 5, color: C.ink, fontFamily: 'Noto Serif SC,serif', fontSize: 19, fontWeight: 900 },
+  referenceHint: { marginTop: 4, color: C.muted, fontSize: 12 },
+  referenceLink: { border: 'none', background: 'transparent', color: C.goldD, fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' },
+  findCompanion: { borderBottom: '1px solid ' + C.border },
+  findCompanionHeader: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 15, padding: '18px 3px', border: 'none', background: 'transparent', color: C.ink, textAlign: 'left', fontFamily: 'Noto Sans SC,sans-serif' },
+  findCompanionTitle: { display: 'block', fontFamily: 'Noto Serif SC,serif', fontSize: 19, fontWeight: 900 },
+  findCompanionHint: { display: 'block', marginTop: 4, color: C.muted, fontSize: 12, lineHeight: 1.5 },
+  findCompanionArrow: { color: C.goldD, fontSize: 23, lineHeight: 1 },
+  needBody: { padding: '0 0 17px' },
+  needOptions: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
+  needOption: { minHeight: 46, border: '1px solid ' + C.border, borderRadius: 10, background: C.surf, color: C.muted, padding: '8px 10px', textAlign: 'left', fontSize: 12, fontWeight: 800, fontFamily: 'Noto Sans SC,sans-serif' },
+  needOptionOn: { borderColor: C.gold, background: C.goldL, color: C.ink },
+  needSubmit: { width: '100%', marginTop: 10, border: '1px solid ' + C.gold, borderRadius: 999, background: 'transparent', color: C.goldD, padding: '10px 14px', fontSize: 13, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' },
+
   pushNotice: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '10px 16px 0', padding: '11px 12px', border: '1px solid #E8D4A0', borderRadius: 14, background: '#FFF9EA', boxShadow: '0 2px 10px rgba(122,90,24,.05)' },
   pushCopy: { display: 'flex', flexDirection: 'column', gap: 3, color: C.muted, fontSize: 11, lineHeight: 1.45, minWidth: 0 },
   pushBtn: { border: 'none', background: C.ink, color: '#F6D486', borderRadius: 999, padding: '8px 14px', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', whiteSpace: 'nowrap' },
