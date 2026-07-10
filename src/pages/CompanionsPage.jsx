@@ -721,13 +721,8 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
 function TodayActionPage({ featuredTeam, currentUserId, onOpenTeam, onCheckin, onSendNote, onFindCompanion, nav }) {
   const [composerOpen, setComposerOpen] = useState(false)
   const [note, setNote] = useState('')
-  const [needOpen, setNeedOpen] = useState(false)
-  const [need, setNeed] = useState('陪我专注 15 分钟')
-  const [repairOpen, setRepairOpen] = useState(false)
-
   const pledge = featuredTeam?.pledge
   const members = pledge ? buildRoomMembers(pledge).filter(member => !member.empty) : []
-  const me = members.find(member => member.id === currentUserId)
   const doneCount = members.filter(member => member.doneToday).length
   const teamSizeNow = Math.max(members.length, pledge ? teamSize(pledge) : 0, 1)
   const selfDone = pledge ? checkedToday(pledge) : false
@@ -736,23 +731,21 @@ function TodayActionPage({ featuredTeam, currentUserId, onOpenTeam, onCheckin, o
   const progress = pledge ? pct(pledge) : 0
   const leadPercent = Math.min(86, Math.max(18, Math.round(progress * .7 + doneCount * 9)))
   const peopleAhead = Math.max(1, Math.round((100 - leadPercent) / 5))
-  const sealsComplete = doneCount >= Math.min(TEAM_LIMIT, teamSizeNow) && teamSizeNow > 1
   const primaryLabel = isRepairing ? '修诺' : selfDone ? '留笺给同行' : '去践诺'
+  const stateText = isRepairing ? '今日未能落印，仍可修诺' : selfDone ? '你已落印，留一句给同行' : '你尚未落印'
   const teammateName = target?.name || '同行者'
   const noteOptions = ['我先做到了，你也来。', '今天别拼状态，先开始。', '我刚刚也卡住了。', '明天我陪你一起修。']
-  const needOptions = ['陪我专注 15 分钟', '我不知道怎么继续', '陪我完成一次修诺', '给我一次外部监督']
 
   async function submitNote() {
-    const text = note.trim()
     if (!target) return
-    await onSendNote(target, text || '我先做到了，你也来。')
+    await onSendNote(target, note.trim() || '我先做到了，你也来。')
     setNote('')
     setComposerOpen(false)
   }
 
   function primaryAction() {
     if (!pledge) return nav('/new')
-    if (isRepairing) return setRepairOpen(value => !value)
+    if (isRepairing) return onFindCompanion('陪我完成一次修诺')
     if (selfDone) return setComposerOpen(value => !value)
     onCheckin(pledge)
   }
@@ -770,18 +763,15 @@ function TodayActionPage({ featuredTeam, currentUserId, onOpenTeam, onCheckin, o
         <>
           <section style={S.coPracticeHero}>
             <div style={S.coPracticeTop}>
-              <div>
-                <div style={S.actionEyebrow}>今日共践</div>
-                <div style={S.coPracticeCount}>{doneCount}<span> / {teamSizeNow} 人已落印</span></div>
-              </div>
-              <div style={{ ...S.sealBadge, ...(sealsComplete ? S.sealBadgeFull : {}) }}>{sealsComplete ? '五印齐成' : '共践中'}</div>
+              <div style={S.actionEyebrow}>今日共践</div>
+              <div style={S.coPracticeCount}>{doneCount}<span> / {teamSizeNow} 人已落印</span></div>
             </div>
 
             <div style={S.coPracticeQuote}>
-              <span style={S.quoteMark}>“</span>
-              {selfDone ? '你已落印，留一句话让同行者知道你在。' : (doneCount ? teammateName + ' 已先一步落印。今天，你也值得把这一印落下。' : '今天还没有人先落印。你可以成为把队伍带回正轨的人。')}
+              {target ? teammateName + ' 留笺：「状态很差，但我还是做了 15 分钟。」' : '今天先给自己落下一印。'}
             </div>
 
+            <div style={S.actionState}>{stateText}</div>
             <button style={S.coPracticeMainAction} onClick={primaryAction}>{primaryLabel}</button>
 
             <button style={S.sealRow} onClick={() => onOpenTeam(pledge)} aria-label="查看同行小队">
@@ -807,17 +797,6 @@ function TodayActionPage({ featuredTeam, currentUserId, onOpenTeam, onCheckin, o
                 </div>
               </div>
             )}
-
-            {repairOpen && (
-              <div style={S.repairPanel}>
-                <div style={S.repairTitle}>今日未能落印，但仍可修诺</div>
-                <div style={S.repairText}>选一件此刻能兑现的补救行动，让同行者看见你没有离场。</div>
-                <div style={S.repairChoices}>
-                  <button style={S.repairChoice} onClick={() => { setRepairOpen(false); setComposerOpen(true); setNote('我会在明早 7:30 补做，欢迎陪我完成。') }}>明早补做</button>
-                  <button style={S.repairChoice} onClick={() => { setRepairOpen(false); setNeedOpen(true); setNeed('陪我完成一次修诺') }}>现在陪修</button>
-                </div>
-              </div>
-            )}
           </section>
 
           <section style={S.referenceLine}>
@@ -826,26 +805,15 @@ function TodayActionPage({ featuredTeam, currentUserId, onOpenTeam, onCheckin, o
               <div style={S.referenceMain}>你领先 {leadPercent}% 的同诺者</div>
               <div style={S.referenceHint}>今天已有 {peopleAhead} 人走在你前面</div>
             </div>
-            <button style={S.referenceLink} onClick={() => onOpenTeam(pledge)}>看队伍 ›</button>
           </section>
 
-          <section style={S.findCompanion}>
-            <button style={S.findCompanionHeader} onClick={() => setNeedOpen(value => !value)}>
-              <span>
-                <span style={S.findCompanionTitle}>求同行</span>
-                <span style={S.findCompanionHint}>卡住时，找一个人陪你把下一步做完。</span>
-              </span>
-              <span style={S.findCompanionArrow}>{needOpen ? '⌃' : '›'}</span>
-            </button>
-            {needOpen && (
-              <div style={S.needBody}>
-                <div style={S.needOptions}>
-                  {needOptions.map(option => <button key={option} style={{ ...S.needOption, ...(need === option ? S.needOptionOn : {}) }} onClick={() => setNeed(option)}>{option}</button>)}
-                </div>
-                <button style={S.needSubmit} onClick={() => onFindCompanion(need)}>查看可同行的小队</button>
-              </div>
-            )}
-          </section>
+          <button style={S.findCompanionHeader} onClick={() => onFindCompanion('陪我专注 15 分钟')}>
+            <span>
+              <span style={S.findCompanionTitle}>求同行</span>
+              <span style={S.findCompanionHint}>卡住时，找一个人陪你把下一步做完。</span>
+            </span>
+            <span style={S.findCompanionArrow}>›</span>
+          </button>
         </>
       )}
     </div>
@@ -1160,7 +1128,8 @@ const S = {
   coPracticeCount: { marginTop: 7, color: '#FFF9EB', fontFamily: 'Noto Serif SC,serif', fontSize: 27, fontWeight: 900 },
   sealBadge: { border: '1px solid rgba(240,192,89,.45)', background: 'rgba(207,151,39,.22)', color: '#F7D875', borderRadius: 999, padding: '7px 10px', fontSize: 11, fontWeight: 900, whiteSpace: 'nowrap' },
   sealBadgeFull: { background: 'rgba(76,152,96,.3)', borderColor: 'rgba(164,222,167,.5)', color: '#D7F0D4' },
-  coPracticeQuote: { margin: '17px 0 15px', minHeight: 44, padding: '10px 0 0', borderTop: '1px solid rgba(255,245,218,.16)', color: '#E7D3B0', fontSize: 14, lineHeight: 1.6 },
+  coPracticeQuote: { margin: '17px 0 12px', minHeight: 44, padding: '10px 0 0', borderTop: '1px solid rgba(255,245,218,.16)', color: '#E7D3B0', fontSize: 14, lineHeight: 1.6 },
+  actionState: { margin: '3px 0 10px', color: '#FFF8E9', fontSize: 13, fontWeight: 900 },
   quoteMark: { color: C.gold, fontSize: 21, fontFamily: 'Noto Serif SC,serif', marginRight: 4 },
   coPracticeMainAction: { width: '100%', border: '1px solid #E9BA51', borderRadius: 999, padding: '12px 14px', background: '#F5D377', color: '#32200C', fontSize: 15, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.55)' },
   sealRow: { width: '100%', marginTop: 16, padding: 0, display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: '#F9E5B6', fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer', textAlign: 'left' },
