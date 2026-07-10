@@ -720,7 +720,8 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
 export default function CompanionsPage() {
   const { session, profile } = useAuth()
   const nav = useNavigate()
-  const [teamFilter, setTeamFilter] = useState('all')
+  const [companionView, setCompanionView] = useState('teams')
+  const [showAllTeams, setShowAllTeams] = useState(false)
   const [activeGroup, setActiveGroup] = useState('study')
   const [myPledges, setMyPledges] = useState([])
   const [publicPledges, setPublicPledges] = useState([])
@@ -951,7 +952,7 @@ export default function CompanionsPage() {
       showToast('这个互助会暂时没有可加入小队，可以先发布自己的招募')
       return
     }
-    handleJoin(target)
+    openRoom(target)
   }
   const suggestedForMy = recommended.filter(p => !joinedIds.has(p.id) && matchLevel(p, myPledges) <= 1 && teamSlots(p) > 0).slice(0, 3)
   const ownedMemberCount = myPledges.reduce((sum, p) => sum + teamSize(p), 0)
@@ -959,12 +960,12 @@ export default function CompanionsPage() {
     ...myOwnedTeams.map(pledge => ({ key: 'owned-' + userTeamKey(pledge), role: 'owned', pledge })),
     ...joinedTeams.map(pledge => ({ key: 'joined-' + userTeamKey(pledge), role: 'joined', pledge })),
   ]
-  const myTeamItems = myTeamItemsRaw.filter(item => teamFilter === 'all' || item.role === teamFilter)
+  const myTeamItems = myTeamItemsRaw
   const allTeamCount = myOwnedTeams.length + joinedTeams.length
   const activeTeamItems = myTeamItems.filter(item => item.role === 'joined' || teamSize(item.pledge) > 1 || item.pledge.is_public)
-  const soloTeamItems = myTeamItems.filter(item => item.role === 'owned' && teamSize(item.pledge) <= 1 && !item.pledge.is_public)
-  const featuredTeam = activeTeamItems[0]
-  const secondaryTeams = activeTeamItems.slice(1, 3)
+  const featuredTeam = activeTeamItems[0] || myTeamItems[0]
+  const otherTeamItems = myTeamItems.filter(item => item.key !== featuredTeam?.key)
+  const visibleOtherTeams = showAllTeams ? otherTeamItems : otherTeamItems.slice(0, 2)
   const pendingTodayCount = myPledges.filter(p => !checkedToday(p)).length
   const suggestedOpenCount = recommended.filter(p => !joinedIds.has(p.id) && teamSlots(p) > 0).length
 
@@ -998,97 +999,99 @@ export default function CompanionsPage() {
 
       {!loading && !error && (
         <div style={S.scrollArea}>
-          <TodayTeamStatus featuredTeam={featuredTeam} totalTeams={allTeamCount} pendingCount={pendingTodayCount} joinedCount={joinedTeams.length} suggestedCount={suggestedOpenCount}
-            onPrimary={() => featuredTeam ? openRoom(featuredTeam.pledge) : showToast('先从下方互助会加入一支小队')} />
-
-          <div style={S.sectionHeadProto}>
-            <div>
-              <div style={S.sectionTitle}>我的同践</div>
-              <div style={S.sectionHint}>这里只放长期同行。每天落印、留笺与修诺，都回到同一支小队。</div>
-            </div>
-            <div style={S.filterRowInline}>
-              {[
-                ['all', '全部', allTeamCount],
-                ['owned', '我发起', myOwnedTeams.length],
-                ['joined', '我加入', joinedTeams.length],
-              ].map(([key, label, count]) => (
-                <button key={key} style={{ ...S.filterPill, ...(teamFilter === key ? S.filterPillOn : {}) }} onClick={() => setTeamFilter(key)}>{label}{count}</button>
-              ))}
-            </div>
+          <div style={S.viewTabs} role="tablist" aria-label="同行视图">
+            <button role="tab" aria-selected={companionView === 'teams'} style={{ ...S.viewTab, ...(companionView === 'teams' ? S.viewTabOn : {}) }} onClick={() => setCompanionView('teams')}>我的同践</button>
+            <button role="tab" aria-selected={companionView === 'match'} style={{ ...S.viewTab, ...(companionView === 'match' ? S.viewTabOn : {}) }} onClick={() => setCompanionView('match')}>求同行</button>
           </div>
 
-          {allTeamCount === 0 ? (
-            <EmptyState title="还没有同践小队" text="先立下一份诺言，或从下方互助会加入一个同诺小队。" action="立下新誓" onAction={() => nav('/new')} />
-          ) : myTeamItems.length === 0 ? (
-            <EmptyState title="当前筛选下没有小队" text="切换到全部，或在下方互助会加入新的同践小队。" />
+          {companionView === 'teams' ? (
+            <>
+              <TodayTeamStatus featuredTeam={featuredTeam} totalTeams={allTeamCount} pendingCount={pendingTodayCount} joinedCount={joinedTeams.length}
+                onPrimary={() => featuredTeam ? openRoom(featuredTeam.pledge) : setCompanionView('match')} />
+
+              <div style={S.sectionHeadProto}>
+                <div>
+                  <div style={S.sectionTitle}>今日共践</div>
+                  <div style={S.sectionHint}>先把今天这一笔落下；其余小队收在下方，不再与求同行混在一起。</div>
+                </div>
+              </div>
+
+              {allTeamCount === 0 ? (
+                <EmptyState title="还没有同践小队" text="去求同行看看合适的小队，也可以先立下一份诺言。" action="去求同行" onAction={() => setCompanionView('match')} />
+              ) : (
+                <>
+                  {featuredTeam && (
+                    <TeamProgressCard item={featuredTeam} publishing={publishingId === featuredTeam.pledge.id}
+                      onRecruit={() => handleRecruit(featuredTeam.pledge)} onRoom={() => openRoom(featuredTeam.pledge)} />
+                  )}
+
+                  {visibleOtherTeams.length > 0 && <div style={S.compactListLabel}>其他同践</div>}
+                  {visibleOtherTeams.map(item => (
+                    item.role === 'owned' && teamSize(item.pledge) <= 1 && !item.pledge.is_public ? (
+                      <SoloRecruitCard key={item.key} item={item} publishing={publishingId === item.pledge.id}
+                        onRecruit={() => handleRecruit(item.pledge)} onRoom={() => openRoom(item.pledge)} />
+                    ) : (
+                      <TeamListItem key={item.key} item={item} publishing={publishingId === item.pledge.id}
+                        onRecruit={() => handleRecruit(item.pledge)} onRoom={() => openRoom(item.pledge)} />
+                    )
+                  ))}
+
+                  {otherTeamItems.length > 2 && (
+                    <button style={S.expandTeamsBtn} onClick={() => setShowAllTeams(value => !value)}>
+                      {showAllTeams ? '收起其他小队' : '展开其余 ' + otherTeamItems.length + ' 支小队'}
+                    </button>
+                  )}
+                </>
+              )}
+            </>
           ) : (
             <>
-              {featuredTeam && (
-                <TeamProgressCard item={featuredTeam} publishing={publishingId === featuredTeam.pledge.id}
-                  onRecruit={() => handleRecruit(featuredTeam.pledge)} onRoom={() => openRoom(featuredTeam.pledge)} />
-              )}
+              <div style={S.helpHero}>
+                <div style={S.kicker}>临时互助</div>
+                <div style={S.helpHeroTitle}>求同行</div>
+                <div style={S.helpHeroText}>选择你此刻最需要的支持。这里只提供发现与加入，不展示已加入的小队。</div>
+              </div>
 
-              {secondaryTeams.map(item => (
-                <TeamListItem key={item.key} item={item} publishing={publishingId === item.pledge.id}
-                  onRecruit={() => handleRecruit(item.pledge)} onRoom={() => openRoom(item.pledge)} />
-              ))}
+              <div style={S.groupGrid}>
+                {SUPPORT_GROUPS.map(group => (
+                  <button key={group.key} style={{ ...S.groupPill, ...(activeGroup === group.key ? S.groupPillOn : {}) }} onClick={() => setActiveGroup(group.key)}>
+                    <span style={S.groupPillEmoji}>{group.emoji}</span>
+                    <span style={S.groupPillName}>{group.name.replace('互助会', '')}</span>
+                  </button>
+                ))}
+              </div>
 
-              {soloTeamItems.slice(0, 2).map(item => (
-                <SoloRecruitCard key={item.key} item={item} publishing={publishingId === item.pledge.id}
-                  onRecruit={() => handleRecruit(item.pledge)} onRoom={() => openRoom(item.pledge)} />
-              ))}
+              <div style={S.matchPanel}>
+                <div style={S.matchHead}>
+                  <div>
+                    <div style={S.sectionTitle}>{activeSupportGroup?.name || '互助会'}</div>
+                    <div style={S.sectionHint}>{activeSupportGroup?.hint || '找到同路人，一起把今天完成。'}</div>
+                  </div>
+                  <div style={S.matchEmoji}>{activeSupportGroup?.emoji}</div>
+                </div>
+
+                <button style={S.btnGoldWide} onClick={handleAutoMatchActiveGroup} disabled={!activeGroupOpenTeams.length || !!joiningId}>查看合适小队</button>
+
+                <div style={S.matchDivider} />
+                <div style={S.matchListHead}>
+                  <div>
+                    <div style={S.matchListTitle}>可加入的小队</div>
+                    <div style={S.matchListHint}>每次只给两支候选小队，先看清氛围，再决定是否同行。</div>
+                  </div>
+                  <span>{activeGroupOpenTeams.length} 支</span>
+                </div>
+
+                {activeGroupOpenTeams.length === 0 ? (
+                  <div style={S.matchEmpty}>这里暂时没有可加入的小队。你可以先发布自己的同践招募。</div>
+                ) : (
+                  activeGroupOpenTeams.slice(0, 2).map(pledge => (
+                    <HelpTeamCard key={pledge.id} pledge={pledge} joined={false} joining={joiningId === pledge.id}
+                      match={matchLevel(pledge, myPledges)} onOpen={() => openRoom(pledge)} onJoin={() => handleJoin(pledge)} />
+                  ))
+                )}
+              </div>
             </>
           )}
-
-          <div style={S.helpHubIntro}>
-            <div>
-              <div style={S.kicker}>临时互助</div>
-              <div style={S.helpHeroTitle}>求同行</div>
-              <div style={S.sectionHint}>卡住的时候来这里。找到一位同路人，再决定是否进入长期同践。</div>
-            </div>
-            <div style={S.helpHubBadge}>只为此刻</div>
-          </div>
-
-          <div style={S.groupGrid}>
-            {SUPPORT_GROUPS.map(group => (
-              <SupportGroupCard key={group.key} group={group} active={activeGroup === group.key}
-                stats={groupStats(group.key, recommended, joinedIds)} onClick={() => setActiveGroup(group.key)} />
-            ))}
-          </div>
-
-          <div style={S.matchPanel}>
-            <div style={S.matchHead}>
-              <div>
-                <div style={S.sectionTitle}>{activeSupportGroup?.name || '互助会'}</div>
-                <div style={S.sectionHint}>{activeSupportGroup?.hint || '找到同诺者'}</div>
-              </div>
-              <div style={S.matchEmoji}>{activeSupportGroup?.emoji}</div>
-            </div>
-            <div style={S.matchStats}>
-              <div style={S.matchStatBox}><b>{activeGroupOpenTeams.length}</b><span>可匹配</span></div>
-              <div style={S.matchStatBox}><b>{activeGroupJoinedTeams.length}</b><span>已加入</span></div>
-              <div style={S.matchStatBox}><b>{activeGroupPledges.length}</b><span>公开小队</span></div>
-            </div>
-            <div style={S.matchActionsCompact}>
-              <button style={S.btnGoldWide} onClick={handleAutoMatchActiveGroup} disabled={!activeGroupOpenTeams.length || !!joiningId}>为我找一位同行者</button>
-            </div>
-            <div style={S.matchDivider} />
-            <div style={S.matchListHead}>
-              <div>
-                <div style={S.matchListTitle}>同诺行列</div>
-                <div style={S.matchListHint}>只展示少量合适的同行入口，不把这里变成第二个小队列表。</div>
-              </div>
-              <span>{activeGroupPledges.length} 支</span>
-            </div>
-            {activeGroupPledges.length === 0 ? (
-              <div style={S.matchEmpty}>这里暂时还没有公开同行。你可以先发布自己的同践招募。</div>
-            ) : (
-              activeGroupPledges.slice(0, 2).map(pledge => (
-                <HelpTeamCard key={pledge.id} pledge={pledge} joined={joinedIds.has(pledge.id)} joining={joiningId === pledge.id}
-                  match={matchLevel(pledge, myPledges)} onOpen={() => openRoom(pledge)} onJoin={() => handleJoin(pledge)} />
-              ))
-            )}
-          </div>
         </div>
       )}
     </div>
@@ -1100,6 +1103,9 @@ const S = {
   logo: { fontFamily: 'Noto Serif SC,serif', fontSize: 20, fontWeight: 900, color: C.ink, letterSpacing: .5 },
   messageBtn: { border:'1px solid ' + C.border, background:C.surf, color:C.goldD, borderRadius:999, padding:'7px 12px', fontSize:12, fontWeight:900, fontFamily:'Noto Sans SC,sans-serif' },
   tabBar: { display: 'flex', borderBottom: '1px solid ' + C.border, background: C.bg, flexShrink: 0 },
+  viewTabs: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, padding: 4, marginBottom: 14, background: C.soft, border: '1px solid ' + C.border, borderRadius: 12 },
+  viewTab: { border: 'none', background: 'transparent', color: C.muted, borderRadius: 9, padding: '9px 8px', fontSize: 13, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
+  viewTabOn: { background: C.surf, color: C.ink, boxShadow: '0 1px 5px rgba(26,18,8,.10)' },
   tabBtn: { flex: 1, padding: '11px 0', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 500, color: C.muted, borderBottom: '2px solid transparent', fontFamily: 'Noto Sans SC,sans-serif' },
   tabBtnOn: { color: C.gold, borderBottom: '2px solid ' + C.gold, fontWeight: 800 },
   scrollArea: { flex: 1, overflowY: 'auto', padding: '14px 16px' },
@@ -1119,6 +1125,8 @@ const S = {
   sectionTitle: { fontSize: 15, fontWeight: 900, color: C.ink, fontFamily: 'Noto Serif SC,serif' },
   sectionHint: { fontSize: 11, color: C.hint, marginTop: 3, lineHeight: 1.45 },
   filterRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 },
+  compactListLabel: { margin: '2px 0 8px', color: C.muted, fontSize: 12, fontWeight: 900 },
+  expandTeamsBtn: { width: '100%', border: '1px solid ' + C.border, background: C.surf, color: C.goldD, borderRadius: 999, padding: '10px 12px', marginTop: 2, fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   filterChip: { border: '1px solid ' + C.border, background: C.surf, color: C.muted, borderRadius: 999, padding: '8px 8px', fontSize: 12, fontWeight: 800, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   filterChipOn: { background: C.ink, borderColor: C.ink, color: '#fff' },
   recommendPanel: { marginTop: 14, paddingTop: 2 },
@@ -1284,3 +1292,4 @@ const S = {
   buddyBtn: { border: '1px solid ' + C.border, background: C.surf, color: C.goldD, borderRadius: 999, padding: '10px 12px', fontSize: 13, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
   buddyBtnDark: { border: 'none', background: C.ink, color: '#F6D486', borderRadius: 999, padding: '10px 12px', fontSize: 13, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', cursor: 'pointer' },
 }
+
