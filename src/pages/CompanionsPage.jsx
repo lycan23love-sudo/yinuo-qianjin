@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
-import { getMyPledges, getPublicPledges, getPledgeDetail, getUserCompanionPledges, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins, sendUserNotification, savePushSubscription, getPushSubscriptionStatus } from '../lib/supabase'
+import { getMyPledges, getPublicPledges, getPledgeDetail, getUserCompanionPledges, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins, sendUserNotification, savePushSubscription, getPushSubscriptionStatus, getCompanionDashboard, leaveCompanionNote, startCompanionRepair, requestCompanionHelp, respondToCompanionHelp } from '../lib/supabase'
 import { PLEDGE_CATEGORIES, inferPledgeCategory, inferPledgeTag } from '../lib/pledgeCategories'
 
 const TEAM_LIMIT = 5
@@ -292,7 +292,7 @@ function memberCheckinLine(member, index) {
 }
 
 function getBuddy(activeMembers, currentUserId) {
-  const candidates = activeMembers.filter(member => member.id !== currentUserId)
+  const candidates = activeMembers.filter(member => (member.user_id || member.id) !== currentUserId)
   if (!candidates.length) return null
   return candidates.find(member => !member.doneToday) || candidates[0]
 }
@@ -612,7 +612,7 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
   }
   function sendEcho(member, label) {
     if (!member || member.empty) return
-    if (member.id === currentUserId) return onEncourage?.('self', member)
+    if ((member.user_id || member.id) === currentUserId) return onEncourage?.('self', member)
     onEncourage?.(label, member)
   }
   return (
@@ -688,7 +688,7 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
         <div style={S.sectionLabel}>队友进度对比</div>
         <div style={S.panelCard}>
           {sortedMembers.map((member, index) => {
-            const isSelf = member.id === currentUserId
+            const isSelf = (member.user_id || member.id) === currentUserId
             return (
               <div key={member.id} style={S.memberRow}>
                 <div style={{ ...S.memberAvatar, background: member.doneToday ? C.green : C.gold }}>{index + 1}</div>
@@ -718,19 +718,129 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
 }
 
 
-function TodayActionPage({ featuredTeam, currentUserId, onOpenTeam, onCheckin, onSendNote, onFindCompanion, nav }) {
+
+function CompanionTeamRoom({ dashboard, currentUserId, onBack, onNote, onRepair, onHelp, onRespondHelp, toast }) {
+  const data = dashboard || {}
+  const members = data.members || []
+  const team = data.team || {}
+  const self = members.find(member => member.user_id === currentUserId)
+  const others = members.filter(member => member.user_id !== currentUserId)
+  const doneCount = members.filter(member => member.doneToday).length
+  const notes = data.notes || []
+  const requests = data.helpRequests || []
+  const sevenDays = data.sevenDays || []
+  const peer = data.peer || {}
+  const [noteTarget, setNoteTarget] = useState(others.find(member => !member.doneToday) || others[0] || null)
+  const [noteDraft, setNoteDraft] = useState('')
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [repairOpen, setRepairOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [helpType, setHelpType] = useState('陪我专注 15 分钟')
+  const quickNotes = ['我先做到了，你也来。', '今天别拼状态，先开始。', '我刚刚也卡住了。', '明天我陪你一起修。']
+  const helpOptions = ['陪我专注 15 分钟', '我不知道怎么继续', '陪我完成一次修诺', '给我一次外部监督']
+  const weekSeals = sevenDays.reduce((sum, day) => sum + Number(day.seals || 0), 0)
+  const weekTarget = Math.max(members.length * 7, 1)
+  const latestNote = notes[0]
+  const writer = members.find(member => member.user_id === data.lastWriterId)
+
+  async function submitNote() {
+    if (!noteTarget) return
+    await onNote(noteTarget, noteDraft.trim() || '我先做到了，你也来。')
+    setNoteDraft('')
+    setNoteOpen(false)
+  }
+
+  return (
+    <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column' }}>
+      {toast && <div style={S.toast}>{toast}</div>}
+      <div style={S.roomTopbar}>
+        <button style={S.backBtn} onClick={onBack}>‹</button>
+        <div style={S.logo}>同行<em style={{ color: C.gold, fontStyle: 'normal' }}>小队</em></div>
+        <div style={{ width: 52 }} />
+      </div>
+
+      <div style={S.actionPage}>
+        <section style={S.teamDetailHero}>
+          <div style={S.actionEyebrow}>同行小队</div>
+          <div style={S.teamDetailTitle}>{team.name || '同行小队'}</div>
+          <div style={S.teamDetailMeta}>{members.length}/5 位同行者 · 今日共践进行中</div>
+          <div style={S.teamDetailStats}>
+            <div><b>{doneCount}/{members.length || 1}</b><span>今日落印</span></div>
+            <div><b>{weekSeals}/{weekTarget}</b><span>本周共同落印</span></div>
+            <div><b>{peer.leadPercent || 0}%</b><span>同诺领先</span></div>
+          </div>
+        </section>
+
+        <section style={S.memorySection}>
+          <div style={S.detailSectionTitle}>小队记忆</div>
+          <div style={S.memoryText}>{latestNote ? (latestNote.body || '今天有人为同行者留下了一笺。') : '第一枚小队记忆，等今天的执笔人留下。'}</div>
+          <div style={S.memoryMeta}>{writer ? writer.name + ' 是最近的执笔人' : '五印齐成日、修诺与陪伴都会留在这里'}</div>
+        </section>
+
+        <section style={S.weekSection}>
+          <div style={S.detailSectionHead}><span className={''}>最近 7 日五印记录</span><b>{weekSeals}/{weekTarget}</b></div>
+          <div style={S.sevenDayRow}>
+            {sevenDays.map(day => <div key={day.date} style={S.sevenDayItem}><span style={{ ...S.sevenDot, ...(day.full ? S.sevenDotFull : {}), ...(day.seals > 0 ? S.sevenDotSome : {}) }}>{day.seals}</span><small>{day.date.slice(5)}</small></div>)}
+          </div>
+        </section>
+
+        <section style={S.memberSection}>
+          <div style={S.detailSectionTitle}>队员今日状态</div>
+          {members.map(member => (
+            <div key={member.user_id} style={S.realMemberRow}>
+              <div style={{ ...S.realMemberAvatar, ...(member.doneToday ? S.realMemberDone : {}) }}>{(member.name || '行').slice(0, 1)}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={S.realMemberName}>{member.name}{member.user_id === currentUserId && <span>我</span>}</div>
+                <div style={S.realMemberHint}>{member.doneToday ? '今日已落印 · 连续践诺 ' + (member.current_streak || 0) + ' 天' : member.repair ? '正在修诺：' + member.repair.plan : '今日还没落印'}</div>
+                <div style={S.realMemberTrack}><div style={{ ...S.realMemberFill, width: (member.progress || 0) + '%' }} /></div>
+              </div>
+              <div style={{ ...S.realStatus, ...(member.doneToday ? S.realStatusDone : {}) }}>{member.doneToday ? '已落印' : member.repair ? '修诺中' : '待落印'}</div>
+              {member.user_id !== currentUserId && <button style={S.memberNoteBtn} onClick={() => { setNoteTarget(member); setNoteOpen(true) }}>留笺</button>}
+            </div>
+          ))}
+        </section>
+
+        {noteOpen && noteTarget && (
+          <section style={S.detailComposer}>
+            <div style={S.detailComposerTitle}>留笺给 {noteTarget.name}</div>
+            <div style={S.quickNotes}>{quickNotes.map(option => <button key={option} style={S.quickNote} onClick={() => setNoteDraft(option)}>{option}</button>)}</div>
+            <textarea value={noteDraft} maxLength={50} onChange={event => setNoteDraft(event.target.value)} placeholder="写一句给同行者的话，50 字以内" style={S.noteInput} />
+            <div style={S.composerFoot}><span>{noteDraft.length}/50</span><button style={S.noteSendBtn} onClick={submitNote}>落笺发送</button></div>
+          </section>
+        )}
+
+        <section style={S.helpSection}>
+          <button style={S.findCompanionHeader} onClick={() => setHelpOpen(value => !value)}>
+            <span><span style={S.findCompanionTitle}>求同行</span><span style={S.findCompanionHint}>卡住时，找一个人陪你把下一步做完。</span></span>
+            <span style={S.findCompanionArrow}>{helpOpen ? '⌃' : '›'}</span>
+          </button>
+          {helpOpen && <div style={S.needBody}>
+            <div style={S.needOptions}>{helpOptions.map(option => <button key={option} style={{ ...S.needOption, ...(helpType === option ? S.needOptionOn : {}) }} onClick={() => setHelpType(option)}>{option}</button>)}</div>
+            <button style={S.needSubmit} onClick={() => { setHelpOpen(false); onHelp(helpType) }}>向小队发起求同行</button>
+          </div>}
+          {requests.length > 0 && <div style={S.helpRequestList}>{requests.map(request => <div key={request.id} style={S.helpRequestRow}><span>{request.requester?.nickname || '队友'}：{request.help_type}</span>{request.requester_id !== currentUserId && request.status === 'open' && <button style={S.memberNoteBtn} onClick={() => onRespondHelp(request.id)}>陪他完成</button>}</div>)}</div>}
+        </section>
+
+        {self?.repair && <section style={S.repairCard}><div style={S.detailSectionTitle}>修诺中</div><div style={S.memoryText}>{self.repair.plan}</div><button style={S.needSubmit} onClick={() => setRepairOpen(value => !value)}>{repairOpen ? '收起陪修' : '邀请队友陪修'}</button>{repairOpen && <div style={S.quickNotes}>{others.map(member => <button key={member.user_id} style={S.quickNote} onClick={() => onNote(member, '我正在修诺，能陪我完成这一步吗？')}>邀请 {member.name}</button>)}</div>}</section>}
+      </div>
+    </div>
+  )
+}
+
+
+function TodayActionPage({ featuredTeam, dashboard, currentUserId, onOpenTeam, onCheckin, onSendNote, onFindCompanion, nav }) {
   const [composerOpen, setComposerOpen] = useState(false)
   const [note, setNote] = useState('')
   const pledge = featuredTeam?.pledge
-  const members = pledge ? buildRoomMembers(pledge).filter(member => !member.empty) : []
+  const members = dashboard?.members?.length ? dashboard.members : pledge ? buildRoomMembers(pledge).filter(member => !member.empty) : []
   const doneCount = members.filter(member => member.doneToday).length
   const teamSizeNow = Math.max(members.length, pledge ? teamSize(pledge) : 0, 1)
   const selfDone = pledge ? checkedToday(pledge) : false
   const isRepairing = pledge && ['failed', 'broken', 'expired'].includes(String(pledge.status || '').toLowerCase())
-  const target = members.find(member => member.id !== currentUserId && !member.doneToday) || members.find(member => member.id !== currentUserId)
+  const target = members.find(member => (member.user_id || member.id) !== currentUserId && !member.doneToday) || members.find(member => (member.user_id || member.id) !== currentUserId)
   const progress = pledge ? pct(pledge) : 0
-  const leadPercent = Math.min(86, Math.max(18, Math.round(progress * .7 + doneCount * 9)))
-  const peopleAhead = Math.max(1, Math.round((100 - leadPercent) / 5))
+  const leadPercent = dashboard?.peer ? Number(dashboard.peer.leadPercent || 0) : Math.min(86, Math.max(18, Math.round(progress * .7 + doneCount * 9)))
+  const peopleAhead = dashboard?.peer ? Number(dashboard.peer.ahead || 0) : Math.max(1, Math.round((100 - leadPercent) / 5))
   const primaryLabel = isRepairing ? '修诺' : selfDone ? '留笺给同行' : '去践诺'
   const stateText = isRepairing ? '今日未能落印，仍可修诺' : selfDone ? '你已落印，留一句给同行' : '你尚未落印'
   const teammateName = target?.name || '同行者'
@@ -776,7 +886,7 @@ function TodayActionPage({ featuredTeam, currentUserId, onOpenTeam, onCheckin, o
 
             <button style={S.sealRow} onClick={() => onOpenTeam(pledge)} aria-label="查看同行小队">
               {members.slice(0, TEAM_LIMIT).map(member => (
-                <span key={member.id} style={{ ...S.memberSeal, ...(member.doneToday ? S.memberSealDone : {}), ...(member.id === currentUserId ? S.memberSealSelf : {}) }}>
+                <span key={member.id} style={{ ...S.memberSeal, ...(member.doneToday ? S.memberSealDone : {}), ...((member.user_id || member.id) === currentUserId ? S.memberSealSelf : {}) }}>
                   {member.name?.slice(0, 1) || '行'}
                 </span>
               ))}
@@ -837,6 +947,7 @@ export default function CompanionsPage() {
   const [roomPledge, setRoomPledge] = useState(null)
   const [roomLoading, setRoomLoading] = useState(false)
   const [roomError, setRoomError] = useState('')
+  const [companionDashboard, setCompanionDashboard] = useState(null)
   const [pushState, setPushState] = useState({ checking: true, subscribed: false, permission: 'default' })
   const [pushBusy, setPushBusy] = useState(false)
 
@@ -854,6 +965,9 @@ export default function CompanionsPage() {
         getPublicPledges({ sort: 'created_at' }),
         session?.user?.id ? getMyCompanionJoins(session.user.id) : Promise.resolve([]),
       ])
+      let dashboardResult = null
+      try { dashboardResult = session?.user?.id ? await getCompanionDashboard(session.user.id) : null } catch (dashboardError) { dashboardResult = { ready: false, error: dashboardError.message || '同行数据暂不可用' } }
+      setCompanionDashboard(dashboardResult)
       const activeMine = (mine || []).filter(p => !p.status || p.status === 'active' || p.status === 'ongoing')
       const publicList = (publics || []).filter(p => p.user_id !== session?.user?.id).slice(0, 30)
       setMyPledges(activeMine)
@@ -1072,34 +1186,66 @@ export default function CompanionsPage() {
   const pendingTodayCount = myPledges.filter(p => !checkedToday(p)).length
   const suggestedOpenCount = recommended.filter(p => !joinedIds.has(p.id) && teamSlots(p) > 0).length
 
+
+  async function createTeamNote(member, message) {
+    const teamId = companionDashboard?.dashboard?.team?.id
+    if (!teamId || !session?.user?.id) return sendCompanionNotification(member, 'echo', message)
+    try {
+      await leaveCompanionNote(session.user.id, { teamId, recipientId: member.user_id || member.id, body: message, kind: 'note' })
+      showToast('已把留笺送给 ' + (member.name || '同行者'))
+      setCompanionDashboard(await getCompanionDashboard(session.user.id))
+    } catch (err) { showToast(err.message || '留笺发送失败') }
+  }
+  async function createRepair(plan) {
+    const teamId = companionDashboard?.dashboard?.team?.id
+    if (!teamId || !session?.user?.id) return showToast('当前还没有可修诺的小队')
+    try { await startCompanionRepair(session.user.id, { teamId, plan }); showToast('修诺已记录，队友会看见你的补救计划'); setCompanionDashboard(await getCompanionDashboard(session.user.id)) }
+    catch (err) { showToast(err.message || '修诺记录失败') }
+  }
+  async function createHelp(helpType) {
+    const teamId = companionDashboard?.dashboard?.team?.id
+    if (!teamId || !session?.user?.id) return showToast('当前还没有可求助的小队')
+    try { await requestCompanionHelp(session.user.id, { teamId, helpType }); showToast('已向小队发起求同行'); setCompanionDashboard(await getCompanionDashboard(session.user.id)) }
+    catch (err) { showToast(err.message || '求同行发起失败') }
+  }
+  async function respondHelp(requestId) {
+    if (!session?.user?.id) return
+    try { await respondToCompanionHelp(session.user.id, requestId); showToast('你已接住这次同行请求'); setCompanionDashboard(await getCompanionDashboard(session.user.id)) }
+    catch (err) { showToast(err.message || '接应失败') }
+  }
+
+  if (roomPledge && companionDashboard?.ready && companionDashboard.dashboard) {
+    return <CompanionTeamRoom dashboard={companionDashboard.dashboard} currentUserId={session?.user?.id} toast={toast} onBack={() => setRoomPledge(null)} onNote={createTeamNote} onRepair={createRepair} onHelp={createHelp} onRespondHelp={respondHelp} />
+  }
   if (roomPledge) {
-    return (
+    return <TeamRoom pledge={roomPledge} loading={roomLoading} error={roomError} toast={toast} currentUserId={session?.user?.id} onBack={() => setRoomPledge(null)} onHelp={() => showToast('求同行需要先启用小队数据表')} onNudge={(member, message) => sendCompanionNotification(member, 'nudge', message || '陪他完成')} onEncourage={(label, member) => { if (label === 'self') return showToast('不能给自己发送小队反馈'); if (label === 'empty') return showToast('暂无其他团友可反馈'); return sendCompanionNotification(member, 'echo', label) }} />
+  }
+
+  return (
     <div style={{ background: C.bg, minHeight: '100vh', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column' }}>
       {toast && <div style={S.toast}>{toast}</div>}
       <div style={S.topbar}>
         <div style={S.logo}>同<em style={{ color: C.gold, fontStyle: 'normal' }}>行</em></div>
         <div style={{ width: 52 }} />
       </div>
-
       {loading && <div style={S.stateText}>正在加载今日共践...</div>}
       {!loading && error && <div style={S.stateText}>{error}</div>}
-
-      {!loading && !error && (
-        <TodayActionPage
-          featuredTeam={featuredTeam}
-          currentUserId={session?.user?.id}
-          nav={nav}
-          onOpenTeam={openRoom}
-          onCheckin={pledge => nav('/pledge/' + pledge.id + '/checkin')}
-          onSendNote={(member, text) => sendCompanionNotification(member, 'echo', text)}
-          onFindCompanion={need => {
-            const target = recommended.find(item => !joinedIds.has(item.id) && teamSlots(item) > 0)
-            if (!target) return showToast('暂时没有可响应的小队，晚些再来看看。')
-            showToast('已按“' + need + '”为你筛出可同行的小队')
-            openRoom(target)
-          }}
-        />
-      )}
+      {!loading && !error && <TodayActionPage
+        featuredTeam={companionDashboard?.dashboard?.primaryPledge ? { pledge: companionDashboard.dashboard.primaryPledge } : featuredTeam}
+        dashboard={companionDashboard?.dashboard}
+        currentUserId={session?.user?.id}
+        nav={nav}
+        onOpenTeam={openRoom}
+        onCheckin={pledge => nav('/pledge/' + pledge.id + '/checkin')}
+        onSendNote={createTeamNote}
+        onFindCompanion={need => {
+          if (companionDashboard?.dashboard?.team?.id) return createHelp(need)
+          const target = recommended.find(item => !joinedIds.has(item.id) && teamSlots(item) > 0)
+          if (!target) return showToast('暂时没有可响应的小队，晚些再来看看。')
+          showToast('已按“' + need + '”为你筛出可同行的小队')
+          openRoom(target)
+        }}
+      />}
     </div>
   )
 }
@@ -1116,6 +1262,43 @@ const S = {
   tabBtnOn: { color: C.gold, borderBottom: '2px solid ' + C.gold, fontWeight: 800 },
   scrollArea: { flex: 1, overflowY: 'auto', padding: '14px 16px' },
   stateText: { padding: '28px 16px', textAlign: 'center', color: C.muted, fontSize: 13 },
+
+
+  teamDetailHero: { padding: 18, borderRadius: 18, background: 'linear-gradient(135deg,#211308 0%,#573214 100%)', color: '#FFF8E9', boxShadow: '0 10px 26px rgba(51,28,8,.16)' },
+  teamDetailTitle: { marginTop: 7, color: '#FFF9EB', fontFamily: 'Noto Serif SC,serif', fontSize: 26, fontWeight: 900 },
+  teamDetailMeta: { marginTop: 5, color: '#E7D3B0', fontSize: 12 },
+  teamDetailStats: { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginTop: 18 },
+  teamDetailStats: { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginTop: 18 },
+  teamDetailStats: { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginTop: 18 },
+  memorySection: { marginTop: 14, padding: 15, border: '1px solid ' + C.border, borderRadius: 15, background: C.goldL },
+  detailSectionTitle: { color: C.goldD, fontFamily: 'Noto Serif SC,serif', fontSize: 17, fontWeight: 900 },
+  memoryText: { marginTop: 8, color: C.ink, fontSize: 14, lineHeight: 1.65 },
+  memoryMeta: { marginTop: 6, color: C.muted, fontSize: 11 },
+  weekSection: { marginTop: 14, padding: 15, borderBottom: '1px solid ' + C.border },
+  detailSectionHead: { display: 'flex', justifyContent: 'space-between', color: C.ink, fontSize: 13, fontWeight: 900 },
+  sevenDayRow: { display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 7, marginTop: 14 },
+  sevenDayItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, color: C.muted, fontSize: 10 },
+  sevenDot: { width: 25, height: 25, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', background: C.soft, color: C.hint, fontSize: 10, fontWeight: 900 },
+  sevenDotSome: { background: C.goldL, color: C.goldD },
+  sevenDotFull: { background: C.green, color: '#fff' },
+  memberSection: { marginTop: 14, padding: 15, border: '1px solid ' + C.border, borderRadius: 15, background: C.surf },
+  realMemberRow: { display: 'flex', alignItems: 'center', gap: 8, padding: '13px 0', borderBottom: '1px solid ' + C.border, minWidth: 0 },
+  realMemberAvatar: { width: 30, height: 30, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', background: C.goldL, color: C.goldD, fontWeight: 900 },
+  realMemberDone: { background: C.green, color: '#fff' },
+  realMemberName: { color: C.ink, fontSize: 13, fontWeight: 900 },
+  realMemberNameSpan: { marginLeft: 5, color: C.muted, fontSize: 10 },
+  realMemberHint: { marginTop: 3, color: C.muted, fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  realMemberTrack: { height: 4, marginTop: 6, borderRadius: 999, background: C.soft, overflow: 'hidden' },
+  realMemberFill: { height: '100%', borderRadius: 999, background: C.gold },
+  realStatus: { color: C.goldD, fontSize: 10, fontWeight: 900, whiteSpace: 'nowrap' },
+  realStatusDone: { color: C.green },
+  memberNoteBtn: { border: '1px solid ' + C.border, borderRadius: 999, background: C.surf, color: C.goldD, padding: '6px 9px', fontSize: 11, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif', whiteSpace: 'nowrap' },
+  detailComposer: { marginTop: 12, padding: 13, border: '1px solid ' + C.border, borderRadius: 13, background: C.surf },
+  detailComposerTitle: { color: C.ink, fontSize: 13, fontWeight: 900, marginBottom: 8 },
+  helpSection: { marginTop: 10, borderBottom: '1px solid ' + C.border },
+  helpRequestList: { paddingBottom: 12 },
+  helpRequestRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '9px 0', color: C.muted, fontSize: 11, borderTop: '1px solid ' + C.border },
+  repairCard: { marginTop: 14, padding: 15, border: '1px solid #E2C77E', borderRadius: 15, background: '#FFF9E9' },
 
   actionPage: { flex: 1, overflowY: 'auto', padding: '18px 16px 28px' },
   actionEmpty: { marginTop: 34, padding: '30px 22px', border: '1px solid ' + C.border, borderRadius: 18, background: C.surf, textAlign: 'center', boxShadow: '0 8px 24px rgba(34,22,8,.05)' },
