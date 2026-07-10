@@ -2214,6 +2214,193 @@ export async function getMyCompanionJoins(userId) {
 
 
 
+
+// ============================================================
+// 同行 V2：独立用户小队。小队不绑定某条誓言，打卡记录即每日落印。
+// ============================================================
+function isMissingCompanionV2Table(error) {
+  const text = String(error?.message || '').toLowerCase()
+  return error?.code === '42P01' || error?.code === 'PGRST205' || text.includes('companion_team')
+}
+function companionDate(offset = 0) {
+  const date = new Date()
+  date.setDate(date.getDate() + offset)
+  return date.toISOString().slice(0, 10)
+}
+function hasDayCheckin(pledge, date) {
+  return (pledge.checkins || []).some(item => item.checkin_date === date)
+}
+function normalizeTeamMember(member, pledges, date, repairs) {
+  const active = pledges.filter(item => ['active', 'ongoing', null, undefined].includes(item.status))
+  const doneToday = active.length > 0 && active.every(item => hasDayCheckin(item, date))
+  const total = active.reduce((sum, item) => sum + Number(item.total_days || 0), 0)
+  const finished = active.reduce((sum, item) => sum + Number(item.checkin_count || 0), 0)
+  const latestRepair = repairs.find(item => item.user_id === member.user_id && item.status === 'active')
+  return {
+    ...member,
+    name: member.profiles?.nickname || '同行者',
+    avatar: member.profiles?.avatar_url || '',
+    doneToday,
+    activePledges: active,
+    progress: total ? Math.min(100, Math.round(finished * 100 / total)) : 0,
+    repair: latestRepair || null,
+  }
+}
+export async function getCompanionDashboard(userId) {
+  if (!userId) return { ready: true, teams: [], dashboard: null }
+  const { data: memberships, error: membershipError } = await supabase
+    .from('companion_team_members').select('team_id').eq('user_id', userId)
+  if (membershipError) {
+    if (isMissingCompanionV2Table(membershipError)) return { ready: false, teams: [], dashboard: null }
+    throw membershipError
+  }
+  const teamIds = [...new Set((memberships || []).map(row => row.team_id))]
+  if (!teamIds.length) return { ready: true, teams: [], dashboard: null }
+  const { data: teams, error: teamError } = await supabase
+    .from('companion_teams').select('*').in('id', teamIds).order('created_at', { ascending: true })
+  if (teamError) throw teamError
+  const selectedTeam = (teams || [])[0]
+  const { data: rawMembers, error: membersError } = await supabase
+    .from('companion_team_members')
+    .select('team_id,user_id,role,joined_at,profiles:user_id(nickname,avatar_url)')
+    .eq('team_id', selectedTeam.id)
+    .order('joined_at', { ascending: true })
+  if (membersError) throw membersError
+  const memberIds = (rawMembers || []).map(row => row.user_id)
+  const { data: pledges, error: pledgeError } = await supabase
+    .from('pledges')
+    .select('id,user_id,title,period,total_days,checkin_count,current_streak,status,category_key,category,category_tag,start_date,end_date,checkins(checkin_date,created_at)')
+    .in('user_id', memberIds)
+  if (pledgeError) throw pledgeError
+  const { data: repairs, error: repairsError } = await supabase
+    .from('companion_repairs').select('*').eq('team_id', selectedTeam.id).eq('status', 'active')
+  if (repairsError) throw repairsError
+  const today = companionDate()
+  const byUser = (pledges || []).reduce((result, pledge) => {
+    if (!result[pledge.user_id]) result[pledge.user_id] = []
+    result[pledge.user_id].push(pledge)
+    return result
+  }, {})
+  const members = (rawMembers || []).map(member => normalizeTeamMember(member, byUser[member.user_id] || [], today, repairs || []))
+  const { data: notes, error: notesError } = await supabase
+    .from('companion_team_notes')
+    .select('*, author:author_id(nickname), recipient:recipient_id(nickname)')
+    .eq('team_id', selectedTeam.id)
+    .eq('note_date', today)
+    .order('created_at', { ascending: false })
+    .limit(20)
+  if (notesError) throw notesError
+  const { data: helpRequests, error: helpError } = await supabase
+    .from('companion_help_requests')
+    .select('*, requester:requester_id(nickname), responder:responder_id(nickname)')
+    .eq('team_id', selectedTeam.id)
+    .in('status', ['open', 'accepted'])
+    .gte('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+  if (helpError) throw helpError
+
+  const sevenDays = Array.from({ length: 7 }, (_, index) => companionDate(index - 6)).map(date => {
+    const eligible = members.filter(member => member.activePledges.some(pledge => !pledge.start_date || pledge.start_date <= date))
+    const seals = eligible.filter(member => member.activePledges.filter(pledge => !pledge.start_date || pledge.start_date <= date).every(pledge => hasDayCheckin(pledge, date))).length
+    return { date, seals, total: eligible.length, full: eligible.length > 1 && seals === eligible.length }
+  })
+  const allCheckins = (pledges || []).flatMap(pledge => (pledge.checkins || []).filter(item => item.checkin_date === today).map(item => ({ ...item, user_id: pledge.user_id })))
+  const lastCheckin = [...allCheckins].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0]
+  const ownPledges = byUser[userId] || []
+  const ownPrimary = ownPledges.find(item => ['active', 'ongoing', null, undefined].includes(item.status))
+  let peerRows = []
+  if (ownPrimary?.category_key) {
+    const { data } = await supabase
+      .from('pledges')
+      .select('user_id,total_days,checkin_count,period')
+      .eq('is_public', true)
+      .eq('category_key', ownPrimary.category_key)
+      .eq('period', ownPrimary.period)
+      .or('status.eq.active,status.eq.ongoing,status.is.null')
+      .limit(500)
+    peerRows = data || []
+  }
+  const ownRate = ownPrimary?.total_days ? Number(ownPrimary.checkin_count || 0) / Number(ownPrimary.total_days) : 0
+  const comparable = peerRows.filter(row => row.user_id !== userId && Number(row.total_days || 0) > 0)
+  const ahead = comparable.filter(row => Number(row.checkin_count || 0) / Number(row.total_days || 1) > ownRate).length
+  const leadPercent = comparable.length ? Math.round((comparable.length - ahead) * 100 / comparable.length) : 0
+
+  return {
+    ready: true,
+    teams: teams || [],
+    dashboard: {
+      team: selectedTeam,
+      members,
+      notes: notes || [],
+      repairs: repairs || [],
+      helpRequests: helpRequests || [],
+      sevenDays,
+      lastWriterId: lastCheckin?.user_id || null,
+      ownPledges,
+      primaryPledge: ownPrimary || null,
+      peer: { population: comparable.length + 1, leadPercent, ahead },
+    },
+  }
+}
+export async function createCompanionTeam(userId, name = '同行小队') {
+  const { data: team, error } = await supabase
+    .from('companion_teams').insert({ owner_id: userId, name }).select().single()
+  if (error) throw error
+  const { error: memberError } = await supabase
+    .from('companion_team_members').insert({ team_id: team.id, user_id: userId, role: 'owner' })
+  if (memberError) throw memberError
+  return team
+}
+export async function joinCompanionTeamByCode(userId, inviteCode) {
+  const code = String(inviteCode || '').trim().toUpperCase()
+  if (!code) throw new Error('请输入小队邀请码')
+  const { data: team, error } = await supabase
+    .from('companion_teams').select('*').eq('invite_code', code).maybeSingle()
+  if (error || !team) throw new Error('没有找到这支同行小队')
+  const { data: existing } = await supabase
+    .from('companion_team_members').select('user_id').eq('team_id', team.id)
+  if ((existing || []).some(row => row.user_id === userId)) return team
+  if ((existing || []).length >= team.capacity) throw new Error('这支小队已经满员')
+  const { error: joinError } = await supabase
+    .from('companion_team_members').insert({ team_id: team.id, user_id: userId, role: 'member' })
+  if (joinError) throw joinError
+  return team
+}
+export async function leaveCompanionNote(userId, { teamId, recipientId = null, body, kind = 'note' }) {
+  const content = String(body || '').trim().slice(0, 50)
+  if (!content) throw new Error('留笺内容不能为空')
+  const { data, error } = await supabase
+    .from('companion_team_notes')
+    .insert({ team_id: teamId, author_id: userId, recipient_id: recipientId, body: content, kind, note_date: companionDate() })
+    .select().single()
+  if (error) throw error
+  return data
+}
+export async function startCompanionRepair(userId, { teamId, plan }) {
+  const { data, error } = await supabase
+    .from('companion_repairs')
+    .insert({ team_id: teamId, user_id: userId, plan: String(plan || '').trim().slice(0, 80), repair_date: companionDate() })
+    .select().single()
+  if (error) throw error
+  return data
+}
+export async function requestCompanionHelp(userId, { teamId, helpType }) {
+  const { data, error } = await supabase
+    .from('companion_help_requests')
+    .insert({ team_id: teamId, requester_id: userId, help_type: helpType })
+    .select().single()
+  if (error) throw error
+  return data
+}
+export async function respondToCompanionHelp(userId, requestId) {
+  const { data, error } = await supabase
+    .from('companion_help_requests')
+    .update({ status: 'accepted', responder_id: userId })
+    .eq('id', requestId).eq('status', 'open').select().single()
+  if (error) throw error
+  return data
+}
+
 export async function getWitnesses(pledgeId) {
   const { data, error } = await supabase
     .from('witnesses')
@@ -4081,4 +4268,3 @@ export async function disablePushSubscription(userId, endpoint) {
     .eq('endpoint', endpoint)
   if (error && !isMissingPushTable(error)) throw error
 }
-
