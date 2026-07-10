@@ -206,19 +206,19 @@ function MyPledgeCard({ pledge, publishing, onRecruit, onRoom, onCheckin }) {
         <div style={S.emoji}>{group.emoji}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={S.cardTitle}>{pledge.title}</div>
-          <div style={S.meta}>{group.name} · {inferPledgeTag(pledge)} · 已守 {pledge.checkin_count || 0}/{pledge.total_days || 0} 天 · 还差{daysLeft(pledge)}天</div>
+          <div style={S.meta}>{group.name} · {inferPledgeTag(pledge)} · 已落印 {pledge.checkin_count || 0}/{pledge.total_days || 0} 天 · 还差{daysLeft(pledge)}天</div>
         </div>
         <Tag tone={isRecruiting ? 'green' : 'gold'}>{isRecruiting ? '招募中' : '未招募'}</Tag>
       </div>
 
       <div style={S.teamLine}>
-        <span>5人小队 {teamSize(pledge)}/{TEAM_LIMIT}</span>
+        <span>5人同践小队 {teamSize(pledge)}/{TEAM_LIMIT}</span>
         <span>{slots > 0 ? '还可加入' + slots + '人' : '已满员'}</span>
       </div>
       <div style={S.track}><div style={{ ...S.fill, width: progress + '%' }} /></div>
 
       <div style={S.cardFoot}>
-        <span>{progress}% · {isRecruiting ? '可进入小队管理' : '发布后可被同路人加入小队'}</span>
+        <span>{progress}% · {isRecruiting ? '可进入小队管理' : '发布后可被同诺者加入小队'}</span>
         <div style={S.actions}>
           <button style={S.btnGhost} onClick={onRoom}>小队</button>
           <div style={{ width: 52 }} />
@@ -235,20 +235,20 @@ function PublicPledgeCard({ pledge, match, joined, joining, onOpen, onJoin }) {
   const full = slots <= 0
   const group = groupForPledge(pledge)
   const tone = joined ? 'green' : match === 0 ? 'blue' : match === 1 ? 'purple' : 'gold'
-  const label = joined ? '已加入' : match === 1 ? '同类行动' : match === 2 ? '同互助会' : '可加入'
+  const label = joined ? '已加入' : match === 1 ? '同类诺言' : match === 2 ? '同互助会' : '可加入'
   return (
     <div style={S.card}>
       <div style={S.cardHead}>
         <div style={S.emoji}>{group.emoji}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={S.cardTitle}>{pledge.title}</div>
-          <div style={S.meta}>{getHostName(pledge)}发起 · {group.name} · 已守 {pledge.checkin_count || countFromRelation(pledge.checkins)}/{pledge.total_days || 0} 天</div>
+          <div style={S.meta}>{getHostName(pledge)}发起 · {group.name} · 已落印 {pledge.checkin_count || countFromRelation(pledge.checkins)}/{pledge.total_days || 0} 天</div>
         </div>
         <Tag tone={tone}>{label}</Tag>
       </div>
 
       <div style={S.teamLine}>
-        <span>5人小队 {teamSize(pledge)}/{TEAM_LIMIT}</span>
+        <span>5人同践小队 {teamSize(pledge)}/{TEAM_LIMIT}</span>
         <span>{full ? '已满员' : '空位' + slots + '个'}</span>
       </div>
       <div style={S.track}><div style={{ ...S.fill, width: progress + '%' }} /></div>
@@ -282,12 +282,12 @@ function checkedToday(pledge) {
 
 
 function memberCheckinLine(member, index) {
-  if (member.empty) return '这里还空着，等一个同路人坐下。'
+  if (member.empty) return '这里还空着，等一个同诺者坐下。'
   if (member.doneToday) {
-    const lines = ['今天已守：我守住了这一日。', '今日已守：先把该做的做完。', '已完成今日诺言，给后来的人留一盏灯。']
+    const lines = ['今天已落印：我守住了这一日。', '今日已落印：先把该做的做完。', '已完成今日诺言，给后来的人留一盏灯。']
     return lines[index % lines.length]
   }
-  const lines = ['今日待守，可能正在和拖延拉扯。', '今日待守，等一句提醒把他拉回来。', '还没出现，也许需要有人说一句：别一个人扛。']
+  const lines = ['今日待落印，可能正在和拖延拉扯。', '今日待落印，等一句提醒把他拉回来。', '还没出现，也许需要有人说一句：别一个人扛。']
   return lines[index % lines.length]
 }
 
@@ -307,7 +307,7 @@ function buildRoomMembers(pledge) {
     role: '团长',
     progress: ownerStats.progress,
     doneToday: ownerStats.doneToday,
-    note: ownerStats.doneToday ? '今日已守' : '今日待守',
+    note: ownerStats.doneToday ? '今日已落印' : '今日待落印',
     statText: ownerStats.done + '/' + ownerStats.total + ' 天',
   }
   const friends = active.map((item, index) => {
@@ -319,7 +319,7 @@ function buildRoomMembers(pledge) {
       role: '团友',
       progress: stats.total ? stats.progress : Math.max(0, Math.min(100, pct(pledge) - 8 - index * 7)),
       doneToday: stats.total ? stats.doneToday : false,
-      note: stats.total ? (stats.doneToday ? '今日已守' : '今日待守') : '已入队，等待同步打卡数据',
+      note: stats.total ? (stats.doneToday ? '今日已落印' : '今日待落印') : '已入队，等待同步打卡数据',
       statText: stats.total ? stats.done + '/' + stats.total + ' 天' : '暂无公开誓言数据',
     }
   })
@@ -329,7 +329,7 @@ function buildRoomMembers(pledge) {
     name: '空位',
     role: '待加入',
     progress: 0,
-    note: '可邀请同路人加入',
+    note: '可邀请同诺者加入',
   }))
   return [owner, ...friends, ...empty].slice(0, TEAM_LIMIT)
 }
@@ -340,7 +340,7 @@ function HelpGroupPill({ group, active, stats, onClick }) {
       <div style={S.helpPillEmoji}>{group.emoji}</div>
       <div style={{ minWidth: 0 }}>
         <div style={S.helpPillName}>{group.name.replace('互助会', '')}</div>
-        <div style={S.helpPillMeta}>{stats.open}个可加入</div>
+        <div style={S.helpPillMeta}>{stats.open}支可加入</div>
       </div>
     </button>
   )
@@ -351,7 +351,7 @@ function HelpTeamCard({ pledge, joined, joining, match, onOpen, onJoin }) {
   const progress = pct(pledge)
   const slots = teamSlots(pledge)
   const full = slots <= 0
-  const label = joined ? '已在团中' : match === 1 ? '同类行动' : match === 2 ? '同互助会' : '可加入'
+  const label = joined ? '已在团中' : match === 1 ? '同类诺言' : match === 2 ? '同互助会' : '可加入'
   return (
     <div style={S.helpTeamCard}>
       <div style={S.helpTeamMain}>
@@ -378,7 +378,7 @@ function recommendationReason(pledge, myPledges) {
   const match = matchLevel(pledge, myPledges)
   const group = groupForPledge(pledge)
   const tag = inferPledgeTag(pledge)
-  if (match === 1) return '同类行动 · ' + tag
+  if (match === 1) return '同类诺言 · ' + tag
   if (match === 2) return '同属' + group.name.replace('互助会', '')
   return '按行者推荐，可先观察'
 }
@@ -391,31 +391,31 @@ function TodayTeamStatus({ featuredTeam, totalTeams, pendingCount, joinedCount, 
   const doneCount = hasTeam ? members.filter(member => member.doneToday).length : 0
   const userDone = hasTeam ? checkedToday(pledge) : false
   const statusText = !hasTeam
-    ? '去互助会找到同路人，让守诺不再只是一个人的事。'
+    ? '先求同行，再进小队。让今天的诺言有人看见、有人回应。'
     : userDone
-      ? `你已完成今日守诺，小队当前 ${doneCount}/${teamCount} 已守。`
-      : `小队当前 ${doneCount}/${teamCount} 已守，进去看看谁需要一句回应。`
+      ? `你已完成今日落印，小队当前 ${doneCount}/${teamCount} 已落印。`
+      : `小队当前 ${doneCount}/${teamCount} 已落印，进去给队友留一笺。`
   const feedback = !hasTeam
-    ? '找到同路目标后，这里会出现队友反馈。'
+    ? '找到同诺者后，这里会出现队友回响。'
     : doneCount >= teamCount
-      ? '今日全员已守，队伍节奏很好。'
+      ? '五印齐成，今天这支小队守住了节奏。'
       : doneCount > 0
-        ? '已有队友先动起来，你也不会是独行。'
-        : '今天还没人守诺，等一个人先把节奏带起来。'
+        ? '已有队友先落印，轮到你把节奏接上。'
+        : '今天还没人落印，等一个人先把队伍点亮。'
   return (
     <div style={S.todayStatusCard}>
       <div style={S.todayStatusHead}>
         <div style={S.todayIcon}>{userDone ? '✓' : hasTeam ? '!' : '+'}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={S.todayTitle}>今日小队概览</div>
+          <div style={S.todayTitle}>今日共践</div>
           <div style={S.todayText}>{statusText}</div>
         </div>
-        <button style={S.primaryTeamBtnSmall} onClick={onPrimary}>{hasTeam ? '进入小队' : '发现小队'}</button>
+        <button style={S.primaryTeamBtnSmall} onClick={onPrimary}>{hasTeam ? '进入小队' : '求同行'}</button>
       </div>
       <div style={S.todayMetaRow}>
         <span>{feedback}</span>
-        <span>{totalTeams} 个小队</span>
-        <span>{suggestedCount} 个可加入</span>
+        <span>{totalTeams} 支小队</span>
+        <span>{suggestedCount} 支可加入</span>
       </div>
     </div>
   )
@@ -426,7 +426,7 @@ function CheckinPrompt({ done, lateDays, onClick }) {
     <button style={S.promptCard} onClick={onClick}>
       <div style={S.promptIcon}>☀️</div>
       <div style={{ flex: 1, textAlign: 'left' }}>
-        <div style={S.promptTitle}>{done ? '今天已守住诺言' : '早安！今天还没打卡'}</div>
+        <div style={S.promptTitle}>{done ? '今天已落印' : '早安！今天还没打卡'}</div>
         <div style={S.promptText}>{done ? '保持节奏，进小队看看同行者状态' : '同行者都在路上，你落后了 ' + lateDays + ' 天'}</div>
       </div>
       <div style={S.promptArrow}>›</div>
@@ -442,9 +442,9 @@ function TeamProgressCard({ item, publishing, onRecruit, onRoom }) {
   const doneCount = members.filter(member => member.doneToday).length
   const teamCount = Math.max(members.length, 1)
   const feedback = doneCount >= teamCount
-    ? '今日全员已守，节奏很好'
+    ? '今日全员已落印，节奏很好'
     : doneCount > 0
-      ? `${doneCount}位队友已守，队伍正在向前`
+      ? `${doneCount}位队友已落印，队伍正在向前`
       : '今天还没人守诺，等一个人先动起来'
   return (
     <div style={S.teamCardLarge}>
@@ -452,9 +452,9 @@ function TeamProgressCard({ item, publishing, onRecruit, onRoom }) {
         <div style={S.teamEmoji}>{group.emoji}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={S.teamTitle}>{pledge.title}</div>
-          <div style={S.teamSub}>{teamSize(pledge)}人同行 · 今日{doneCount}/{teamCount}已守 · {feedback}</div>
+          <div style={S.teamSub}>{teamSize(pledge)}人同践 · 今日{doneCount}/{teamCount}已落印 · {feedback}</div>
         </div>
-        <Tag tone={doneCount >= teamCount ? 'green' : isOwned && !pledge.is_public ? 'gold' : 'blue'}>{doneCount >= teamCount ? '全员完成' : isOwned && !pledge.is_public ? '招募中' : '同行中'}</Tag>
+        <Tag tone={doneCount >= teamCount ? 'green' : isOwned && !pledge.is_public ? 'gold' : 'blue'}>{doneCount >= teamCount ? '五印齐成' : isOwned && !pledge.is_public ? '招募中' : '同践中'}</Tag>
       </div>
 
       <div style={S.memberProgressList}>
@@ -471,7 +471,7 @@ function TeamProgressCard({ item, publishing, onRecruit, onRoom }) {
       <div style={S.teamActionsRow}>
         <button style={S.primaryTeamBtn} onClick={onRoom}>进入小队</button>
       </div>
-      {isOwned && !pledge.is_public && <button style={S.recruitWideBtn} onClick={onRecruit} disabled={publishing}>{publishing ? '发布中' : '发布同行招募'}</button>}
+      {isOwned && !pledge.is_public && <button style={S.recruitWideBtn} onClick={onRecruit} disabled={publishing}>{publishing ? '发布中' : '发布同践招募'}</button>}
     </div>
   )
 }
@@ -485,12 +485,12 @@ function SoloRecruitCard({ item, publishing, onRecruit, onRoom }) {
         <div style={S.teamEmoji}>{group.emoji}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={S.teamTitle}>{pledge.title}</div>
-          <div style={S.teamSub}>独行中 · 还差{daysLeft(pledge)}天</div>
+          <div style={S.teamSub}>独践中 · 还差{daysLeft(pledge)}天</div>
         </div>
         <Tag tone="gold">招募中</Tag>
       </div>
       <div style={S.soloHint}>👥 还没有同行者，发出招募让人陪你走完最后{daysLeft(pledge)}天</div>
-      <button style={S.recruitWideBtn} onClick={pledge.is_public ? onRoom : onRecruit} disabled={publishing}>{pledge.is_public ? '进入小队' : publishing ? '发布中' : '发布同行招募'}</button>
+      <button style={S.recruitWideBtn} onClick={pledge.is_public ? onRoom : onRecruit} disabled={publishing}>{pledge.is_public ? '进入小队' : publishing ? '发布中' : '发布同践招募'}</button>
     </div>
   )
 }
@@ -518,7 +518,7 @@ function TeamListItem({ item, publishing, joining, onRecruit, onRoom, onJoin }) 
   const isOwned = item.role === 'owned'
   const isJoined = item.role === 'joined'
   const isSuggested = item.role === 'suggested'
-  const todayLabel = checkedToday(pledge) ? '今日已守' : '今日待回应'
+  const todayLabel = checkedToday(pledge) ? '今日已落印' : '今日待回应'
   const status = isOwned ? (pledge.is_public ? '我发起·招募中' : '我发起·未招募') : isJoined ? '我加入' : '推荐'
   return (
     <div style={S.listItem}>
@@ -558,7 +558,7 @@ function TeamMemberRow({ member, rank }) {
         <div style={S.memberHint}>{member.note} · 打卡 {member.statText || member.progress + '%'}</div>
         <div style={S.miniTrack}><div style={{ ...S.miniFill, width: member.progress + '%' }} /></div>
       </div>
-      <Tag tone={member.doneToday ? 'green' : 'red'}>{member.doneToday ? '已守' : '待守'}</Tag>
+      <Tag tone={member.doneToday ? 'green' : 'red'}>{member.doneToday ? '已落印' : '待落印'}</Tag>
     </div>
   )
 }
@@ -572,7 +572,7 @@ function PushNotice({ state, busy, onEnable }) {
     <div style={S.pushNotice}>
       <div style={S.pushCopy}>
         <b>{blocked ? '手机提醒被系统拦截' : unsupported ? '当前浏览器不支持手机提醒' : '同行手机提醒未开启'}</b>
-        <span>{blocked ? '请在浏览器或手机设置里允许通知，否则队友提醒只能进消息中心。' : unsupported ? '手机顶部通知需要支持推送的浏览器；iPhone 需先把网页添加到主屏幕。' : '开启后，队友的提醒守诺和鼓励会尝试出现在手机通知栏。'}</span>
+        <span>{blocked ? '请在浏览器或手机设置里允许通知，否则队友提醒只能进消息中心。' : unsupported ? '手机顶部通知需要支持推送的浏览器；iPhone 需先把网页添加到主屏幕。' : '开启后，队友的提醒落印和鼓励会尝试出现在手机通知栏。'}</span>
       </div>
       {!unsupported && !blocked && <button style={S.pushBtn} onClick={onEnable} disabled={busy}>{busy ? '开启中' : '开启'}</button>}
     </div>
@@ -596,8 +596,8 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
   const teamMood = doneCount === 0
     ? '今天还没人先迈步。谁先守住，谁就把小队拉回正轨。'
     : doneCount === activeMembers.length
-      ? '今天全员已守住，队伍节奏很稳。'
-      : doneCount + '位队友已经守住今日，还差' + pendingCount + '位。'
+      ? '今天五印齐成，队伍节奏很稳。'
+      : doneCount + '位队友已经落印，还差' + pendingCount + '位。'
   const [showNudgeBox, setShowNudgeBox] = useState(false)
   const [showEncourageBox, setShowEncourageBox] = useState(false)
   const [nudgeDraft, setNudgeDraft] = useState('今天还没守诺，我在小队等你。')
@@ -628,9 +628,9 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
         <div style={S.roomHero}>
           <div style={S.kicker}>{group.name}</div>
           <div style={S.roomTitle}>{getHostName(pledge)}的小队</div>
-          <div style={S.roomMeta}>{getHostName(pledge)}发起 · 5人小队 {teamSize(pledge)}/{TEAM_LIMIT} · 队内追踪{(pledge.teamPledges || [pledge]).length}个誓言</div>
+          <div style={S.roomMeta}>{getHostName(pledge)}发起 · 5人同践小队 {teamSize(pledge)}/{TEAM_LIMIT} · 队内追踪{(pledge.teamPledges || [pledge]).length}个誓言</div>
           <div style={S.roomStats}>
-            <div><b>{doneCount}/{activeMembers.length || 1}</b><span>今日已守</span></div>
+            <div><b>{doneCount}/{activeMembers.length || 1}</b><span>今日已落印</span></div>
             <div><b>{progress}%</b><span>契约进度</span></div>
             <div><b>{teamSlots(pledge)}</b><span>剩余席位</span></div>
           </div>
@@ -640,31 +640,31 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
           <div style={S.buddyTop}>
             <div style={S.buddyIcon}>☕</div>
             <div style={{ flex: 1 }}>
-              <div style={S.buddyTitle}>{buddy ? '今日搭子：' + buddy.name : '今日搭子：暂无其他团友'}</div>
-              <div style={S.buddyText}>{buddy ? (buddy.doneToday ? 'TA已经完成。你可以给一个回应，让守诺被看见。' : 'TA今天还没守诺。轻轻提醒一句，比沉默更有力量。') : '搭子只能是其他用户。等有人加入小队后，这里才会出现真正的守诺搭子。'}</div>
+              <div style={S.buddyTitle}>{buddy ? '今日留笺：' + buddy.name : '今日留笺：暂无其他团友'}</div>
+              <div style={S.buddyText}>{buddy ? (buddy.doneToday ? 'TA已经落印。你可以递一句回应，让守诺被看见。' : 'TA今天还没落印。轻轻留一笺，比沉默更有力量。') : '留笺对象只能是其他用户。等有人加入小队后，这里才会出现真正的同行。'}</div>
             </div>
-            {buddy && <Tag tone={buddy.doneToday ? 'green' : 'red'}>{buddy.doneToday ? '已守' : '待守'}</Tag>}
+            {buddy && <Tag tone={buddy.doneToday ? 'green' : 'red'}>{buddy.doneToday ? '已落印' : '待落印'}</Tag>}
           </div>
           <div style={S.buddyActions}>
-            <button style={S.buddyBtn} onClick={() => buddy ? setShowEncourageBox(v => !v) : onEncourage?.('empty')} disabled={!buddy}>机选鼓励</button>
-            <button style={S.buddyBtnDark} onClick={() => buddy ? setShowNudgeBox(v => !v) : onEncourage?.('empty')} disabled={!buddy}>提醒守诺</button>
+            <button style={S.buddyBtn} onClick={() => buddy ? setShowEncourageBox(v => !v) : onEncourage?.('empty')} disabled={!buddy}>递一句</button>
+            <button style={S.buddyBtnDark} onClick={() => buddy ? setShowNudgeBox(v => !v) : onEncourage?.('empty')} disabled={!buddy}>提醒落印</button>
           </div>
           {showNudgeBox && (
             <div style={S.inlinePanel}>
               <div style={S.inlinePanelTitle}>提醒{buddy?.name || '今日搭子'}</div>
-              <textarea style={S.messageInput} maxLength={50} value={nudgeDraft} onChange={e => setNudgeDraft(e.target.value.slice(0, 50))} placeholder="写一句不超过50字的守诺提醒" />
+              <textarea style={S.messageInput} maxLength={50} value={nudgeDraft} onChange={e => setNudgeDraft(e.target.value.slice(0, 50))} placeholder="写一句不超过50字的落印提醒" />
               <div style={S.panelFoot}>
                 <span style={S.charCount}>{nudgeDraft.length}/50</span>
                 <div style={S.panelActions}>
                   <button style={S.panelCancelBtn} onClick={() => setShowNudgeBox(false)}>取消</button>
-                  <button style={S.panelSendBtn} onClick={sendNudgeMessage}>发送提醒</button>
+                  <button style={S.panelSendBtn} onClick={sendNudgeMessage}>送出提醒</button>
                 </div>
               </div>
             </div>
           )}
           {showEncourageBox && (
             <div style={S.inlinePanel}>
-              <div style={S.inlinePanelTitle}>给{buddy?.name || '今日搭子'}一点回应</div>
+              <div style={S.inlinePanelTitle}>给{buddy?.name || '同行'}留一笺</div>
               <div style={S.choiceGrid}>
                 {ENCOURAGE_CHOICES.map(label => <button key={label} style={S.choiceBtn} onClick={() => { setShowEncourageBox(false); sendEcho(buddy, label) }}>{label}</button>)}
               </div>
@@ -675,9 +675,9 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
         <div style={S.panelCard}>
           <div style={S.meetingTitle}>队内今日节奏</div>
           <div style={S.meetingSub}>{teamMood}</div>
-          <div style={S.compareRow}><span>我的状态</span><b>{selfMember?.doneToday ? '今日已守' : '今日待守'}</b></div>
+          <div style={S.compareRow}><span>我的状态</span><b>{selfMember?.doneToday ? '今日已落印' : '今日待落印'}</b></div>
           <div style={S.compareRow}><span>领跑队友</span><b>{topMember ? topMember.name : '暂无'}</b></div>
-          <div style={S.compareRow}><span>小队压力</span><b>{pendingCount > 0 ? pendingCount + '人待守' : '全员跟上'}</b></div>
+          <div style={S.compareRow}><span>小队压力</span><b>{pendingCount > 0 ? pendingCount + '人待落印' : '全员跟上'}</b></div>
           <div style={S.compareHint}>同行的压力不是催促，而是看见差距；同行的温暖不是说教，而是有人回应。</div>
         </div>
 
@@ -693,7 +693,7 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
                   <div style={S.memberHint}>{memberCheckinLine(member, index)} · 完成度 {member.progress}%</div>
                   <div style={S.miniTrack}><div style={{ ...S.miniFill, width: member.progress + '%', background: member.doneToday ? C.green : C.gold }} /></div>
                 </div>
-                <Tag tone={member.doneToday ? 'green' : 'red'}>{member.doneToday ? '已守' : '待守'}</Tag>
+                <Tag tone={member.doneToday ? 'green' : 'red'}>{member.doneToday ? '已落印' : '待落印'}</Tag>
               </div>
             )
           })}
@@ -833,7 +833,7 @@ export default function CompanionsPage() {
     try {
       const updated = await publishCompanionRecruit(pledge.id, session.user.id)
       setMyPledges(list => list.map(item => item.id === pledge.id ? { ...item, ...updated, is_public: true } : item))
-      showToast('已发布到互助会，最多5人同行')
+      showToast('已发布到互助会，最多5人同践')
       load()
     } catch (err) {
       showToast(err.message || '发布失败，请稍后再试')
@@ -969,7 +969,7 @@ export default function CompanionsPage() {
       <TeamRoom pledge={roomPledge} loading={roomLoading} error={roomError} toast={toast} currentUserId={session?.user?.id}
         onBack={() => setRoomPledge(null)}
         onHelp={() => showToast('求助广播会在下一步接入团内留言；当前请先用提醒和回应')}
-        onNudge={(member, message) => sendCompanionNotification(member, 'nudge', message || '提醒守诺')}
+        onNudge={(member, message) => sendCompanionNotification(member, 'nudge', message || '提醒落印')}
         onEncourage={(label, member) => {
           if (label === 'self') return showToast('不能给自己发送小队反馈')
           if (label === 'empty') return showToast('暂无其他团友可反馈')
@@ -995,12 +995,12 @@ export default function CompanionsPage() {
       {!loading && !error && (
         <div style={S.scrollArea}>
           <TodayTeamStatus featuredTeam={featuredTeam} totalTeams={allTeamCount} pendingCount={pendingTodayCount} joinedCount={joinedTeams.length} suggestedCount={suggestedOpenCount}
-            onPrimary={() => featuredTeam ? openRoom(featuredTeam.pledge) : showToast('先从下方互助会加入一个小队')} />
+            onPrimary={() => featuredTeam ? openRoom(featuredTeam.pledge) : showToast('先从下方互助会加入一支小队')} />
 
           <div style={S.sectionHeadProto}>
             <div>
-              <div style={S.sectionTitle}>我的小队</div>
-              <div style={S.sectionHint}>小队负责长期陪伴、反馈和进度对比。</div>
+              <div style={S.sectionTitle}>我的同践小队</div>
+              <div style={S.sectionHint}>小队负责长期共践；落印、留笺、修诺都在这里发生。</div>
             </div>
             <div style={S.filterRowInline}>
               {[
@@ -1014,9 +1014,9 @@ export default function CompanionsPage() {
           </div>
 
           {allTeamCount === 0 ? (
-            <EmptyState title="还没有同行小队" text="先立下一份诺言，或从下方互助会加入一个同路人小队。" action="立下新誓" onAction={() => nav('/new')} />
+            <EmptyState title="还没有同践小队" text="先立下一份诺言，或从下方互助会加入一个同诺小队。" action="立下新誓" onAction={() => nav('/new')} />
           ) : myTeamItems.length === 0 ? (
-            <EmptyState title="当前筛选下没有小队" text="切换到全部，或在下方互助会加入新的同行小队。" />
+            <EmptyState title="当前筛选下没有小队" text="切换到全部，或在下方互助会加入新的同践小队。" />
           ) : (
             <>
               {featuredTeam && (
@@ -1038,7 +1038,7 @@ export default function CompanionsPage() {
 
           {suggestedForMy.length > 0 && (
             <div style={S.recommendBlock}>
-              <div style={S.recommendTitle}>适合你的新小队</div>
+              <div style={S.recommendTitle}>可加入的同诺行列</div>
               {suggestedForMy.slice(0, 2).map(pledge => (
                 <JoinRecommendationCard key={pledge.id} pledge={pledge} joining={joiningId === pledge.id} reason={recommendationReason(pledge, myPledges)} onJoin={() => handleJoin(pledge)} />
               ))}
@@ -1047,7 +1047,7 @@ export default function CompanionsPage() {
 
           <div style={S.helpHubIntro}>
             <div style={S.kicker}>互助会</div>
-            <div style={S.helpHeroTitle}>互助会是临时入口</div>
+            <div style={S.helpHeroTitle}>求同行</div>
           </div>
 
           <div style={S.groupGrid}>
@@ -1061,7 +1061,7 @@ export default function CompanionsPage() {
             <div style={S.matchHead}>
               <div>
                 <div style={S.sectionTitle}>{activeSupportGroup?.name || '互助会'}</div>
-                <div style={S.sectionHint}>{activeSupportGroup?.hint || '找到同路人'}</div>
+                <div style={S.sectionHint}>{activeSupportGroup?.hint || '找到同诺者'}</div>
               </div>
               <div style={S.matchEmoji}>{activeSupportGroup?.emoji}</div>
             </div>
@@ -1071,19 +1071,19 @@ export default function CompanionsPage() {
               <div style={S.matchStatBox}><b>{activeGroupPledges.length}</b><span>公开小队</span></div>
             </div>
             <div style={S.matchActionsCompact}>
-              <button style={S.btnGoldWide} onClick={handleAutoMatchActiveGroup} disabled={!activeGroupOpenTeams.length || !!joiningId}>自动匹配小队</button>
+              <button style={S.btnGoldWide} onClick={handleAutoMatchActiveGroup} disabled={!activeGroupOpenTeams.length || !!joiningId}>一键求同行</button>
             </div>
           </div>
 
           <div style={S.helpSectionHead}>
             <div>
-              <div style={S.sectionTitle}>公开招募</div>
-              <div style={S.sectionHint}>这里只展示少量入口；完整互动进入小队后发生。</div>
+              <div style={S.sectionTitle}>同诺行列</div>
+              <div style={S.sectionHint}>这里看见相近诺言的人；长期互动仍回到小队。</div>
             </div>
           </div>
 
           {activeGroupPledges.length === 0 ? (
-            <EmptyState title="这个互助会暂时没有公开小队" text="把自己的相关誓言发布招募，就能成为这里的第一个小队。" />
+            <EmptyState title="这个互助会暂时没有公开小队" text="把自己的相关誓言发布招募，就能成为这里的第一支小队。" />
           ) : (
             activeGroupPledges.slice(0, 2).map(pledge => (
               <HelpTeamCard key={pledge.id} pledge={pledge} joined={joinedIds.has(pledge.id)} joining={joiningId === pledge.id}
@@ -1162,13 +1162,13 @@ const S = {
   helpTeamTrack: { height: 5, borderRadius: 999, background: C.soft, overflow: 'hidden', marginBottom: 9 },
   helpTeamFill: { height: '100%', borderRadius: 999, background: C.gold },
   helpTeamFoot: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: 11, color: C.muted },
-  todayStatusCard: { background: C.surf, border: '1px solid ' + C.border, borderRadius: 16, padding: 13, marginBottom: 10, boxShadow: '0 2px 10px rgba(26,18,8,.045)' },
+  todayStatusCard: { background: 'linear-gradient(135deg, #2A1708, #4A2C12)', border: '1px solid rgba(200,146,42,.32)', borderRadius: 18, padding: 14, marginBottom: 12, boxShadow: '0 8px 22px rgba(26,18,8,.16)' },
   todayStatusHead: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 },
-  todayIcon: { width: 36, height: 36, borderRadius: '50%', background: C.ink, color: '#F6D486', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 900, flexShrink: 0 },
-  todayTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 16, fontWeight: 900, color: C.ink, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  todayText: { fontSize: 12, color: C.muted, lineHeight: 1.5 },
+  todayIcon: { width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,248,232,.12)', border: '1px solid rgba(246,212,134,.42)', color: '#F6D486', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 900, flexShrink: 0 },
+  todayTitle: { fontFamily: 'Noto Serif SC,serif', fontSize: 18, fontWeight: 900, color: '#FFF8E8', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  todayText: { fontSize: 12, color: 'rgba(255,248,232,.76)', lineHeight: 1.55 },
   todayFeedback: { display: 'none' },
-  todayMetaRow: { display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 2, color: C.hint, fontSize: 11, fontWeight: 700, lineHeight: 1.45 },
+  todayMetaRow: { display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 2, color: 'rgba(255,248,232,.58)', fontSize: 11, fontWeight: 700, lineHeight: 1.45 },
   todayStats: { display: 'none' },
   todayStatBox: {},
   todayStatNum: {},
