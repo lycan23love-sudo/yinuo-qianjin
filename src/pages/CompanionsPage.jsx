@@ -741,11 +741,31 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
 
 
 
+
+function SealMark({ member, empty = false, current = false }) {
+  const done = !empty && !!member?.doneToday
+  const label = empty ? '空位' : (member?.name || '同行者')
+  return (
+    <span title={label} aria-label={label + (done ? '已落印' : empty ? '空位' : '待落印')} style={{
+      width: 31, height: 31, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      flexShrink: 0, borderRadius: '50%', border: done ? '2px solid #D6A52F' : '1px solid ' + (empty ? 'rgba(255,241,204,.35)' : '#D8C4A3'),
+      background: done ? '#F0C64E' : empty ? 'transparent' : 'rgba(255,255,255,.08)',
+      color: done ? '#3A2108' : empty ? 'rgba(255,241,204,.55)' : '#E8D5B0',
+      boxShadow: current && done ? '0 0 0 2px rgba(247,216,117,.45)' : 'none',
+      fontSize: done ? 17 : 12, fontWeight: 900, fontFamily: 'Noto Serif SC,serif'
+    }}>
+      {empty ? '○' : done ? '印' : '·'}
+    </span>
+  )
+}
+
+
 function CompanionTeamRoom({ dashboard, currentUserId, onBack, onNote, onRepair, onHelp, onRespondHelp, toast }) {
   const data = dashboard || {}
   const members = data.members || []
   const team = data.team || {}
   const self = members.find(member => member.user_id === currentUserId)
+  const allDone = members.length > 0 && doneCount === members.length
   const others = members.filter(member => member.user_id !== currentUserId)
   const doneCount = members.filter(member => member.doneToday).length
   const notes = data.notes || []
@@ -796,7 +816,7 @@ function CompanionTeamRoom({ dashboard, currentUserId, onBack, onNote, onRepair,
         <section style={S.memorySection}>
           <div style={S.detailSectionTitle}>小队记忆</div>
           <div style={S.memoryText}>{latestNote ? (latestNote.body || '今天有人为同行者留下了一笺。') : '第一枚小队记忆，等今天的执笔人留下。'}</div>
-          <div style={S.memoryMeta}>{writer ? writer.name + ' 是最近的执笔人' : '五印齐成日、修诺与陪伴都会留在这里'}</div>
+          <div style={S.memoryMeta}>{allDone && writer ? writer.name + ' 是今日执笔人' : '五印齐成日、修诺与陪伴都会留在这里'}</div>
         </section>
 
         <section style={S.weekSection}>
@@ -810,7 +830,7 @@ function CompanionTeamRoom({ dashboard, currentUserId, onBack, onNote, onRepair,
           <div style={S.detailSectionTitle}>队员今日状态</div>
           {members.map(member => (
             <div key={member.user_id} style={S.realMemberRow}>
-              <div style={{ ...S.realMemberAvatar, ...(member.doneToday ? S.realMemberDone : {}) }}>{(member.name || '行').slice(0, 1)}</div>
+              <SealMark member={member} current={member.user_id === currentUserId} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={S.realMemberName}>{member.name}{member.user_id === currentUserId && <span>我</span>}</div>
                 <div style={S.realMemberHint}>{member.doneToday ? '今日已落印 · 连续践诺 ' + (member.current_streak || 0) + ' 天' : member.repair ? '正在修诺：' + member.repair.plan : '今日还没落印'}</div>
@@ -857,14 +877,18 @@ function TodayActionPage({ featuredTeam, dashboard, currentUserId, onOpenTeam, o
   const members = dashboard?.members?.length ? dashboard.members : pledge ? buildRoomMembers(pledge).filter(member => !member.empty) : []
   const doneCount = members.filter(member => member.doneToday).length
   const teamSizeNow = Math.max(members.length, pledge ? teamSize(pledge) : 0, 1)
-  const selfDone = pledge ? checkedToday(pledge) : false
-  const isRepairing = pledge && ['failed', 'broken', 'expired'].includes(String(pledge.status || '').toLowerCase())
+  const selfMember = members.find(member => (member.user_id || member.id) === currentUserId)
+  const selfDone = dashboard?.members?.length ? !!selfMember?.doneToday : pledge ? checkedToday(pledge) : false
+  const isRepairing = !!selfMember?.repair || (pledge && ['failed', 'broken', 'expired'].includes(String(pledge.status || '').toLowerCase()))
   const target = members.find(member => (member.user_id || member.id) !== currentUserId && !member.doneToday) || members.find(member => (member.user_id || member.id) !== currentUserId)
   const progress = pledge ? pct(pledge) : 0
   const leadPercent = dashboard?.peer ? Number(dashboard.peer.leadPercent || 0) : Math.min(86, Math.max(18, Math.round(progress * .7 + doneCount * 9)))
   const peopleAhead = dashboard?.peer ? Number(dashboard.peer.ahead || 0) : Math.max(1, Math.round((100 - leadPercent) / 5))
+  const allDone = members.length > 0 && doneCount === members.length
+  const latestNote = dashboard?.notes?.[0]
+  const writer = members.find(member => (member.user_id || member.id) === dashboard?.lastWriterId)
   const primaryLabel = isRepairing ? '修诺' : selfDone ? '留笺给同行' : '去践诺'
-  const stateText = isRepairing ? '今日未能落印，仍可修诺' : selfDone ? '你已落印，留一句给同行' : '你尚未落印'
+  const stateText = allDone ? '五印齐成 · 今日执笔人：' + (writer?.name || '最后落印的同行者') : isRepairing ? '今日未能落印，仍可修诺' : selfDone ? '你已落印，留一句给同行' : '你尚未落印'
   const teammateName = target?.name || '同行者'
   const noteOptions = ['我先做到了，你也来。', '今天别拼状态，先开始。', '我刚刚也卡住了。', '明天我陪你一起修。']
 
@@ -900,7 +924,7 @@ function TodayActionPage({ featuredTeam, dashboard, currentUserId, onOpenTeam, o
             </div>
 
             <div style={S.coPracticeQuote}>
-              {target ? teammateName + ' 留笺：「状态很差，但我还是做了 15 分钟。」' : '今天先给自己落下一印。'}
+              {latestNote ? (latestNote.author?.nickname || teammateName) + ' 留笺：「' + latestNote.body + '」' : allDone ? '今日共践完成，五印齐成。' : doneCount > 0 ? '你落印后，今日便可五印齐成。' : '今天还没有人先落印。你可以成为今天的第一枚守诺印。'}
             </div>
 
             <div style={S.actionState}>{stateText}</div>
@@ -908,11 +932,9 @@ function TodayActionPage({ featuredTeam, dashboard, currentUserId, onOpenTeam, o
 
             <button style={S.sealRow} onClick={() => onOpenTeam(pledge)} aria-label="查看同行小队">
               {members.slice(0, TEAM_LIMIT).map(member => (
-                <span key={member.id} style={{ ...S.memberSeal, ...(member.doneToday ? S.memberSealDone : {}), ...((member.user_id || member.id) === currentUserId ? S.memberSealSelf : {}) }}>
-                  {member.name?.slice(0, 1) || '行'}
-                </span>
+                <SealMark key={member.user_id || member.id} member={member} current={(member.user_id || member.id) === currentUserId} />
               ))}
-              {Array.from({ length: Math.max(0, TEAM_LIMIT - members.length) }).map((_, index) => <span key={'empty-' + index} style={S.memberSealEmpty}>○</span>)}
+              {Array.from({ length: Math.max(0, TEAM_LIMIT - members.length) }).map((_, index) => <SealMark key={'empty-' + index} empty />)}
               <span style={S.teamLink}>查看同行小队 ›</span>
             </button>
 
