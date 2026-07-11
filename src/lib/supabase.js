@@ -2272,7 +2272,7 @@ export async function getCompanionDashboard(userId) {
     .select('id,user_id,title,period,total_days,checkin_count,current_streak,status,category_key,category,category_tag,start_date,end_date,checkins(checkin_date,created_at)')
     .in('user_id', memberIds)
   if (pledgeError) throw pledgeError
-  const { data: repairs, error: repairsError } = await supabase
+  let { data: repairs, error: repairsError } = await supabase
     .from('companion_repairs').select('*').eq('team_id', selectedTeam.id).eq('status', 'active')
   if (repairsError) throw repairsError
   const today = companionDate()
@@ -2281,6 +2281,19 @@ export async function getCompanionDashboard(userId) {
     result[pledge.user_id].push(pledge)
     return result
   }, {})
+
+  const yesterday = companionDate(-1)
+  const currentUserPledges = byUser[userId] || []
+  const missedYesterday = currentUserPledges.filter(item => ['active', 'ongoing', null, undefined].includes(item.status) && (!item.start_date || item.start_date <= yesterday) && (!item.end_date || item.end_date >= yesterday)).some(item => !hasDayCheckin(item, yesterday))
+  const hasOwnRepair = (repairs || []).some(item => item.user_id === userId && item.status === 'active')
+  if (missedYesterday && !hasOwnRepair) {
+    const { data: createdRepair } = await supabase
+      .from('companion_repairs')
+      .insert({ team_id: selectedTeam.id, user_id: userId, plan: '补做昨日未完成的诺言', repair_date: today })
+      .select().maybeSingle()
+    if (createdRepair) repairs = [...(repairs || []), createdRepair]
+  }
+
   const members = (rawMembers || []).map(member => normalizeTeamMember(member, byUser[member.user_id] || [], today, repairs || []))
   const { data: notes, error: notesError } = await supabase
     .from('companion_team_notes')
@@ -2335,7 +2348,7 @@ export async function getCompanionDashboard(userId) {
       repairs: repairs || [],
       helpRequests: helpRequests || [],
       sevenDays,
-      lastWriterId: lastCheckin?.user_id || null,
+      lastWriterId: members.length > 0 && members.every(member => member.doneToday) ? lastCheckin?.user_id || null : null,
       ownPledges,
       primaryPledge: ownPrimary || null,
       peer: { population: comparable.length + 1, leadPercent, ahead },
