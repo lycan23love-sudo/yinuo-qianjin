@@ -300,7 +300,8 @@ function getBuddy(activeMembers, currentUserId) {
 function buildRoomMembers(pledge) {
   const knownByUser = pledge.knownPledgesByUser || {}
   const active = (pledge.witnesses || []).filter(item => !item.status || item.status === 'active').slice(0, TEAM_LIMIT - 1)
-  const ownerStats = aggregatePledges(pledge.teamPledges || knownByUser[pledge.user_id], pledge)
+  const ownerPledges = pledge.teamPledges || knownByUser[pledge.user_id] || [pledge]
+  const ownerStats = aggregatePledges(ownerPledges, pledge)
   const owner = {
     id: pledge.user_id || 'owner',
     name: getHostName(pledge),
@@ -309,6 +310,7 @@ function buildRoomMembers(pledge) {
     doneToday: ownerStats.doneToday,
     note: ownerStats.doneToday ? '今日已落印' : '今日待落印',
     statText: ownerStats.done + '/' + ownerStats.total + ' 天',
+    pledges: ownerPledges,
   }
   const friends = active.map((item, index) => {
     const id = item.user_id || item.id || 'friend-' + index
@@ -321,6 +323,7 @@ function buildRoomMembers(pledge) {
       doneToday: stats.total ? stats.doneToday : false,
       note: stats.total ? (stats.doneToday ? '今日已落印' : '今日待落印') : '已入队，等待同步打卡数据',
       statText: stats.total ? stats.done + '/' + stats.total + ' 天' : '暂无公开誓言数据',
+      pledges: knownByUser[id] || [],
     }
   })
   const empty = Array.from({ length: Math.max(TEAM_LIMIT - 1 - friends.length, 0) }, (_, index) => ({
@@ -596,6 +599,14 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
     return (b.progress || 0) - (a.progress || 0)
   })
   const topMember = sortedMembers[0]
+  const recentDays = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date()
+    date.setDate(date.getDate() + index - 6)
+    const key = date.toISOString().slice(0, 10)
+    const eligible = activeMembers.filter(member => (member.pledges || []).length > 0)
+    const seals = eligible.filter(member => (member.pledges || []).every(item => (item.checkins || []).some(checkin => checkin.checkin_date === key))).length
+    return { key, seals, total: eligible.length, full: eligible.length > 1 && seals === eligible.length }
+  })
   const teamMood = doneCount === 0
     ? '今天还没人先迈步。谁先守住，谁就把小队拉回正轨。'
     : doneCount === activeMembers.length
@@ -638,6 +649,17 @@ function TeamRoom({ pledge, loading, error, toast, currentUserId, onBack, onNudg
             <div><b>{teamSlots(pledge)}</b><span>剩余席位</span></div>
           </div>
         </div>
+
+        <section style={{ marginTop: 14, padding: 15, border: '1px solid ' + C.border, borderRadius: 15, background: C.surf }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: C.ink, fontSize: 13, fontWeight: 900 }}>
+            <span>队员状态 · 最近 7 日五印记录</span>
+            <span style={{ color: C.goldD }}>{recentDays.reduce((sum, day) => sum + day.seals, 0)} 次落印</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 7, marginTop: 14 }}>
+            {recentDays.map(day => <div key={day.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, color: C.muted, fontSize: 10 }}><span style={{ width: 25, height: 25, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', background: day.full ? C.green : day.seals ? C.goldL : C.soft, color: day.full ? '#fff' : day.seals ? C.goldD : C.hint, fontSize: 10, fontWeight: 900 }}>{day.seals}</span><small>{day.key.slice(5)}</small></div>)}
+          </div>
+          <div style={{ marginTop: 12, color: C.muted, fontSize: 11, lineHeight: 1.6 }}>绿色代表当日全员落印；数字代表当天已完成的队员。</div>
+        </section>
 
         <div style={S.buddyCard}>
           <div style={S.buddyTop}>
