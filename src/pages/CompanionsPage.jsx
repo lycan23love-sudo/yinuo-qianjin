@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
-import { getMyPledges, getPublicPledges, getPledgeDetail, getUserCompanionPledges, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins, sendUserNotification, savePushSubscription, getPushSubscriptionStatus, getCompanionDashboard, leaveCompanionNote, startCompanionRepair, requestCompanionHelp, respondToCompanionHelp } from '../lib/supabase'
+import { getMyPledges, getPublicPledges, getPledgeDetail, getUserCompanionPledges, publishCompanionRecruit, joinCompanionTeam, getMyCompanionJoins, sendUserNotification, savePushSubscription, getPushSubscriptionStatus, getCompanionDashboard, getNotifications, leaveCompanionNote, startCompanionRepair, requestCompanionHelp, respondToCompanionHelp } from '../lib/supabase'
 import { PLEDGE_CATEGORIES, inferPledgeCategory, inferPledgeTag } from '../lib/pledgeCategories'
 
 const TEAM_LIMIT = 5
@@ -879,8 +879,9 @@ function TodayActionPage({ featuredTeam, dashboard, currentUserId, onOpenTeam, o
   const self = members.find(member => (member.user_id || member.id) === currentUserId)
   const target = members.find(member => (member.user_id || member.id) !== currentUserId && !member.doneToday) || members.find(member => (member.user_id || member.id) !== currentUserId)
   const selfDone = dashboard?.members?.length ? !!self?.doneToday : pledge ? checkedToday(pledge) : false
+  const listedDoneCount = members.filter(member => member.doneToday).length
+  const doneCount = selfDone && !self?.doneToday ? listedDoneCount + 1 : listedDoneCount
   const repairing = !!self?.repair || (pledge && ['failed', 'broken', 'expired'].includes(String(pledge.status || '').toLowerCase()))
-  const doneCount = members.filter(member => member.doneToday).length
   const cohort = dashboard?.peer?.cohort || {}
   const total = Math.max(Number(cohort.population || dashboard?.peer?.population || 30), 5)
   const completed = Math.min(total, Math.max(0, Number(cohort.completedToday ?? doneCount)))
@@ -1003,8 +1004,30 @@ export default function CompanionsPage() {
       ])
       let dashboardResult = null
       try { dashboardResult = session?.user?.id ? await getCompanionDashboard(session.user.id) : null } catch (dashboardError) { dashboardResult = { ready: false, error: dashboardError.message || '同行数据暂不可用' } }
+      let fallbackNotes = []
+      if (session?.user?.id) {
+        try {
+          const notificationResult = await getNotifications(session.user.id)
+          fallbackNotes = (notificationResult.items || [])
+            .filter(item => item.type === 'companion_echo')
+            .map(item => ({ id: item.id, body: item.metadata?.label || item.body || '', kind: 'note', author: { nickname: item.metadata?.actorName || '同行者' }, created_at: item.created_at }))
+        } catch {}
+      }
+      if (!dashboardResult?.dashboard) {
+        dashboardResult = { ...(dashboardResult || { ready: false }), dashboard: { members: [], notes: fallbackNotes, peer: null, primaryPledge: null, lastWriterId: null } }
+      } else if (!dashboardResult.dashboard.notes?.length && fallbackNotes.length) {
+        dashboardResult.dashboard.notes = fallbackNotes
+      }
       setCompanionDashboard(dashboardResult)
-      const activeMine = (mine || []).filter(p => !p.status || p.status === 'active' || p.status === 'ongoing')
+      let mineWithCheckins = mine || []
+      if (session?.user?.id) {
+        try {
+          const detailedMine = await getUserCompanionPledges(session.user.id)
+          const detailMap = new Map((detailedMine || []).map(item => [item.id, item]))
+          mineWithCheckins = mineWithCheckins.map(item => ({ ...item, checkins: detailMap.get(item.id)?.checkins || item.checkins || [] }))
+        } catch {}
+      }
+      const activeMine = mineWithCheckins.filter(p => !p.status || p.status === 'active' || p.status === 'ongoing')
       const publicList = (publics || []).filter(p => p.user_id !== session?.user?.id).slice(0, 30)
       setMyPledges(activeMine)
       setJoinedIds(new Set(joins || []))
@@ -1019,6 +1042,19 @@ export default function CompanionsPage() {
   }
 
   useEffect(() => { load() }, [session?.user?.id])
+
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') load()
+    }
+    window.addEventListener('focus', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      window.removeEventListener('focus', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [session?.user?.id])
+
 
   useEffect(() => {
     let alive = true
@@ -1160,20 +1196,21 @@ export default function CompanionsPage() {
   async function sendCompanionNotification(member, kind, label) {
     if (!session?.user?.id) return nav('/auth')
     if (!member || member.empty) return showToast('暂无其他团友可通知')
-    if (member.id === session.user.id) return showToast('不能给自己发送小队通知')
+    const recipientId = member.user_id || member.id
+    if (recipientId === session.user.id) return showToast('不能给自己发送小队通知')
     const title = kind === 'nudge' ? '同行团友提醒你守诺' : '同行团友给了你回应'
     const body = kind === 'nudge'
       ? '有人在「' + (roomPledge?.title || '小队') + '」里提醒你：' + (label || '今天别一个人扛。')
       : '有人在「' + (roomPledge?.title || '小队') + '」里对你说：' + label
     try {
       const result = await sendUserNotification({
-        userId: member.id,
+        userId: recipientId,
         actorId: session.user.id,
         pledgeId: roomPledge?.id,
         type: kind === 'nudge' ? 'companion_nudge' : 'companion_echo',
         title,
         body,
-        metadata: { label, teamTitle: roomPledge?.title || '', url: '/companions' },
+        metadata: { label, actorName: displayName, teamTitle: roomPledge?.title || '', url: '/companions' },
         url: '/companions'
       })
       showToast(result.delivered ? '已送达' + member.name + (result.pushed ? '，会尝试弹到手机' : '的消息中心；对方未开启手机提醒') : '消息中心通知表未启用，请先执行数据库 SQL')
