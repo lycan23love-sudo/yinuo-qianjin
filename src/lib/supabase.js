@@ -2325,7 +2325,7 @@ export async function getCompanionDashboard(userId) {
   if (ownPrimary?.category_key) {
     const { data } = await supabase
       .from('pledges')
-      .select('user_id,total_days,checkin_count,period')
+      .select('user_id,total_days,checkin_count,period,checkins(checkin_date)')
       .eq('is_public', true)
       .eq('category_key', ownPrimary.category_key)
       .eq('period', ownPrimary.period)
@@ -2335,6 +2335,8 @@ export async function getCompanionDashboard(userId) {
   }
   const ownRate = ownPrimary?.total_days ? Number(ownPrimary.checkin_count || 0) / Number(ownPrimary.total_days) : 0
   const comparable = peerRows.filter(row => row.user_id !== userId && Number(row.total_days || 0) > 0)
+  const cohortRows = peerRows.filter(row => Number(row.total_days || 0) > 0).slice(0, 30)
+  const completedToday = cohortRows.filter(row => (row.checkins || []).some(checkin => checkin.checkin_date === companionDate())).length + (ownPrimary && (ownPrimary.checkins || []).some(checkin => checkin.checkin_date === companionDate()) ? 1 : 0)
   const ahead = comparable.filter(row => Number(row.checkin_count || 0) / Number(row.total_days || 1) > ownRate).length
   const leadPercent = comparable.length ? Math.round((comparable.length - ahead) * 100 / comparable.length) : 0
 
@@ -2351,7 +2353,7 @@ export async function getCompanionDashboard(userId) {
       lastWriterId: members.length > 0 && members.every(member => member.doneToday) ? lastCheckin?.user_id || null : null,
       ownPledges,
       primaryPledge: ownPrimary || null,
-      peer: { population: comparable.length + 1, leadPercent, ahead },
+      peer: { population: comparable.length + 1, leadPercent, ahead, cohort: { population: Math.max(1, cohortRows.length + 1), completedToday: Math.min(cohortRows.length + 1, completedToday), remainingToday: Math.max(0, cohortRows.length + 1 - completedToday) } },
     },
   }
 }
