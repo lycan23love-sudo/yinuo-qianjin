@@ -889,7 +889,6 @@ function TodayActionPage({ featuredTeam, dashboard, currentUserId, onOpenTeam, o
   const latestWriter = members.find(member => (member.user_id || member.id) === dashboard?.lastWriterId)
   const noteStatus = note => note.kind === 'repair' || /修诺|补做|修复/.test(note.body || '') ? '修复中' : '已完成'
   const noteColor = note => noteStatus(note) === '修复中' ? '#B77455' : '#3E8A63'
-  const primaryLabel = repairing ? '修复今天' : selfDone ? '写给同行' : '去践诺'
   const stateLine = repairing
     ? '今天没能完成，但仍然可以回来修复。'
     : selfDone
@@ -902,13 +901,6 @@ function TodayActionPage({ featuredTeam, dashboard, currentUserId, onOpenTeam, o
     await onSendNote(target, text)
     setNoteDraft('')
     setWriteOpen(false)
-  }
-
-  function primaryAction() {
-    if (!pledge) return nav('/new')
-    if (repairing) return onFindCompanion('陪我完成一次修诺')
-    if (selfDone) return setWriteOpen(value => !value)
-    onCheckin(pledge)
   }
 
   const ink = { color: C.ink }
@@ -938,10 +930,7 @@ function TodayActionPage({ featuredTeam, dashboard, currentUserId, onOpenTeam, o
         <div style={{ marginTop: 17, paddingTop: 15, borderTop: '1px solid rgba(255,244,214,.17)' }}>
           <div style={{ color: '#FFF8E9', fontSize: 15, fontWeight: 900 }}>{selfDone ? '你今天已经守住了' : repairing ? '今天没有落印' : '你今天还在路上'}</div>
           <div style={{ marginTop: 5, color: '#D8C09A', fontSize: 12, lineHeight: 1.6 }}>{stateLine}</div>
-          <button style={{ width: '100%', marginTop: 13, border: '1px solid #E5BC58', borderRadius: 999, padding: '11px 14px', background: '#F0C95A', color: '#32200B', fontSize: 14, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' }} onClick={primaryAction}>{primaryLabel}</button>
         </div>
-
-        {pledge && <button style={{ display: 'block', margin: '14px auto 0', border: 'none', background: 'transparent', color: '#F0D58F', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' }} onClick={() => onOpenTeam(pledge)}>我的同行小队 · {members.length}/5　查看 ›</button>}
       </section>
 
       <section style={{ marginTop: 22 }}>
