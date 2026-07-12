@@ -4283,3 +4283,141 @@ export async function disablePushSubscription(userId, endpoint) {
     .eq('endpoint', endpoint)
   if (error && !isMissingPushTable(error)) throw error
 }
+
+
+
+async function ensureCanonicalCompanionTeam(userId) {
+  const { data: current } = await supabase.from('companion_team_members').select('team_id').eq('user_id', userId).limit(1)
+  if (current?.length) return current[0].team_id
+
+  const { data: pledge } = await supabase
+    .from('pledges')
+    .select('id,title,user_id')
+    .eq('user_id', userId)
+    .in('status', ['active', 'ongoing'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (!pledge) return null
+
+  const { data: team, error: teamError } = await supabase
+    .from('companion_teams')
+    .insert({ owner_id: userId, name: (pledge.title || '同行') + '小队' })
+    .select()
+    .single()
+  if (teamError && teamError.code !== '23505') throw teamError
+  if (!team) {
+    const { data: retry } = await supabase.from('companion_team_members').select('team_id').eq('user_id', userId).limit(1)
+    return retry?.[0]?.team_id || null
+  }
+
+  const { data: witnesses } = await supabase
+    .from('witnesses')
+    .select('user_id')
+    .eq('pledge_id', pledge.id)
+    .eq('status', 'active')
+    .limit(4)
+  const memberIds = [...new Set([userId, ...(witnesses || []).map(item => item.user_id).filter(Boolean)])].slice(0, 5)
+  const { error: memberError } = await supabase.from('companion_team_members').insert(memberIds.map(memberId => ({
+    team_id: team.id, user_id: memberId, role: memberId === userId ? 'owner' : 'member'
+  })))
+  if (memberError && memberError.code !== '23505') throw memberError
+  return team.id
+}
+
+export async function getCompanionState(userId) {
+  if (!userId) return { team: null, members: [], notes: [], peer: null, primaryPledge: null }
+  const teamId = await ensureCanonicalCompanionTeam(userId)
+  if (!teamId) return { team: null, members: [], notes: [], peer: null, primaryPledge: null }
+
+  const [{ data: team }, { data: rawMembers }] = await Promise.all([
+    supabase.from('companion_teams').select('*').eq('id', teamId).single(),
+    supabase.from('companion_team_members').select('team_id,user_id,role,joined_at,profiles:user_id(nickname,avatar_url)').eq('team_id', teamId).order('joined_at', { ascending: true }),
+  ])
+  const memberIds = (rawMembers || []).map(item => item.user_id)
+  const { data: pledges } = await supabase
+    .from('pledges')
+    .select('id,user_id,title,total_days,checkin_count,current_streak,status,start_date,end_date,category_key,period,checkins(checkin_date,created_at)')
+    .in('user_id', memberIds)
+
+  const today = new Date().toISOString().slice(0, 10)
+  const activePledges = (pledges || []).filter(item => ['active', 'ongoing', null, undefined].includes(item.status))
+  const byUser = activePledges.reduce((map, item) => {
+    if (!map[item.user_id]) map[item.user_id] = []
+    map[item.user_id].push(item)
+    return map
+  }, {})
+  const members = (rawMembers || []).map(member => {
+    const own = byUser[member.user_id] || []
+    const doneToday = own.length > 0 && own.every(item => (item.checkins || []).some(checkin => checkin.checkin_date === today))
+    const totalDays = own.reduce((sum, item) => sum + Number(item.total_days || 0), 0)
+    const completedDays = own.reduce((sum, item) => sum + Number(item.checkin_count || 0), 0)
+    return {
+      ...member,
+      user_id: member.user_id,
+      name: member.profiles?.nickname || '同行者',
+      doneToday,
+      progress: totalDays ? Math.min(100, Math.round(completedDays * 100 / totalDays)) : 0,
+      pledges: own,
+    }
+  })
+  const ownPledges = byUser[userId] || []
+  const primaryPledge = ownPledges[0] || null
+  const self = members.find(member => member.user_id === userId)
+  const { data: notes } = await supabase
+    .from('companion_team_notes')
+    .select('id,team_id,author_id,recipient_id,body,kind,note_date,created_at,author:author_id(nickname),recipient:recipient_id(nickname)')
+    .eq('team_id', teamId)
+    .eq('note_date', today)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  let peerRows = []
+  if (primaryPledge?.category_key) {
+    const { data } = await supabase
+      .from('pledges')
+      .select('user_id,total_days,checkins(checkin_date)')
+      .eq('is_public', true)
+      .eq('category_key', primaryPledge.category_key)
+      .eq('period', primaryPledge.period)
+      .in('status', ['active', 'ongoing'])
+      .limit(30)
+    peerRows = data || []
+  }
+  const cohort = peerRows.filter(item => item.user_id !== userId)
+  const peerCompleted = cohort.filter(item => (item.checkins || []).some(checkin => checkin.checkin_date === today)).length
+  const selfCompleted = self?.doneToday ? 1 : 0
+  const population = cohort.length + 1
+
+  return {
+    team,
+    members,
+    notes: notes || [],
+    primaryPledge,
+    lastWriterId: members.length > 0 && members.every(member => member.doneToday) ? members.filter(member => member.doneToday).slice(-1)[0]?.user_id : null,
+    peer: { population, completedToday: peerCompleted + selfCompleted, remainingToday: Math.max(0, population - peerCompleted - selfCompleted) },
+  }
+}
+
+export async function sendCompanionNote(userId, { teamId, recipientId, body }) {
+  const content = String(body || '').trim().slice(0, 50)
+  if (!teamId || !recipientId || !content) throw new Error('留笺信息不完整')
+  const { data, error } = await supabase
+    .from('companion_team_notes')
+    .insert({ team_id: teamId, author_id: userId, recipient_id: recipientId, body: content, kind: 'note', note_date: new Date().toISOString().slice(0, 10) })
+    .select()
+    .single()
+  if (error) throw error
+  try {
+    await sendUserNotification({
+      userId: recipientId,
+      actorId: userId,
+      type: 'companion_echo',
+      title: '同行者给你留了一笺',
+      body: content,
+      metadata: { label: content, teamId, url: '/companions' },
+      url: '/companions',
+    })
+  } catch {}
+  return data
+}
