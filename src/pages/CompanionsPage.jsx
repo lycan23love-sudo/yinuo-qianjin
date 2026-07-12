@@ -870,109 +870,112 @@ function CompanionTeamRoom({ dashboard, currentUserId, onBack, onNote, onRepair,
 }
 
 
+
 function TodayActionPage({ featuredTeam, dashboard, currentUserId, onOpenTeam, onCheckin, onSendNote, onFindCompanion, nav }) {
-  const [composerOpen, setComposerOpen] = useState(false)
-  const [note, setNote] = useState('')
+  const [writeOpen, setWriteOpen] = useState(false)
+  const [noteDraft, setNoteDraft] = useState('')
   const pledge = featuredTeam?.pledge
   const members = dashboard?.members?.length ? dashboard.members : pledge ? buildRoomMembers(pledge).filter(member => !member.empty) : []
-  const doneCount = members.filter(member => member.doneToday).length
-  const teamSizeNow = Math.max(members.length, pledge ? teamSize(pledge) : 0, 1)
-  const selfMember = members.find(member => (member.user_id || member.id) === currentUserId)
-  const selfDone = dashboard?.members?.length ? !!selfMember?.doneToday : pledge ? checkedToday(pledge) : false
-  const isRepairing = !!selfMember?.repair || (pledge && ['failed', 'broken', 'expired'].includes(String(pledge.status || '').toLowerCase()))
+  const self = members.find(member => (member.user_id || member.id) === currentUserId)
   const target = members.find(member => (member.user_id || member.id) !== currentUserId && !member.doneToday) || members.find(member => (member.user_id || member.id) !== currentUserId)
-  const progress = pledge ? pct(pledge) : 0
-  const leadPercent = dashboard?.peer ? Number(dashboard.peer.leadPercent || 0) : Math.min(86, Math.max(18, Math.round(progress * .7 + doneCount * 9)))
-  const peopleAhead = dashboard?.peer ? Number(dashboard.peer.ahead || 0) : Math.max(1, Math.round((100 - leadPercent) / 5))
-  const allDone = members.length > 0 && doneCount === members.length
-  const latestNote = dashboard?.notes?.[0]
-  const writer = members.find(member => (member.user_id || member.id) === dashboard?.lastWriterId)
-  const primaryLabel = isRepairing ? '修诺' : selfDone ? '留笺给同行' : '去践诺'
-  const stateText = allDone ? '五印齐成 · 今日执笔人：' + (writer?.name || '最后落印的同行者') : isRepairing ? '今日未能落印，仍可修诺' : selfDone ? '你已落印，留一句给同行' : '你尚未落印'
-  const teammateName = target?.name || '同行者'
-  const noteOptions = ['我先做到了，你也来。', '今天别拼状态，先开始。', '我刚刚也卡住了。', '明天我陪你一起修。']
+  const selfDone = dashboard?.members?.length ? !!self?.doneToday : pledge ? checkedToday(pledge) : false
+  const repairing = !!self?.repair || (pledge && ['failed', 'broken', 'expired'].includes(String(pledge.status || '').toLowerCase()))
+  const doneCount = members.filter(member => member.doneToday).length
+  const cohort = dashboard?.peer?.cohort || {}
+  const total = Math.max(Number(cohort.population || dashboard?.peer?.population || 30), 5)
+  const completed = Math.min(total, Math.max(0, Number(cohort.completedToday ?? doneCount)))
+  const remaining = Math.max(total - completed, 0)
+  const latestNotes = (dashboard?.notes || []).slice(0, 2)
+  const latestWriter = members.find(member => (member.user_id || member.id) === dashboard?.lastWriterId)
+  const noteStatus = note => note.kind === 'repair' || /修诺|补做|修复/.test(note.body || '') ? '修复中' : '已完成'
+  const noteColor = note => noteStatus(note) === '修复中' ? '#B77455' : '#3E8A63'
+  const primaryLabel = repairing ? '修复今天' : selfDone ? '写给同行' : '去践诺'
+  const stateLine = repairing
+    ? '今天没能完成，但仍然可以回来修复。'
+    : selfDone
+      ? '你已经守住今天，也可以把这一步留给别人。'
+      : '你今天还在路上。已有 ' + completed + ' 位同行者守住了今天。'
 
   async function submitNote() {
     if (!target) return
-    await onSendNote(target, note.trim() || '我先做到了，你也来。')
-    setNote('')
-    setComposerOpen(false)
+    const text = noteDraft.trim() || '我也在路上，今天一起守住。'
+    await onSendNote(target, text)
+    setNoteDraft('')
+    setWriteOpen(false)
   }
 
   function primaryAction() {
     if (!pledge) return nav('/new')
-    if (isRepairing) return onFindCompanion('陪我完成一次修诺')
-    if (selfDone) return setComposerOpen(value => !value)
+    if (repairing) return onFindCompanion('陪我完成一次修诺')
+    if (selfDone) return setWriteOpen(value => !value)
     onCheckin(pledge)
   }
 
+  const ink = { color: C.ink }
+  const sectionTitle = { fontFamily: 'Noto Serif SC,serif', fontSize: 18, fontWeight: 900, color: C.ink }
+  const stampBase = { width: 24, height: 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', flexShrink: 0 }
+
   return (
-    <div style={S.actionPage}>
-      {!pledge ? (
-        <div style={S.actionEmpty}>
-          <div style={S.actionEyebrow}>同行从一份誓言开始</div>
-          <div style={S.actionEmptyTitle}>先写下今天愿意守住的事</div>
-          <div style={S.actionEmptyText}>当你有了正在践行的诺言，才会遇见愿意同行的人。</div>
-          <button style={S.actionPrimary} onClick={() => nav('/new')}>立下一誓</button>
+    <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 28px', background: C.bg }}>
+      <section style={{ padding: 18, borderRadius: 20, background: 'linear-gradient(145deg,#241509 0%,#533016 100%)', color: '#FFF8E9', boxShadow: '0 12px 28px rgba(54,31,9,.17)' }}>
+        <div style={{ fontSize: 12, color: '#E9C868', fontWeight: 900, letterSpacing: 1.4 }}>同行</div>
+        <div style={{ marginTop: 7, fontFamily: 'Noto Serif SC,serif', fontSize: 23, fontWeight: 900 }}>与你同期的 {total} 位践行者</div>
+        <div style={{ marginTop: 5, color: '#D8C09A', fontSize: 12 }}>相似诺言 · 相近进度</div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 9, margin: '22px 6px 15px', justifyItems: 'center' }}>
+          {Array.from({ length: total }, (_, index) => {
+            const isMe = index === Math.min(completed, total - 1) && !selfDone
+            const isDone = index < completed && !isMe
+            return <span key={index} title={isMe ? '你' : isDone ? '已完成' : '还在路上'} style={{ ...stampBase, width: isMe ? 28 : 22, height: isMe ? 28 : 22, background: isDone ? '#E8B938' : isMe ? '#FFF2C7' : 'rgba(255,255,255,.15)', border: isMe ? '2px solid #F5D77E' : '1px solid rgba(255,236,183,.2)', boxShadow: isDone ? '0 0 0 3px rgba(232,185,56,.12)' : 'none' }}><span style={{ width: isDone ? 8 : 6, height: isDone ? 8 : 6, borderRadius: '50%', background: isDone ? '#3B220B' : isMe ? '#8A641A' : 'rgba(255,238,195,.45)' }} /></span>
+          })}
         </div>
-      ) : (
-        <>
-          <section style={S.coPracticeHero}>
-            <div style={S.coPracticeTop}>
-              <div style={S.actionEyebrow}>今日共践</div>
-              <div style={S.coPracticeCount}>{doneCount}<span> / {teamSizeNow} 人已落印</span></div>
-            </div>
 
-            <div style={S.coPracticeQuote}>
-              {latestNote ? (latestNote.author?.nickname || teammateName) + ' 留笺：「' + latestNote.body + '」' : allDone ? '今日共践完成，五印齐成。' : doneCount > 0 ? '你落印后，今日便可五印齐成。' : '今天还没有人先落印。你可以成为今天的第一枚守诺印。'}
-            </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+          <div style={{ color: '#F5D77E', fontSize: 15, fontWeight: 900 }}>{completed} 人已完成</div>
+          <div style={{ color: '#CDB28B', fontSize: 13 }}>{remaining} 人还在路上</div>
+        </div>
 
-            <div style={S.actionState}>{stateText}</div>
-            <button style={S.coPracticeMainAction} onClick={primaryAction}>{primaryLabel}</button>
+        <div style={{ marginTop: 17, paddingTop: 15, borderTop: '1px solid rgba(255,244,214,.17)' }}>
+          <div style={{ color: '#FFF8E9', fontSize: 15, fontWeight: 900 }}>{selfDone ? '你今天已经守住了' : repairing ? '今天没有落印' : '你今天还在路上'}</div>
+          <div style={{ marginTop: 5, color: '#D8C09A', fontSize: 12, lineHeight: 1.6 }}>{stateLine}</div>
+          <button style={{ width: '100%', marginTop: 13, border: '1px solid #E5BC58', borderRadius: 999, padding: '11px 14px', background: '#F0C95A', color: '#32200B', fontSize: 14, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' }} onClick={primaryAction}>{primaryLabel}</button>
+        </div>
 
-            <button style={S.sealRow} onClick={() => onOpenTeam(pledge)} aria-label="查看同行小队">
-              {members.slice(0, TEAM_LIMIT).map(member => (
-                <SealMark key={member.user_id || member.id} member={member} current={(member.user_id || member.id) === currentUserId} />
-              ))}
-              {Array.from({ length: Math.max(0, TEAM_LIMIT - members.length) }).map((_, index) => <SealMark key={'empty-' + index} empty />)}
-              <span style={S.teamLink}>查看同行小队 ›</span>
-            </button>
+        {pledge && <button style={{ display: 'block', margin: '14px auto 0', border: 'none', background: 'transparent', color: '#F0D58F', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' }} onClick={() => onOpenTeam(pledge)}>我的同行小队 · {members.length}/5　查看 ›</button>}
+      </section>
 
-            {composerOpen && (
-              <div style={S.noteComposer}>
-                <div style={S.noteComposerTitle}>留笺给 {teammateName}</div>
-                <div style={S.quickNotes}>
-                  {noteOptions.map(option => <button key={option} style={S.quickNote} onClick={() => setNote(option)}>{option}</button>)}
-                </div>
-                <textarea value={note} maxLength={50} onChange={event => setNote(event.target.value)} placeholder="写一句给同行者的话，50 字以内" style={S.noteInput} />
-                <div style={S.composerFoot}>
-                  <span>{note.length}/50</span>
-                  <button style={S.noteSendBtn} onClick={submitNote}>落笺发送</button>
-                </div>
-              </div>
-            )}
-          </section>
+      <section style={{ marginTop: 22 }}>
+        <div style={sectionTitle}>今日共勉</div>
+        {latestNotes.length > 0 ? (
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '12px 1px 5px', scrollbarWidth: 'none' }}>
+            {latestNotes.map(note => <article key={note.id} style={{ minWidth: 244, padding: 15, border: '1px solid ' + C.border, borderRadius: 15, background: C.surf, boxShadow: '0 4px 14px rgba(35,22,8,.05)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}><span style={{ color: noteColor(note), fontSize: 11, fontWeight: 900 }}>● {noteStatus(note)}</span><span style={{ color: C.muted, fontSize: 10 }}>{note.author?.nickname || '同行者'}</span></div>
+              <div style={{ marginTop: 11, color: C.ink, fontFamily: 'Noto Serif SC,serif', fontSize: 15, lineHeight: 1.65 }}>“{note.body}”</div>
+              <div style={{ marginTop: 11, color: C.muted, fontSize: 11 }}>今天留下的一句话</div>
+            </article>)}
+          </div>
+        ) : (
+          <div style={{ marginTop: 12, padding: 17, border: '1px dashed ' + C.border, borderRadius: 15, color: C.muted, fontSize: 12, lineHeight: 1.6 }}>今天还没有同行留笺。你完成后，可以成为第一个留下经验的人。</div>
+        )}
+        {latestWriter && <div style={{ marginTop: 8, color: C.goldD, fontSize: 11 }}>今日执笔人：{latestWriter.name}</div>}
+      </section>
 
-          <section style={S.referenceLine}>
-            <div>
-              <div style={S.referenceTitle}>同诺行列</div>
-              <div style={S.referenceMain}>你领先 {leadPercent}% 的同诺者</div>
-              <div style={S.referenceHint}>今天已有 {peopleAhead} 人走在你前面</div>
-            </div>
-          </section>
-
-          <button style={S.findCompanionHeader} onClick={() => onFindCompanion('陪我专注 15 分钟')}>
-            <span>
-              <span style={S.findCompanionTitle}>求同行</span>
-              <span style={S.findCompanionHint}>卡住时，找一个人陪你把下一步做完。</span>
-            </span>
-            <span style={S.findCompanionArrow}>›</span>
-          </button>
-        </>
-      )}
+      <section style={{ marginTop: 24, padding: '17px 0 0', borderTop: '1px solid ' + C.border }}>
+        <div style={sectionTitle}>给同行留一句</div>
+        <div style={{ marginTop: 6, color: C.muted, fontSize: 12, lineHeight: 1.6 }}>你的经验、鼓励或下一步，也许能帮另一个人守住今天。</div>
+        <button style={{ width: '100%', marginTop: 13, padding: '14px 15px', border: '1px solid ' + C.border, borderRadius: 14, background: C.surf, color: C.goldD, textAlign: 'left', fontSize: 13, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' }} onClick={() => setWriteOpen(value => !value)}>写下一句话 <span style={{ float: 'right', fontSize: 18 }}>›</span></button>
+        {writeOpen && <div style={{ marginTop: 10, padding: 13, border: '1px solid ' + C.border, borderRadius: 14, background: C.surf }}>
+          <div style={{ color: C.ink, fontSize: 12, fontWeight: 900 }}>写给 {target?.name || '同行者'}</div>
+          <textarea value={noteDraft} maxLength={50} onChange={event => setNoteDraft(event.target.value)} placeholder="写下你的经验、鼓励或下一步，50 字以内" style={{ width: '100%', minHeight: 70, marginTop: 9, boxSizing: 'border-box', border: '1px solid ' + C.border, borderRadius: 10, padding: 10, resize: 'none', outline: 'none', color: C.ink, background: '#FFFDF8', fontSize: 12, fontFamily: 'Noto Sans SC,sans-serif' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}><span style={{ color: C.muted, fontSize: 10 }}>{noteDraft.length}/50</span><button style={{ border: 'none', borderRadius: 999, background: C.ink, color: '#F4D778', padding: '8px 14px', fontSize: 12, fontWeight: 900, fontFamily: 'Noto Sans SC,sans-serif' }} onClick={submitNote}>落笺发送</button></div>
+        </div>}
+      </section>
     </div>
   )
 }
+
+
+
 
 export default function CompanionsPage() {
   const { session, profile } = useAuth()
