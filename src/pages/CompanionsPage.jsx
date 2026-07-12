@@ -91,10 +91,10 @@ export default function CompanionsPage() {
 
       <section style={{ marginTop:24 }}>
         <div style={{ fontFamily:'Noto Serif SC,serif', fontSize:19, fontWeight:900 }}>今日共勉</div>
-        {notes.length ? <div style={{ display:'flex', gap:10, overflowX:'auto', padding:'12px 1px 4px' }}>
+        {notes.length ? <div style={{ marginTop:12, padding: '4px 15px', border: '1px solid ' + C.border, borderRadius:15, background:C.surface, boxShadow:'0 4px 14px rgba(40,25,9,.05)' }}>
           {notes.map(note => {
             const repairing = note.kind === 'repair' || /修诺|补做|修复/.test(note.body || '')
-            return <article key={note.id} style={{ minWidth:245, padding:16, borderRadius:15, border:'1px solid ' + C.border, background:C.surface, boxShadow:'0 4px 14px rgba(40,25,9,.05)' }}>
+            return <article key={note.id} style={{ padding:'13px 0', borderBottom:'1px solid ' + C.border }}>
               <div style={{ display:'flex', justifyContent:'space-between', color:repairing ? C.repair : C.green, fontSize:11, fontWeight:900 }}><span>● {repairing ? '修复中' : '已完成'}</span><span style={{ color:C.muted }}>{note.author?.nickname || '同行者'}</span></div>
               <div style={{ marginTop:11, fontFamily:'Noto Serif SC,serif', fontSize:15, lineHeight:1.7 }}>“{note.body}”</div>
             </article>
