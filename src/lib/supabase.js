@@ -2468,6 +2468,18 @@ export async function getMyWitness(userId, pledgeId) {
   return data  // null = 未见证
 }
 
+// 个人中心“押注记录”使用：只读取当前用户的见证押注。
+export async function getMyWitnessBets(userId, limit = 30) {
+  const { data, error } = await supabase
+    .from('witnesses')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) throw new Error(error.message || '获取见证押注记录失败')
+  return data || []
+}
+
 
 
 
