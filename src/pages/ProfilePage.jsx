@@ -3,11 +3,78 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
 import { getCoinLedger, getDonations, getMeritTitle, getMyPledges,
+         getMyWitnessBets, getMyBlindBets, getMyIndexBets,
          updateProfile, signOut } from '../lib/supabase'
 import { format, parseISO, differenceInDays } from 'date-fns'
 
 
 const DEFAULT_REMINDER = { enabled: true, time: '20:30', style: 'gentle' }
+
+const INDEX_BET_LABELS = {
+  HEALTH: '健康运动',
+  STUDY: '学习成长',
+  HABIT: '生活习惯',
+  FINANCE: '财务目标',
+  CREATIVE: '创作输出',
+}
+
+function parseBlindSplits(value) {
+  if (Array.isArray(value)) return value
+  if (!value) return []
+  try { return JSON.parse(value) } catch { return [] }
+}
+
+function buildBetRecords(witnessRows, blindRows, indexRows) {
+  const safeBlindRows = blindRows || []
+  const isBlindWitness = (witness) => safeBlindRows.some((blind) => {
+    const timeGap = Math.abs(new Date(blind.created_at).getTime() - new Date(witness.created_at).getTime())
+    return timeGap < 90000 && parseBlindSplits(blind.split_to).some((split) =>
+      (split.pledge_id === witness.pledge_id || split.pledgeId === witness.pledge_id) &&
+      Number(split.amount) === Number(witness.stake_coins)
+    )
+  })
+
+  const witnessRecords = (witnessRows || [])
+    .filter((witness) => !isBlindWitness(witness))
+    .map((witness) => ({
+      id: `witness-${witness.id}`,
+      category: 'witness',
+      emoji: witness.type === 'doubt' ? '⚖️' : '👁️',
+      title: witness.type === 'doubt' ? '质疑见证押注' : '支持见证押注',
+      detail: `押注 ${Number(witness.stake_coins || 0)} 金币`,
+      amount: Number(witness.stake_coins || 0),
+      createdAt: witness.created_at,
+      status: '已押注',
+    }))
+
+  const blindRecords = safeBlindRows.map((blind) => ({
+    id: `blind-${blind.id}`,
+    category: 'blind',
+    emoji: '🎁',
+    title: '盲盒结缘',
+    detail: `${parseBlindSplits(blind.split_to).length || '多'} 份结缘押注`,
+    amount: Number(blind.total_amount || 0),
+    createdAt: blind.created_at,
+    status: '已押注',
+  }))
+
+  const indexRecords = (indexRows || []).map((bet) => {
+    const settled = bet.status === 'settled' || bet.settled_at || bet.payout != null
+    return {
+      id: `index-${bet.id}`,
+      category: 'index',
+      emoji: '📈',
+      title: `${INDEX_BET_LABELS[bet.index_code] || bet.index_code || '自律'}指数`,
+      detail: `${bet.direction === 'up' ? '看涨' : bet.direction === 'down' ? '看跌' : bet.direction || '持仓'} · 赔率 ${bet.odds_at_bet || '-'}`,
+      amount: Number(bet.amount || 0),
+      createdAt: bet.created_at,
+      status: settled ? '已结算' : '持仓中',
+    }
+  })
+
+  return [...witnessRecords, ...blindRecords, ...indexRecords]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+}
 function reminderStoreKey(userId) { return 'ynq_reminders_' + (userId || 'guest') }
 function readReminderStore(userId) {
   if (typeof window === 'undefined') return { global: DEFAULT_REMINDER, pledges: {} }
@@ -220,6 +287,8 @@ export default function ProfilePage() {
   const [pledges, setPledges]     = useState([])
   const [ledger, setLedger]       = useState([])
   const [donations, setDonations] = useState([])
+  const [betRecords, setBetRecords] = useState([])
+  const [betFilter, setBetFilter] = useState('all')
   const [loading, setLoading]     = useState(true)
   const [editOpen, setEditOpen]   = useState(false)
   const [confirmOut, setConfirmOut] = useState(false)
@@ -240,6 +309,17 @@ export default function ProfilePage() {
     Promise.all([getMyPledges(uid), getCoinLedger(uid, 50), getDonations(uid)])
       .then(([p, l, d]) => { setPledges(p || []); setLedger(l || []); setDonations(d || []) })
       .finally(() => setLoading(false))
+
+    Promise.allSettled([
+      getMyWitnessBets(uid, 50),
+      getMyBlindBets(uid, 50),
+      getMyIndexBets(uid, 50),
+    ]).then((results) => {
+      const [witnesses, blindBets, indexBets] = results.map((result) =>
+        result.status === 'fulfilled' ? result.value : []
+      )
+      setBetRecords(buildBetRecords(witnesses, blindBets, indexBets))
+    })
   }, [session])
 
   const title       = profile ? getMeritTitle(profile.total_merit) : { emoji:'🌱', title:'初心者', next:500 }
@@ -250,6 +330,9 @@ export default function ProfilePage() {
   const cooldowns      = pledges.filter(p => p.status === 'cooldown')
   const historyPledges = pledges.filter(p => ['done','fail','abandoned'].includes(p.status))
   const totalDays      = pledges.reduce((s, p) => s + (p.checkin_count || 0), 0)
+  const visibleBetRecords = betFilter === 'all'
+    ? betRecords
+    : betRecords.filter((item) => item.category === betFilter)
 
   const nickDisplay  = profile?.nickname    || '立誓者'
   const emojiDisplay = profile?.avatar_emoji || '🌱'
@@ -345,7 +428,7 @@ export default function ProfilePage() {
           <div style={S.listGroup}>
             <MenuRow icon="📜" label="我的誓言" value={activePledges.length + ' 个进行中'} onClick={() => setTab('pledges')} />
             <MenuRow icon="🪙" label="我的金币" value={(profile?.merit_coins ?? 0) + ' 可用'} onClick={() => setTab('coins')} />
-            <MenuRow icon="📒" label="押注记录" value="金币流水中查看" onClick={() => setTab('coins')} />
+            <MenuRow icon="📒" label="押注记录" value="见证 · 盲盒 · 指数" onClick={() => setTab('bets')} />
             <MenuRow icon="✅" label="结算记录" value="完成与失败记录" onClick={() => setTab('pledges')} last />
           </div>
 
@@ -362,7 +445,7 @@ export default function ProfilePage() {
         <div style={{ padding:'0 16px' }}>
           <div style={S.detailHead}>
             <button style={S.detailBack} onClick={() => setTab('home')}>‹ 返回</button>
-            <div style={S.detailTitle}>{({ pledges:'我的誓言', reminders:'提醒设置', coins:'我的金币', donations:'公益记录', certs:'我的证书' })[tab]}</div>
+            <div style={S.detailTitle}>{({ pledges:'我的誓言', reminders:'提醒设置', coins:'我的金币', bets:'押注记录', donations:'公益记录', certs:'我的证书' })[tab]}</div>
           </div>
 
           {tab === 'pledges' && (
@@ -403,6 +486,50 @@ export default function ProfilePage() {
                   <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, background: item.amount > 0 ? '#E8F5EC' : '#FCEBEB', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>{item.amount > 0 ? '🪙' : '💸'}</div>
                   <div style={{ flex:1, minWidth:0 }}><div style={{ fontSize:13, fontWeight:500 }}>{TYPE_LABELS[item.type] ?? item.type}</div>{item.note && <div style={{ fontSize:11, color:'#9A8A70', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.note}</div>}<div style={{ fontSize:10, color:'#C0B090', marginTop:2 }}>{format(parseISO(item.created_at), 'M月d日 HH:mm')}</div></div>
                   <div style={{ textAlign:'right', flexShrink:0 }}><div style={{ fontSize:14, fontWeight:700, color: item.amount > 0 ? '#3B7A4A' : '#C84040' }}>{item.amount > 0 ? '+' : ''}{item.amount}</div><div style={{ fontSize:10, color:'#9A8A70' }}>余额 {item.balance_after}</div></div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tab === 'bets' && (
+            <div style={{ paddingTop:4 }}>
+              <div style={{ fontSize:11, color:'#9A8A70', lineHeight:1.55, margin:'0 2px 12px' }}>
+                只记录见证押注、盲盒结缘与自律指数。誓言托管金仍在“我的金币”流水中。
+              </div>
+              <div style={{ display:'flex', gap:7, marginBottom:12, overflowX:'auto', paddingBottom:2 }}>
+                {[
+                  ['all', '全部'],
+                  ['witness', '见证'],
+                  ['blind', '盲盒'],
+                  ['index', '指数'],
+                ].map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setBetFilter(key)}
+                    style={{
+                      flexShrink:0, border:'1px solid ' + (betFilter === key ? '#1C1208' : '#E0D5C0'),
+                      background: betFilter === key ? '#1C1208' : '#FFFDF8',
+                      color: betFilter === key ? '#FFF8E8' : '#6B5A3E',
+                      borderRadius:999, padding:'6px 13px', fontSize:12, fontWeight:600,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {visibleBetRecords.length === 0 && <div style={S.empty}>暂无押注记录</div>}
+              {visibleBetRecords.map((item) => (
+                <div key={item.id} style={S.ledgerRow}>
+                  <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, background:'#F8EFD9', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>{item.emoji}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:500 }}>{item.title}</div>
+                    <div style={{ fontSize:11, color:'#9A8A70', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.detail}</div>
+                    <div style={{ fontSize:10, color:'#C0B090', marginTop:2 }}>{item.createdAt ? format(parseISO(item.createdAt), 'M月d日 HH:mm') : '时间未知'}</div>
+                  </div>
+                  <div style={{ textAlign:'right', flexShrink:0 }}>
+                    <div style={{ fontSize:11, color:item.status === '已结算' ? '#3B7A4A' : '#9A8A70', marginBottom:3 }}>{item.status}</div>
+                    <div style={{ fontSize:14, fontWeight:700, color:'#C84040' }}>-{item.amount}</div>
+                  </div>
                 </div>
               ))}
             </div>
