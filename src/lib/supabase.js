@@ -2558,6 +2558,195 @@ export async function getMyWitnessBets(userId, limit = 30) {
 
 
 // ── 指数基金（Index Funds）──
+const INDEX_CODES = ['HEALTH', 'STUDY', 'HABIT', 'FINANCE', 'CREATIVE']
+const INDEX_CATEGORY_BY_CODE = {
+  HEALTH: 'health',
+  STUDY: 'study',
+  HABIT: 'habit',
+  FINANCE: 'finance',
+  CREATIVE: 'creative',
+}
+const INDEX_DEFAULT_ODDS = 1.8
+const INDEX_ODDS_CAP = 10
+const INDEX_SETTLEMENT_EPSILON = 0.0001
+
+function dateKey(date = new Date()) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 10)
+}
+
+function startOfDateIso(date = new Date()) {
+  const start = new Date(date)
+  start.setHours(0, 0, 0, 0)
+  return start.toISOString()
+}
+
+function clampIndexOdds(value) {
+  const odds = Number(value)
+  if (!Number.isFinite(odds) || odds <= 0) return INDEX_DEFAULT_ODDS
+  return Number(Math.min(INDEX_ODDS_CAP, Math.max(1, odds)).toFixed(2))
+}
+
+function calculateIndexOdds(bullPool, bearPool) {
+  const bull = Math.max(0, Number(bullPool || 0))
+  const bear = Math.max(0, Number(bearPool || 0))
+  const total = bull + bear
+  if (total <= 0) return { bullOdds: INDEX_DEFAULT_ODDS, bearOdds: INDEX_DEFAULT_ODDS }
+  return {
+    bullOdds: bull > 0 ? clampIndexOdds(total / bull) : INDEX_DEFAULT_ODDS,
+    bearOdds: bear > 0 ? clampIndexOdds(total / bear) : INDEX_DEFAULT_ODDS,
+  }
+}
+
+function indexWinnerDirection(prevRatio, liveRatio) {
+  const diff = Number(liveRatio || 0) - Number(prevRatio || 0)
+  if (diff > INDEX_SETTLEMENT_EPSILON) return 'believe'
+  if (diff < -INDEX_SETTLEMENT_EPSILON) return 'doubt'
+  return null
+}
+
+async function calculateIndexLiveRatio(indexCode) {
+  const categoryKey = INDEX_CATEGORY_BY_CODE[indexCode]
+  if (!categoryKey) return { ratio: 0, totalPledges: 0 }
+  const today = dateKey()
+  const { data, error } = await supabase
+    .from('pledges')
+    .select('id,start_date,end_date,checkins(checkin_date)')
+    .eq('is_public', true)
+    .eq('category_key', categoryKey)
+    .or('status.eq.active,status.eq.ongoing,status.is.null')
+    .limit(500)
+  if (error) throw new Error(error.message || '计算指数失败')
+
+  const eligible = (data || []).filter((pledge) =>
+    (!pledge.start_date || pledge.start_date <= today) &&
+    (!pledge.end_date || pledge.end_date >= today)
+  )
+  if (eligible.length === 0) return { ratio: 0, totalPledges: 0 }
+  const completed = eligible.filter((pledge) =>
+    (pledge.checkins || []).some((checkin) => checkin.checkin_date === today)
+  ).length
+  return {
+    ratio: Number((completed / eligible.length).toFixed(4)),
+    totalPledges: eligible.length,
+  }
+}
+
+async function getActiveIndexPools(indexCode) {
+  const { data, error } = await supabase
+    .from('index_bets')
+    .select('direction,amount')
+    .eq('index_code', indexCode)
+    .eq('status', 'active')
+    .limit(1000)
+  if (error) throw new Error(error.message || '读取指数池失败')
+  return (data || []).reduce((pools, bet) => {
+    const amount = Number(bet.amount || 0)
+    if (bet.direction === 'believe') pools.bullPool += amount
+    if (bet.direction === 'doubt') pools.bearPool += amount
+    return pools
+  }, { bullPool: 0, bearPool: 0 })
+}
+
+async function settleIndexFund(fund, todayStartIso) {
+  const { data: bets, error } = await supabase
+    .from('index_bets')
+    .select('*')
+    .eq('index_code', fund.code)
+    .eq('status', 'active')
+    .lt('created_at', todayStartIso)
+    .limit(1000)
+  if (error) throw new Error(error.message || '读取待结算指数持仓失败')
+
+  const dueBets = bets || []
+  if (dueBets.length === 0) return { code: fund.code, settled: 0 }
+
+  const prevRatio = Number(fund.live_ratio || 0)
+  const metric = await calculateIndexLiveRatio(fund.code)
+  const liveRatio = metric.totalPledges > 0 ? metric.ratio : prevRatio
+  const winner = indexWinnerDirection(prevRatio, liveRatio)
+  const totalPool = dueBets.reduce((sum, bet) => sum + Number(bet.amount || 0), 0)
+  const winnerPool = winner
+    ? dueBets.filter((bet) => bet.direction === winner).reduce((sum, bet) => sum + Number(bet.amount || 0), 0)
+    : totalPool
+
+  let settled = 0
+  for (const bet of dueBets) {
+    const amount = Number(bet.amount || 0)
+    const won = winner && bet.direction === winner
+    const tied = !winner
+    const payout = tied
+      ? amount
+      : won && winnerPool > 0
+        ? Math.floor(totalPool * amount / winnerPool)
+        : 0
+    const nextStatus = tied ? 'settled' : won ? 'won' : 'lost'
+
+    const { data: updated, error: updateError } = await supabase
+      .from('index_bets')
+      .update({
+        status: nextStatus,
+        payout,
+        settled_at: new Date().toISOString(),
+      })
+      .eq('id', bet.id)
+      .eq('status', 'active')
+      .select('id')
+    if (updateError) throw new Error(updateError.message || '更新指数持仓失败')
+    if (!updated?.length) continue
+
+    if (payout > 0) {
+      try {
+        await addCoins(
+          bet.user_id,
+          payout,
+          'stake_refund',
+          bet.id,
+          `自律指数「${fund.name || fund.code}」${tied ? '持平返还' : '结算收益'} · 来源：指数交易池；去向：用户余额`
+        )
+      } catch (coinError) {
+        await supabase
+          .from('index_bets')
+          .update({ status: 'active', payout: 0, settled_at: null })
+          .eq('id', bet.id)
+        throw coinError
+      }
+    }
+    settled += 1
+  }
+
+  const pools = await getActiveIndexPools(fund.code)
+  const odds = calculateIndexOdds(pools.bullPool, pools.bearPool)
+  await supabase
+    .from('index_funds')
+    .update({
+      prev_ratio: prevRatio,
+      live_ratio: liveRatio,
+      total_pledges: metric.totalPledges || fund.total_pledges || 0,
+      total_bull_pool: pools.bullPool,
+      total_bear_pool: pools.bearPool,
+      bull_odds: odds.bullOdds,
+      bear_odds: odds.bearOdds,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('code', fund.code)
+
+  return { code: fund.code, settled, winner, prevRatio, liveRatio }
+}
+
+export async function settleDueIndexBets() {
+  const { data: funds, error } = await supabase
+    .from('index_funds')
+    .select('*')
+    .in('code', INDEX_CODES)
+  if (error) throw new Error(error.message || '读取指数失败')
+  const todayStartIso = startOfDateIso()
+  const results = []
+  for (const fund of funds || []) {
+    results.push(await settleIndexFund(fund, todayStartIso))
+  }
+  return results
+}
 
 
 
@@ -2592,13 +2781,12 @@ export async function getMyWitnessBets(userId, limit = 30) {
 
 // 获取五类誓言指数
 export async function getIndexFunds() {
-  const order = ['HEALTH', 'STUDY', 'HABIT', 'FINANCE', 'CREATIVE']
   const { data, error } = await supabase
     .from('index_funds')
     .select('*')
-    .in('code', order)
+    .in('code', INDEX_CODES)
   if (error) throw new Error(error.message || '获取指数失败')
-  return (data || []).sort((a, b) => order.indexOf(a.code) - order.indexOf(b.code))
+  return (data || []).sort((a, b) => INDEX_CODES.indexOf(a.code) - INDEX_CODES.indexOf(b.code))
 }
 
 
@@ -2780,7 +2968,10 @@ export async function placeIndexBet(userId, indexCode, direction, amount) {
 
   // 2. 获取当前赔率
   const fund = await getIndexFund(indexCode)
-  const odds = direction === 'believe' ? fund.bull_odds : fund.bear_odds
+  const nextBullPool = Number(fund.total_bull_pool || 0) + (direction === 'believe' ? amount : 0)
+  const nextBearPool = Number(fund.total_bear_pool || 0) + (direction === 'doubt' ? amount : 0)
+  const nextOdds = calculateIndexOdds(nextBullPool, nextBearPool)
+  const odds = direction === 'believe' ? nextOdds.bullOdds : nextOdds.bearOdds
   // 3. 扣金币并写统一流水
   await addCoins(userId, -amount, 'stake', indexCode, `指数下注：${indexCode} ${direction === 'believe' ? '看多' : '看空'} · 来源：用户余额；去向：指数交易池`)
 
@@ -2863,6 +3054,8 @@ export async function placeIndexBet(userId, indexCode, direction, amount) {
     .from('index_funds')
     .update({
       [poolField]: (fund[poolField] || 0) + amount,
+      bull_odds: nextOdds.bullOdds,
+      bear_odds: nextOdds.bearOdds,
       updated_at: new Date().toISOString(),
     })
     .eq('code', indexCode)
