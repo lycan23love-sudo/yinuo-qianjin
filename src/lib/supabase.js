@@ -799,9 +799,31 @@ export async function getCompletedPledges({ limit = 20 } = {}) {
 
 
 // 完成/失败誓言
+const WITNESS_ODDS_CAP = 10
+const WITNESS_BETTING_CUTOFF_RATIO = 1 / 3
+const DAY_MS = 24 * 60 * 60 * 1000
+
+function startOfPledgeDay(value) {
+  if (!value) return null
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function isWitnessBettingClosed(pledge, now = new Date()) {
+  if (!pledge || pledge.status !== 'active') return true
+  const start = startOfPledgeDay(pledge.start_date || pledge.created_at)
+  if (!start) return false
+  const totalDays = Number(pledge.total_days || 0)
+  const durationMs = totalDays > 0 ? totalDays * DAY_MS : 0
+  if (durationMs <= 0) return false
+  const elapsedMs = now.getTime() - start.getTime()
+  return elapsedMs > durationMs * WITNESS_BETTING_CUTOFF_RATIO
+}
+
 // 结算见证者对赌池：成功=支持方赢，失败=质疑方赢
 async function settleWitnessPool(pledge, success) {
-  const witnesses = (pledge.witnesses || []).filter(w => w.status === 'active')
+  const witnesses = (pledge.witnesses || [])
+    .filter(w => w.status === 'active' && Number(w.stake_coins || 0) > 0)
   if (witnesses.length === 0) return { witnessTotal: 0, charityCoins: 0 }
 
 
@@ -814,8 +836,8 @@ async function settleWitnessPool(pledge, success) {
   const winnerType = success ? 'trust' : 'doubt'
   const winners = witnesses.filter(w => w.type === winnerType)
   const losers = witnesses.filter(w => w.type !== winnerType)
-  const winnerPool = winners.reduce((sum, w) => sum + (w.stake_coins || 0), 0)
-  const loserPool = losers.reduce((sum, w) => sum + (w.stake_coins || 0), 0)
+  const winnerPool = winners.reduce((sum, w) => sum + Number(w.stake_coins || 0), 0)
+  const loserPool = losers.reduce((sum, w) => sum + Number(w.stake_coins || 0), 0)
   const witnessTotal = winnerPool + loserPool
 
 
@@ -828,10 +850,11 @@ async function settleWitnessPool(pledge, success) {
   let paid = 0
   if (winners.length > 0) {
     for (const w of winners) {
+      const stake = Number(w.stake_coins || 0)
       const loserShare = loserPool > 0 && winnerPool > 0
-        ? Math.floor(loserPool * (w.stake_coins || 0) / winnerPool)
+        ? Math.floor(loserPool * stake / winnerPool)
         : 0
-      const payout = (w.stake_coins || 0) + loserShare
+      const payout = Math.min(stake * WITNESS_ODDS_CAP, stake + loserShare)
       if (payout > 0) {
         await addCoins(w.user_id, payout, 'witness_earn', pledge.id,
           `见证「${pledge.title}」结算收益`)
@@ -1997,11 +2020,34 @@ export function getMeritTitle(totalMerit) {
 
 // 押注见证某个誓言（支持 trust / 质疑 doubt）
 export async function addWitness(userId, pledgeId, type, stakeCoins = 100) {
+  const stake = Number(stakeCoins || 0)
+  if (!['trust', 'doubt'].includes(type)) throw new Error('见证类型无效')
+  if (!Number.isFinite(stake) || stake <= 0) throw new Error('押注金额无效')
+
+  const { data: pledge, error: pledgeError } = await supabase
+    .from('pledges')
+    .select('id,user_id,title,status,start_date,total_days')
+    .eq('id', pledgeId)
+    .single()
+  if (pledgeError) throw new Error(pledgeError.message || '誓言不存在')
+  if (!pledge || pledge.status !== 'active') throw new Error('这个誓言已停止见证押注')
+  if (pledge.user_id === userId) throw new Error('不能见证自己的誓言')
+  if (isWitnessBettingClosed(pledge)) throw new Error('见证押注已截止：誓言进度超过 1/3 后不再下注')
+
+  const { data: existingWitness, error: existingError } = await supabase
+    .from('witnesses')
+    .select('id')
+    .eq('pledge_id', pledgeId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (existingError) throw new Error(existingError.message || '无法确认见证状态')
+  if (existingWitness) throw new Error('你已经押注过了')
+
   // 1. 扣金币
   const profile = await getProfile(userId)
-  if (profile.merit_coins < stakeCoins) throw new Error('金币不足，无法押注')
+  if (profile.merit_coins < stake) throw new Error('金币不足，无法押注')
 
-  await addCoins(userId, -stakeCoins, 'stake', pledgeId, `见证押注：${type === 'trust' ? '支持' : '质疑'} · 来源：用户余额；去向：见证押注池`)
+  await addCoins(userId, -stake, 'stake', pledgeId, `见证押注：${type === 'trust' ? '支持' : '质疑'} · 来源：用户余额；去向：见证押注池`)
 
 
 
@@ -2037,7 +2083,7 @@ export async function addWitness(userId, pledgeId, type, stakeCoins = 100) {
   // 3. 写 witnesses 记录
   const { data, error } = await supabase
     .from('witnesses')
-    .insert({ pledge_id: pledgeId, user_id: userId, type, stake_coins: stakeCoins })
+    .insert({ pledge_id: pledgeId, user_id: userId, type, stake_coins: stake })
     .select()
     .single()
   if (error) throw new Error(error.message || '押注失败')
@@ -2077,12 +2123,12 @@ export async function addWitness(userId, pledgeId, type, stakeCoins = 100) {
   const poolField = type === 'trust' ? 'trust_pool' : 'doubt_pool'
   await supabase.rpc('increment_field', {
     table_name: 'pledges', field_name: poolField,
-    row_id: pledgeId, amount: stakeCoins,
+    row_id: pledgeId, amount: stake,
   }).catch(() => {
     // rpc 不存在时降级：直接读写
     supabase.from('pledges').select(poolField).eq('id', pledgeId).single()
       .then(({ data: p }) => {
-        supabase.from('pledges').update({ [poolField]: (p?.[poolField] || 0) + stakeCoins }).eq('id', pledgeId)
+        supabase.from('pledges').update({ [poolField]: (p?.[poolField] || 0) + stake }).eq('id', pledgeId)
       })
   })
 
