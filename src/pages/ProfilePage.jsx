@@ -17,6 +17,8 @@ const INDEX_BET_LABELS = {
   FINANCE: '财务目标',
   CREATIVE: '创作输出',
 }
+const INDEX_DIRECTION_LABELS = { believe: '看多', doubt: '看空', up: '看涨', down: '看跌' }
+const INDEX_STATUS_LABELS = { active: '持仓中', won: '赢了', lost: '输了', settled: '持平返还' }
 
 function parseBlindSplits(value) {
   if (Array.isArray(value)) return value
@@ -59,16 +61,17 @@ function buildBetRecords(witnessRows, blindRows, indexRows) {
   }))
 
   const indexRecords = (indexRows || []).map((bet) => {
-    const settled = bet.status === 'settled' || bet.settled_at || bet.payout != null
+    const settled = (bet.status && bet.status !== 'active') || bet.settled_at
+    const payout = Number(bet.payout || 0)
     return {
       id: `index-${bet.id}`,
       category: 'index',
       emoji: '📈',
       title: `${INDEX_BET_LABELS[bet.index_code] || bet.index_code || '自律'}指数`,
-      detail: `${bet.direction === 'up' ? '看涨' : bet.direction === 'down' ? '看跌' : bet.direction || '持仓'} · 赔率 ${bet.odds_at_bet || '-'}`,
+      detail: `${INDEX_DIRECTION_LABELS[bet.direction] || bet.direction || '持仓'} · 赔率 ${bet.odds_at_bet || '-'}${settled && payout > 0 ? ` · 返还 ${payout}` : ''}`,
       amount: Number(bet.amount || 0),
       createdAt: bet.created_at,
-      status: settled ? '已结算' : '持仓中',
+      status: INDEX_STATUS_LABELS[bet.status] || (settled ? '已结算' : '持仓中'),
     }
   })
 

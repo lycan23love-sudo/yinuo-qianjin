@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
-import { getIndexFunds, placeIndexBet, getMyIndexBets } from '../lib/supabase'
+import { getIndexFunds, placeIndexBet, getMyIndexBets, settleDueIndexBets } from '../lib/supabase'
 import { TRADED_INDEX_CATEGORIES } from '../lib/pledgeCategories'
 
 const DIR_LABEL = { believe:'看多 📈', doubt:'看空 📉' }
@@ -45,13 +45,18 @@ export default function IndexHallPage({ embedded = false }) {
   async function loadData() {
     setLoading(true)
     try {
+      if (session?.user?.id) {
+        await settleDueIndexBets()
+      }
       const f = await getIndexFunds()
       setFunds(f)
       if (session?.user?.id) {
         const b = await getMyIndexBets(session.user.id)
         setMyBets(b)
       }
-    } catch {} finally { setLoading(false) }
+    } catch (err) {
+      showToast(err.message || '指数数据暂不可用', 'error')
+    } finally { setLoading(false) }
   }
 
   function openBet(fund) {
