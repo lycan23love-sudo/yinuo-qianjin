@@ -785,8 +785,8 @@ function CalendarView({ checkins, pledge }) {
                                                                   }
                                                                 
                                                                 const S = {
-                                                                    topbar: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'0.5px solid #E0D5C0', background:'#FAF7F2', position:'sticky', top:0, zIndex:10 },
-                                                                  back: { background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#1A1208', padding:4, width:32 },
+                                                                    topbar: { display:'flex', alignItems:'center', justifyContent:'space-between', minHeight:56, padding:'calc(10px + env(safe-area-inset-top)) 16px 10px', borderBottom:'0.5px solid #E0D5C0', background:'#FAF7F2', position:'sticky', top:0, zIndex:10, boxSizing:'border-box' },
+                                                                  back: { display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, width:44, height:44, marginLeft:-6, background:'none', border:'none', borderRadius:22, fontSize:28, lineHeight:1, cursor:'pointer', color:'#1A1208', padding:0 },
                                                                   topbarTitle: { fontSize:14, fontWeight:600, fontFamily:'Noto Serif SC,serif', flex:1, textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', padding:'0 8px' },
                                                                   tabRow: { display:'flex', borderBottom:'0.5px solid #E0D5C0', background:'#FAF7F2', flexShrink:0 },
                                                                   tab: { flex:1, padding:'10px 0', fontSize:13, fontWeight:500, color:'#9A8A70', background:'none', border:'none', borderBottom:'2px solid transparent', cursor:'pointer', fontFamily:'Noto Sans SC,sans-serif' },
