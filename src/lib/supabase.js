@@ -177,6 +177,7 @@ export async function signUp({ email, password, nickname }) {
 
 
 
+
 export async function signIn({ email, password }) {
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
@@ -419,6 +420,7 @@ export async function createPledge(userId, pledge) {
   const startDate = new Date()
   const endDate = new Date(startDate)
   const days = { week: 7, month: 30, season: 90, year: 365 }
+
   endDate.setDate(endDate.getDate() + days[pledge.period] - 1)
 
   const basePayload = {
@@ -1691,6 +1693,7 @@ export async function donate(userId, { coins, orgName, message }) {
 
 export async function getDonations(userId) {
   const { data, error } = await supabase
+
     .from('donations')
     .select('*')
     .eq('user_id', userId)
