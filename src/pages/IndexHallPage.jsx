@@ -1,5 +1,5 @@
 // src/pages/IndexHallPage.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../App'
 import { getIndexFunds, placeIndexBet, getMyIndexBets, settleDueIndexBets } from '../lib/supabase'
@@ -8,6 +8,27 @@ import { TRADED_INDEX_CATEGORIES } from '../lib/pledgeCategories'
 const DIR_LABEL = { believe:'看多 📈', doubt:'看空 📉' }
 const STATUS_LABEL = { active:'进行中', won:'赢了', lost:'输了', settled:'已结算' }
 const STATUS_COLOR = { active:'#C8922A', won:'#3B7A4A', lost:'#C84040', settled:'#9A8A70' }
+const INDEX_CACHE_TTL = 5 * 60 * 1000
+
+function indexCacheKey(userId) {
+  return `yinuo:index-hall:${userId || 'guest'}`
+}
+
+function readIndexCache(userId) {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(indexCacheKey(userId)) || 'null')
+    if (!cached || Date.now() - cached.savedAt > INDEX_CACHE_TTL) return null
+    return cached
+  } catch {
+    return null
+  }
+}
+
+function writeIndexCache(userId, funds, myBets) {
+  try {
+    sessionStorage.setItem(indexCacheKey(userId), JSON.stringify({ funds, myBets, savedAt: Date.now() }))
+  } catch {}
+}
 
 function indexMeta(fund) {
   return TRADED_INDEX_CATEGORIES.find(c => c.code === fund?.code) || {
@@ -18,6 +39,35 @@ function indexMeta(fund) {
   }
 }
 
+function IndexFundsSkeleton() {
+  return (
+    <div aria-hidden="true">
+      {[0, 1, 2].map(item => (
+        <div key={item} style={{ ...S.fundCard, opacity: 0.72 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:14 }}>
+            <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+              <div style={{ width:30, height:30, borderRadius:15, background:'#2A2A34' }} />
+              <div>
+                <div style={{ width:72, height:12, borderRadius:6, background:'#30303A', marginBottom:6 }} />
+                <div style={{ width:104, height:9, borderRadius:5, background:'#252530' }} />
+              </div>
+            </div>
+            <div style={{ width:58, height:25, borderRadius:7, background:'#30303A' }} />
+          </div>
+          <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+            {[0, 1, 2, 3].map(metric => <div key={metric} style={{ flex:1, height:34, borderRadius:8, background:'#252530' }} />)}
+          </div>
+          <div style={{ height:6, borderRadius:3, background:'#292934', marginBottom:12 }} />
+          <div style={{ display:'flex', gap:8 }}>
+            <div style={{ flex:1, height:36, borderRadius:10, background:'#243328' }} />
+            <div style={{ flex:1, height:36, borderRadius:10, background:'#382427' }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function IndexHallPage({ embedded = false }) {
   const { session, profile } = useAuth()
   const nav = useNavigate()
@@ -26,6 +76,7 @@ export default function IndexHallPage({ embedded = false }) {
   const [myBets, setMyBets]     = useState([])
   const [loading, setLoading]   = useState(true)
   const [tab, setTab]           = useState('market')  // market / mybets
+  const settlingRef = useRef(false)
 
   // 下注面板状态
   const [betTarget, setBetTarget]     = useState(null)  // { code, name, emoji }
@@ -42,21 +93,54 @@ export default function IndexHallPage({ embedded = false }) {
 
   useEffect(() => { loadData() }, [])
 
-  async function loadData() {
-    setLoading(true)
+  async function loadSnapshot({ showLoading = true } = {}) {
+    const userId = session?.user?.id
+    if (showLoading) setLoading(true)
     try {
-      if (session?.user?.id) {
-        await settleDueIndexBets()
-      }
-      const f = await getIndexFunds()
+      const [f, b] = await Promise.all([
+        getIndexFunds(),
+        userId ? getMyIndexBets(userId) : Promise.resolve([]),
+      ])
       setFunds(f)
-      if (session?.user?.id) {
-        const b = await getMyIndexBets(session.user.id)
-        setMyBets(b)
-      }
+      setMyBets(b)
+      writeIndexCache(userId, f, b)
+      return { funds: f, myBets: b }
     } catch (err) {
       showToast(err.message || '指数数据暂不可用', 'error')
-    } finally { setLoading(false) }
+      return null
+    } finally {
+      if (showLoading) setLoading(false)
+    }
+  }
+
+  async function settleInBackground() {
+    if (!session?.user?.id || settlingRef.current) return
+    settlingRef.current = true
+    try {
+      const results = await settleDueIndexBets()
+      if (results.some(result => result.settled > 0)) {
+        await loadSnapshot({ showLoading: false })
+      }
+    } catch (error) {
+      // Settlement should never block the market from opening.
+      console.warn('Index settlement deferred:', error)
+    } finally {
+      settlingRef.current = false
+    }
+  }
+
+  async function loadData() {
+    const userId = session?.user?.id
+    const cached = readIndexCache(userId)
+    if (cached) {
+      setFunds(cached.funds || [])
+      setMyBets(cached.myBets || [])
+      setLoading(false)
+      await loadSnapshot({ showLoading: false })
+    } else {
+      await loadSnapshot()
+    }
+    void settleInBackground()
   }
 
   function openBet(fund) {
@@ -196,7 +280,7 @@ export default function IndexHallPage({ embedded = false }) {
               </div>
             </div>
 
-            {loading && <div style={{ textAlign:'center', color:'#666', padding:40 }}>加载中…</div>}
+            {loading && funds.length === 0 && <IndexFundsSkeleton />}
 
             {funds.map(f => {
               const meta = indexMeta(f)
@@ -286,6 +370,7 @@ export default function IndexHallPage({ embedded = false }) {
             <div style={{ fontSize:11, color:'#555', lineHeight:1.7, marginTop:8, padding:'0 4px' }}>
               * 成活率 = 过去24h该板块打卡成功率<br />
               * 赔率 = (多头池+空头池) / 你的方向池<br />
+
               * 每日 00:00 结算，猜对方向获得赔率倍数金币<br />
               * 金币不可提现，仅用于功德/称号/慈善
             </div>
@@ -295,7 +380,7 @@ export default function IndexHallPage({ embedded = false }) {
         {/* ── 我的持仓 ── */}
         {tab === 'mybets' && (
           <div>
-            {loading && <div style={{ textAlign:'center', color:'#666', padding:40 }}>加载中…</div>}
+            {loading && myBets.length === 0 && <IndexFundsSkeleton />}
 
             {!loading && myBets.length === 0 && (
               <div style={{ textAlign:'center', padding:'40px 20px' }}>
