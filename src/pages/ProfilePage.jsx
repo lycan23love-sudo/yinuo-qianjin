@@ -665,6 +665,7 @@ const S = {
   chev: { color:'#B8A88A', fontSize:28, lineHeight:1, flexShrink:0 },
   signOutRow: { width:'100%', minHeight:52, margin:'16px 0 0', border:'none', borderTop:'1px solid #E8E1D6', borderBottom:'1px solid #E8E1D6', background:'#fff', color:'#C84040', fontSize:15, fontWeight:800, fontFamily:'Noto Sans SC,sans-serif' },
   detailHead: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 0 2px' },
+
   detailBack: { border:'none', background:'transparent', color:'#7A6A50', fontSize:14, fontWeight:800, padding:'8px 0' },
   detailTitle: { fontFamily:'Noto Serif SC,serif', fontSize:20, fontWeight:900, color:'#1A1208' },
   empty:     { textAlign:'center', color:'#9A8A70', padding:32, fontSize:13 },
