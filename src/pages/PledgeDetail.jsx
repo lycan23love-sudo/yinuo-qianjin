@@ -291,11 +291,19 @@ function CalendarView({ checkins, pledge }) {
                                                               useEffect(() => { load() }, [id])
 
                                                           useEffect(() => {
-                                                            if (userId && id) setReminder(getReminderForPledge(userId, id))
-                                                          }, [userId, id])
+                                                            if (userId && id && pledge?.user_id === userId) {
+                                                              setReminder(getReminderForPledge(userId, id))
+                                                            } else {
+                                                              setReminder(DEFAULT_REMINDER)
+                                                            }
+                                                          }, [userId, id, pledge?.user_id])
                                                                 
                                                                   function updateReminder(patch) {
                                                             if (!userId) { showToast('请先登录', 'error'); return }
+                                                            if (!pledge || userId !== pledge.user_id) {
+                                                              showToast('只能修改自己的誓言提醒', 'error')
+                                                              return
+                                                            }
                                                             const next = saveReminderForPledge(userId, id, { ...reminder, ...patch })
                                                             setReminder(next)
                                                             syncBrowserReminder(next, pledge?.title)
@@ -391,10 +399,10 @@ function CalendarView({ checkins, pledge }) {
                                                                               <div style={{ width:32 }} />
                                                                       </div>
                                                                       <div style={S.tabRow}>
-                                                                        {['log','calendar','witness','settings'].map((t,i) => (
-                                                                            <button key={t} style={{ ...S.tab, ...(tab===t?S.tabOn:{}) }} onClick={() => setTab(t)}>
-                                                                              {['打卡日记','日历','见证者','提醒'][i]}
-                                                                            </button>
+                                                                        {(isOwner ? ['log','calendar','witness','settings'] : ['log','calendar','witness']).map((t,i) => (
+                                                                          <button key={t} style={{ ...S.tab, ...(tab===t?S.tabOn:{}) }} onClick={() => setTab(t)}>
+                                                                            {['打卡日记','日历','见证者','提醒'][i]}
+                                                                          </button>
                                                                           ))}
                                                                       </div>
                                                                       <div style={{ padding:'0 16px' }}>
@@ -547,7 +555,7 @@ function CalendarView({ checkins, pledge }) {
                                                                             </div>
                                                                               )}
                                                                         {tab === 'calendar' && <CalendarView checkins={checkins} pledge={pledge} />}
-                                                                        {tab === 'settings' && (
+                                                                        {isOwner && tab === 'settings' && (
                                                                           <div style={S.settingsCard}>
                                                                             <div style={S.settingsHead}>
                                                                               <div>
